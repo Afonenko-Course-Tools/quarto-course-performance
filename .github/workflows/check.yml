@@ -1,0 +1,29 @@
+name: Проверка Performance
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: quarto-dev/quarto-actions/setup@8a96df13519ee81fd526f2dfca5962811136661b
+        with:
+          version: 1.11.5
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed
+        with:
+          deno-version: v2.7.14
+      - name: Установка Hyperfine 2.0.0
+        run: |
+          curl -fL https://github.com/sharkdp/hyperfine/releases/download/v2.0.0/hyperfine_2.0.0_amd64.deb -o /tmp/hyperfine.deb
+          echo "880ba127c51c7b9debde2d830fe27dedbfc92cf2885edd44f7dfbe2152f72afe  /tmp/hyperfine.deb" | sha256sum --check
+          sudo dpkg -i /tmp/hyperfine.deb
+      - run: deno task check
+      - name: Native fixtures выбранных инструментов
+        run: deno task test

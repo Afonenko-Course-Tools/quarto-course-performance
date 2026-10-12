@@ -1,0 +1,252 @@
+{
+  "sources": [
+    {
+      "repository": "BSU-RFCT-Afonenko-Courses/Java",
+      "refPolicy": "explicit-remote-ref",
+      "ref": "refs/heads/codex/labs-1-3-prairielearn"
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-course",
+      "refPolicy": "remote-default-head"
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-project-publish",
+      "refPolicy": "remote-default-head"
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-reference-catalog",
+      "refPolicy": "remote-default-head"
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-project-download",
+      "refPolicy": "remote-default-head"
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-course-prairielearn",
+      "refPolicy": "remote-default-head"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "java-full-student",
+      "project": "Java",
+      "cwd": ".",
+      "executable": "quarto",
+      "args": [
+        "render",
+        "--profile",
+        "student"
+      ],
+      "courseProfile": "student",
+      "cachePolicy": "clean-output",
+      "mode": "off",
+      "scope": {
+        "modules": [],
+        "extensions": [
+          "course-core",
+          "course-presentation",
+          "course-navigation",
+          "course-site",
+          "reference-catalog",
+          "project-download",
+          "course-prairielearn"
+        ],
+        "strict": true
+      },
+      "resources": {
+        "wall": true,
+        "cpu": true,
+        "peakRss": true
+      }
+    },
+    {
+      "id": "java-full-full",
+      "project": "Java",
+      "cwd": ".",
+      "executable": "quarto",
+      "args": [
+        "render",
+        "--profile",
+        "full"
+      ],
+      "courseProfile": "full",
+      "cachePolicy": "clean-output",
+      "mode": "off",
+      "scope": {
+        "modules": [],
+        "extensions": [
+          "course-core",
+          "course-presentation",
+          "course-navigation",
+          "course-site",
+          "reference-catalog",
+          "project-download",
+          "course-prairielearn"
+        ],
+        "strict": true
+      },
+      "resources": {
+        "wall": true,
+        "cpu": true,
+        "peakRss": true
+      }
+    },
+    {
+      "id": "java-repeat-student",
+      "project": "Java",
+      "cwd": ".",
+      "executable": "quarto",
+      "args": [
+        "render",
+        "--profile",
+        "student"
+      ],
+      "courseProfile": "student",
+      "cachePolicy": "repeat-render",
+      "mode": "off",
+      "scope": {
+        "modules": [],
+        "extensions": [
+          "course-core",
+          "course-presentation",
+          "course-navigation",
+          "course-site",
+          "reference-catalog",
+          "project-download",
+          "course-prairielearn"
+        ],
+        "strict": true
+      },
+      "resources": {
+        "wall": true,
+        "cpu": true,
+        "peakRss": true
+      }
+    },
+    {
+      "id": "java-ast-document",
+      "project": "Java",
+      "cwd": "tasks",
+      "executable": "quarto",
+      "args": [
+        "render",
+        "bank/arrays.qmd",
+        "--profile",
+        "student"
+      ],
+      "courseProfile": "student",
+      "cachePolicy": "clean-output",
+      "mode": "off",
+      "scope": {
+        "modules": [
+          "tasks/_extensions/Afonenko-Course-Tools/course-core/pedagogy/collect.lua"
+        ],
+        "extensions": [
+          "course-core",
+          "course-presentation",
+          "course-navigation",
+          "course-site",
+          "reference-catalog",
+          "project-download",
+          "course-prairielearn"
+        ],
+        "strict": true
+      },
+      "resources": {
+        "wall": true,
+        "cpu": true,
+        "peakRss": true
+      }
+    },
+    {
+      "id": "java-ts-publication",
+      "project": "Java",
+      "cwd": "practice",
+      "executable": "quarto",
+      "args": [
+        "render",
+        "arrays.qmd",
+        "--profile",
+        "student"
+      ],
+      "courseProfile": "student",
+      "cachePolicy": "clean-output",
+      "mode": "off",
+      "scope": {
+        "modules": [
+          "practice/_extensions/Afonenko-Course-Tools/reference-catalog/infrastructure/publish.ts"
+        ],
+        "extensions": [
+          "course-core",
+          "course-presentation",
+          "course-navigation",
+          "course-site",
+          "reference-catalog",
+          "project-download",
+          "course-prairielearn"
+        ],
+        "strict": true
+      },
+      "resources": {
+        "wall": true,
+        "cpu": true,
+        "peakRss": true
+      }
+    },
+    {
+      "id": "java-pl-export",
+      "project": "Java",
+      "cwd": ".",
+      "executable": "quarto",
+      "args": [
+        "run",
+        "tasks/_extensions/Afonenko-Course-Tools/course-prairielearn/entrypoints/export-course.ts",
+        "{course_root}",
+        "{run_output}/pl-native",
+        "--instance",
+        "pilot",
+        "--checks-output",
+        "{run_output}/project-checks",
+        "--runtime-registry",
+        "{runtime_registry}",
+        "--book",
+        "tasks"
+      ],
+      "courseProfile": "student",
+      "cachePolicy": "clean-output",
+      "mode": "off",
+      "scope": {
+        "modules": [],
+        "extensions": [
+          "course-core",
+          "course-presentation",
+          "course-navigation",
+          "course-site",
+          "reference-catalog",
+          "project-download",
+          "course-prairielearn"
+        ],
+        "strict": true
+      },
+      "resources": {
+        "wall": true,
+        "cpu": true,
+        "peakRss": true
+      }
+    }
+  ],
+  "cleanPaths": [
+    "_site-student",
+    "_site-full",
+    "theory/_output/student",
+    "theory/_output/full",
+    "tasks/_output/student",
+    "tasks/_output/full",
+    "lectures/_output/student",
+    "lectures/_output/full",
+    "practice/_output/student",
+    "practice/_output/full",
+    "handbook/_output/student",
+    "handbook/_output/full"
+  ]
+}

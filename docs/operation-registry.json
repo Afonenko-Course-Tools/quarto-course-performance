@@ -220,7 +220,7 @@
     "path": "filter.lua",
     "operation": "course-core.filter.walk.7",
     "kind": "ast_walk",
-    "scope": "unknown"
+    "scope": "fragment"
   },
   {
     "extension": "course-core",
@@ -406,7 +406,7 @@
     "path": "native-answers.lua",
     "operation": "course-core.native-answers.walk.1",
     "kind": "ast_walk",
-    "scope": "unknown"
+    "scope": "fragment"
   },
   {
     "extension": "course-core",
@@ -433,7 +433,7 @@
     "path": "native-document.lua",
     "operation": "course-core.native-document.walk.1",
     "kind": "ast_walk",
-    "scope": "unknown"
+    "scope": "fragment"
   },
   {
     "extension": "course-core",
@@ -651,7 +651,7 @@
     "path": "visibility.lua",
     "operation": "course-core.visibility.walk.3",
     "kind": "ast_walk",
-    "scope": "unknown"
+    "scope": "fragment"
   },
   {
     "extension": "course-core",
@@ -672,14 +672,14 @@
     "path": "visibility.lua",
     "operation": "course-core.visibility.walk.6",
     "kind": "ast_walk",
-    "scope": "unknown"
+    "scope": "fragment"
   },
   {
     "extension": "course-core",
     "path": "visibility.lua",
     "operation": "course-core.visibility.walk.7",
     "kind": "ast_walk",
-    "scope": "unknown"
+    "scope": "fragment"
   },
   {
     "extension": "course-core",
@@ -1017,12 +1017,6 @@
     "extension": "reference-catalog",
     "path": "lua/diagnostics.lua",
     "operation": "reference-catalog.lua.diagnostics.message",
-    "kind": "phase"
-  },
-  {
-    "extension": "reference-catalog",
-    "path": "lua/generated/reference-styles.lua",
-    "operation": "reference-catalog.lua.generated.reference-styles.handler.*",
     "kind": "phase"
   },
   {
@@ -1406,5 +1400,12 @@
     "path": "validate.lua",
     "operation": "course-prairielearn.validate.validate",
     "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "pedagogy/collect.lua",
+    "operation": "course-core.pedagogy.collect.walk.fragment",
+    "kind": "ast_walk",
+    "scope": "fragment"
   }
 ]
