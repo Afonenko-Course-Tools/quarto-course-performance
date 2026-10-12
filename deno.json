@@ -1,0 +1,5 @@
+{
+  "tasks": {"perf": "deno run -A src/cli.ts", "test": "deno test -A tests", "check": "deno check src/cli.ts && deno fmt --check src bridge tools tests"},
+  "compilerOptions": {"strict": true},
+  "fmt": {"lineWidth": 100}
+}
