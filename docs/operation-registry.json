@@ -1,0 +1,1410 @@
+[
+  {
+    "extension": "course-core",
+    "path": "assessment.lua",
+    "operation": "course-core.assessment.walk.1",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-core",
+    "path": "assessment.lua",
+    "operation": "course-core.assessment.walk.2",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-core",
+    "path": "assessment.lua",
+    "operation": "course-core.assessment.walk.3",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-core",
+    "path": "assessment.lua",
+    "operation": "course-core.assessment.walk.4",
+    "kind": "ast_walk",
+    "scope": "fragment"
+  },
+  {
+    "extension": "course-core",
+    "path": "assessment.lua",
+    "operation": "course-core.assessment.walk.5",
+    "kind": "ast_walk",
+    "scope": "fragment"
+  },
+  {
+    "extension": "course-core",
+    "path": "assessment.lua",
+    "operation": "course-core.assessment.walk.6",
+    "kind": "ast_walk",
+    "scope": "fragment"
+  },
+  {
+    "extension": "course-core",
+    "path": "assessment.lua",
+    "operation": "course-core.assessment.walk.7",
+    "kind": "ast_walk",
+    "scope": "fragment"
+  },
+  {
+    "extension": "course-core",
+    "path": "assessment.lua",
+    "operation": "course-core.assessment.collect",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "assessment.lua",
+    "operation": "course-core.assessment.composition",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "body-export/answer.ts",
+    "operation": "course-core.body-export.answer.validateAnswer",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "body-export/answer.ts",
+    "operation": "course-core.body-export.answer.projectChoice",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "body-export/collect.ts",
+    "operation": "course-core.body-export.collect.collectExport",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "body-export/collect.ts",
+    "operation": "course-core.body-export.collect.collectNativeModel",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "body-export/producer.ts",
+    "operation": "course-core.body-export.producer.buildBodies",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "body-export/references.ts",
+    "operation": "course-core.body-export.references.resolveReferences",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "body-export/references.ts",
+    "operation": "course-core.body-export.references.assertReferenceTargets",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "deferred-assignments.lua",
+    "operation": "course-core.deferred-assignments.handler.*",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "diagnostics.lua",
+    "operation": "course-core.diagnostics.format",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "diagnostics.lua",
+    "operation": "course-core.diagnostics.fail",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "exercise-defaults.lua",
+    "operation": "course-core.exercise-defaults.walk.1",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-core",
+    "path": "exercise-defaults.lua",
+    "operation": "course-core.exercise-defaults.walk.2",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-core",
+    "path": "exercise-defaults.lua",
+    "operation": "course-core.exercise-defaults.walk.3",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-core",
+    "path": "exercise-defaults.lua",
+    "operation": "course-core.exercise-defaults.normalize",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "exercise-defaults.lua",
+    "operation": "course-core.exercise-defaults.present",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "exercises.lua",
+    "operation": "course-core.exercises.walk.1",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-core",
+    "path": "exercises.lua",
+    "operation": "course-core.exercises.walk.2",
+    "kind": "ast_walk",
+    "scope": "unknown"
+  },
+  {
+    "extension": "course-core",
+    "path": "exercises.lua",
+    "operation": "course-core.exercises.collect",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "filter.lua",
+    "operation": "course-core.filter.walk.1",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-core",
+    "path": "filter.lua",
+    "operation": "course-core.filter.walk.2",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-core",
+    "path": "filter.lua",
+    "operation": "course-core.filter.walk.3",
+    "kind": "ast_walk",
+    "scope": "fragment"
+  },
+  {
+    "extension": "course-core",
+    "path": "filter.lua",
+    "operation": "course-core.filter.walk.4",
+    "kind": "ast_walk",
+    "scope": "fragment"
+  },
+  {
+    "extension": "course-core",
+    "path": "filter.lua",
+    "operation": "course-core.filter.walk.5",
+    "kind": "ast_walk",
+    "scope": "fragment"
+  },
+  {
+    "extension": "course-core",
+    "path": "filter.lua",
+    "operation": "course-core.filter.walk.6",
+    "kind": "ast_walk",
+    "scope": "fragment"
+  },
+  {
+    "extension": "course-core",
+    "path": "filter.lua",
+    "operation": "course-core.filter.walk.7",
+    "kind": "ast_walk",
+    "scope": "unknown"
+  },
+  {
+    "extension": "course-core",
+    "path": "filter.lua",
+    "operation": "course-core.filter.handler.*",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "grading.lua",
+    "operation": "course-core.grading.walk.1",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-core",
+    "path": "grading.lua",
+    "operation": "course-core.grading.walk.2",
+    "kind": "ast_walk",
+    "scope": "fragment"
+  },
+  {
+    "extension": "course-core",
+    "path": "grading.lua",
+    "operation": "course-core.grading.walk.3",
+    "kind": "ast_walk",
+    "scope": "fragment"
+  },
+  {
+    "extension": "course-core",
+    "path": "grading.lua",
+    "operation": "course-core.grading.walk.4",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-core",
+    "path": "grading.lua",
+    "operation": "course-core.grading.walk.5",
+    "kind": "ast_walk",
+    "scope": "fragment"
+  },
+  {
+    "extension": "course-core",
+    "path": "grading.lua",
+    "operation": "course-core.grading.prepare",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "grading.lua",
+    "operation": "course-core.grading.split",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "infrastructure/adapters.ts",
+    "operation": "course-core.infrastructure.adapters.adapters",
+    "kind": "io"
+  },
+  {
+    "extension": "course-core",
+    "path": "infrastructure/files.ts",
+    "operation": "course-core.infrastructure.files.exists",
+    "kind": "io"
+  },
+  {
+    "extension": "course-core",
+    "path": "infrastructure/files.ts",
+    "operation": "course-core.infrastructure.files.fragments",
+    "kind": "io"
+  },
+  {
+    "extension": "course-core",
+    "path": "infrastructure/files.ts",
+    "operation": "course-core.infrastructure.files.child",
+    "kind": "io"
+  },
+  {
+    "extension": "course-core",
+    "path": "infrastructure/files.ts",
+    "operation": "course-core.infrastructure.files.checkPaths",
+    "kind": "io"
+  },
+  {
+    "extension": "course-core",
+    "path": "infrastructure/native-run.ts",
+    "operation": "course-core.infrastructure.native-run.currentNativeOutputs",
+    "kind": "io"
+  },
+  {
+    "extension": "course-core",
+    "path": "infrastructure/native-run.ts",
+    "operation": "course-core.infrastructure.native-run.beginNativeRun",
+    "kind": "io"
+  },
+  {
+    "extension": "course-core",
+    "path": "infrastructure/native-run.ts",
+    "operation": "course-core.infrastructure.native-run.finishNativeRun",
+    "kind": "io"
+  },
+  {
+    "extension": "course-core",
+    "path": "infrastructure/native-run.ts",
+    "operation": "course-core.infrastructure.native-run.saveNativeRun",
+    "kind": "io"
+  },
+  {
+    "extension": "course-core",
+    "path": "infrastructure/native-run.ts",
+    "operation": "course-core.infrastructure.native-run.prepareNativeExportCleanup",
+    "kind": "io"
+  },
+  {
+    "extension": "course-core",
+    "path": "infrastructure/native-run.ts",
+    "operation": "course-core.infrastructure.native-run.loadNativeRun",
+    "kind": "io"
+  },
+  {
+    "extension": "course-core",
+    "path": "infrastructure/process.ts",
+    "operation": "course-core.infrastructure.process.quartoExecutable",
+    "kind": "command"
+  },
+  {
+    "extension": "course-core",
+    "path": "infrastructure/process.ts",
+    "operation": "course-core.infrastructure.process.command",
+    "kind": "command"
+  },
+  {
+    "extension": "course-core",
+    "path": "infrastructure/resources.ts",
+    "operation": "course-core.infrastructure.resources.normalizeResourceFacts",
+    "kind": "io"
+  },
+  {
+    "extension": "course-core",
+    "path": "infrastructure/resources.ts",
+    "operation": "course-core.infrastructure.resources.projectedResourceUses",
+    "kind": "io"
+  },
+  {
+    "extension": "course-core",
+    "path": "infrastructure/resources.ts",
+    "operation": "course-core.infrastructure.resources.cleanHiddenResourceOutputs",
+    "kind": "io"
+  },
+  {
+    "extension": "course-core",
+    "path": "infrastructure/resources.ts",
+    "operation": "course-core.infrastructure.resources.validateCapturedResources",
+    "kind": "io"
+  },
+  {
+    "extension": "course-core",
+    "path": "infrastructure/resources.ts",
+    "operation": "course-core.infrastructure.resources.evaluateResources",
+    "kind": "io"
+  },
+  {
+    "extension": "course-core",
+    "path": "infrastructure/validate.ts",
+    "operation": "course-core.infrastructure.validate.validateRelease",
+    "kind": "io"
+  },
+  {
+    "extension": "course-core",
+    "path": "native-adapters.lua",
+    "operation": "course-core.native-adapters.validate",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "native-adapters.lua",
+    "operation": "course-core.native-adapters.read",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "native-answers.lua",
+    "operation": "course-core.native-answers.walk.1",
+    "kind": "ast_walk",
+    "scope": "unknown"
+  },
+  {
+    "extension": "course-core",
+    "path": "native-answers.lua",
+    "operation": "course-core.native-answers.walk.2",
+    "kind": "ast_walk",
+    "scope": "fragment"
+  },
+  {
+    "extension": "course-core",
+    "path": "native-answers.lua",
+    "operation": "course-core.native-answers.walk.3",
+    "kind": "ast_walk",
+    "scope": "fragment"
+  },
+  {
+    "extension": "course-core",
+    "path": "native-answers.lua",
+    "operation": "course-core.native-answers.validate",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "native-document.lua",
+    "operation": "course-core.native-document.walk.1",
+    "kind": "ast_walk",
+    "scope": "unknown"
+  },
+  {
+    "extension": "course-core",
+    "path": "native-document.lua",
+    "operation": "course-core.native-document.walk.2",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-core",
+    "path": "native-document.lua",
+    "operation": "course-core.native-document.walk.3",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-core",
+    "path": "native-document.lua",
+    "operation": "course-core.native-document.validate",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "native-document.lua",
+    "operation": "course-core.native-document.assessment",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "native-document.lua",
+    "operation": "course-core.native-document.references",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "native-resources.lua",
+    "operation": "course-core.native-resources.walk.1",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-core",
+    "path": "native-resources.lua",
+    "operation": "course-core.native-resources.uses",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "native-resources.lua",
+    "operation": "course-core.native-resources.facts",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "output.lua",
+    "operation": "course-core.output.invalidate",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "output.lua",
+    "operation": "course-core.output.current_run",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "output.lua",
+    "operation": "course-core.output.write",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "pedagogy/collect.lua",
+    "operation": "course-core.pedagogy.collect.walk.1",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-core",
+    "path": "pedagogy/collect.lua",
+    "operation": "course-core.pedagogy.collect.walk.2",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-core",
+    "path": "pedagogy/collect.lua",
+    "operation": "course-core.pedagogy.collect.collect",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "pedagogy/contract.lua",
+    "operation": "course-core.pedagogy.contract.metadata",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "pedagogy/contract.lua",
+    "operation": "course-core.pedagogy.contract.defaults",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "pedagogy/contract.lua",
+    "operation": "course-core.pedagogy.contract.adapter_attribute",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "pedagogy/contract.lua",
+    "operation": "course-core.pedagogy.contract.bank",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "pedagogy/contract.lua",
+    "operation": "course-core.pedagogy.contract.statement_visibility",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "pedagogy/contract.lua",
+    "operation": "course-core.pedagogy.contract.is_exercise",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "pedagogy/contract.lua",
+    "operation": "course-core.pedagogy.contract.is_example",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "pedagogy/contract.lua",
+    "operation": "course-core.pedagogy.contract.is_activity",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "pedagogy/contract.lua",
+    "operation": "course-core.pedagogy.contract.related",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "pedagogy/contract.lua",
+    "operation": "course-core.pedagogy.contract.kind",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "pedagogy/contract.lua",
+    "operation": "course-core.pedagogy.contract.describe",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "project-checks/collect.ts",
+    "operation": "course-core.project-checks.collect.sha256",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "project-checks/collect.ts",
+    "operation": "course-core.project-checks.collect.canonical",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "project-checks/collect.ts",
+    "operation": "course-core.project-checks.collect.selectSources",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "project-checks/collect.ts",
+    "operation": "course-core.project-checks.collect.collectProjectChecks",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "projects.lua",
+    "operation": "course-core.projects.configuration",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "projects.lua",
+    "operation": "course-core.projects.resolve",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "projects.lua",
+    "operation": "course-core.projects.collect",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "visibility.lua",
+    "operation": "course-core.visibility.walk.1",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-core",
+    "path": "visibility.lua",
+    "operation": "course-core.visibility.walk.2",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-core",
+    "path": "visibility.lua",
+    "operation": "course-core.visibility.walk.3",
+    "kind": "ast_walk",
+    "scope": "unknown"
+  },
+  {
+    "extension": "course-core",
+    "path": "visibility.lua",
+    "operation": "course-core.visibility.walk.4",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-core",
+    "path": "visibility.lua",
+    "operation": "course-core.visibility.walk.5",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-core",
+    "path": "visibility.lua",
+    "operation": "course-core.visibility.walk.6",
+    "kind": "ast_walk",
+    "scope": "unknown"
+  },
+  {
+    "extension": "course-core",
+    "path": "visibility.lua",
+    "operation": "course-core.visibility.walk.7",
+    "kind": "ast_walk",
+    "scope": "unknown"
+  },
+  {
+    "extension": "course-core",
+    "path": "visibility.lua",
+    "operation": "course-core.visibility.walk.8",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-core",
+    "path": "visibility.lua",
+    "operation": "course-core.visibility.walk.9",
+    "kind": "ast_walk",
+    "scope": "fragment"
+  },
+  {
+    "extension": "course-core",
+    "path": "visibility.lua",
+    "operation": "course-core.visibility.walk.10",
+    "kind": "ast_walk",
+    "scope": "fragment"
+  },
+  {
+    "extension": "course-core",
+    "path": "visibility.lua",
+    "operation": "course-core.visibility.walk.11",
+    "kind": "ast_walk",
+    "scope": "fragment"
+  },
+  {
+    "extension": "course-core",
+    "path": "visibility.lua",
+    "operation": "course-core.visibility.walk.12",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-core",
+    "path": "visibility.lua",
+    "operation": "course-core.visibility.walk.13",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-core",
+    "path": "visibility.lua",
+    "operation": "course-core.visibility.validate_conditions",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "visibility.lua",
+    "operation": "course-core.visibility.prepare",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "visibility.lua",
+    "operation": "course-core.visibility.defer_native_assignments",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-navigation",
+    "path": "shortcodes.lua",
+    "operation": "course-navigation.shortcodes.handler.*",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-presentation",
+    "path": "filter.lua",
+    "operation": "course-presentation.filter.walk.1",
+    "kind": "ast_walk",
+    "scope": "unknown"
+  },
+  {
+    "extension": "course-presentation",
+    "path": "filter.lua",
+    "operation": "course-presentation.filter.walk.2",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-presentation",
+    "path": "filter.lua",
+    "operation": "course-presentation.filter.handler.*",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-presentation",
+    "path": "modules/answers.lua",
+    "operation": "course-presentation.modules.answers.kind",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-presentation",
+    "path": "modules/answers.lua",
+    "operation": "course-presentation.modules.answers.wrap",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-presentation",
+    "path": "modules/config.lua",
+    "operation": "course-presentation.modules.config.read",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-presentation",
+    "path": "modules/metadata.lua",
+    "operation": "course-presentation.modules.metadata.decorate",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-site",
+    "path": "application/compose.ts",
+    "operation": "course-site.application.compose.pre",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-site",
+    "path": "application/compose.ts",
+    "operation": "course-site.application.compose.post",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-site",
+    "path": "infrastructure/collection.ts",
+    "operation": "course-site.infrastructure.collection.publicOutputs",
+    "kind": "io"
+  },
+  {
+    "extension": "course-site",
+    "path": "infrastructure/collection.ts",
+    "operation": "course-site.infrastructure.collection.collect",
+    "kind": "io"
+  },
+  {
+    "extension": "course-site",
+    "path": "infrastructure/collection.ts",
+    "operation": "course-site.infrastructure.collection.readCollection",
+    "kind": "io"
+  },
+  {
+    "extension": "course-site",
+    "path": "infrastructure/files.ts",
+    "operation": "course-site.infrastructure.files.inside",
+    "kind": "io"
+  },
+  {
+    "extension": "course-site",
+    "path": "infrastructure/files.ts",
+    "operation": "course-site.infrastructure.files.within",
+    "kind": "io"
+  },
+  {
+    "extension": "course-site",
+    "path": "infrastructure/files.ts",
+    "operation": "course-site.infrastructure.files.safePath",
+    "kind": "io"
+  },
+  {
+    "extension": "course-site",
+    "path": "infrastructure/files.ts",
+    "operation": "course-site.infrastructure.files.files",
+    "kind": "io"
+  },
+  {
+    "extension": "course-site",
+    "path": "infrastructure/files.ts",
+    "operation": "course-site.infrastructure.files.outputDirectory",
+    "kind": "io"
+  },
+  {
+    "extension": "course-site",
+    "path": "infrastructure/files.ts",
+    "operation": "course-site.infrastructure.files.cleanOutput",
+    "kind": "io"
+  },
+  {
+    "extension": "course-site",
+    "path": "infrastructure/files.ts",
+    "operation": "course-site.infrastructure.files.copyFiles",
+    "kind": "io"
+  },
+  {
+    "extension": "course-site",
+    "path": "infrastructure/process.ts",
+    "operation": "course-site.infrastructure.process.executable",
+    "kind": "command"
+  },
+  {
+    "extension": "course-site",
+    "path": "infrastructure/process.ts",
+    "operation": "course-site.infrastructure.process.quarto",
+    "kind": "command"
+  },
+  {
+    "extension": "course-site",
+    "path": "infrastructure/process.ts",
+    "operation": "course-site.infrastructure.process.profileArguments",
+    "kind": "command"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "infrastructure/catalog-source.ts",
+    "operation": "reference-catalog.infrastructure.catalog-source.normalizeCatalogSource",
+    "kind": "io"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "infrastructure/catalog-source.ts",
+    "operation": "reference-catalog.infrastructure.catalog-source.readCatalogSource",
+    "kind": "io"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "infrastructure/catalog-validation.ts",
+    "operation": "reference-catalog.infrastructure.catalog-validation.validateImportedCatalog",
+    "kind": "io"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "infrastructure/files.ts",
+    "operation": "reference-catalog.infrastructure.files.exists",
+    "kind": "io"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "infrastructure/files.ts",
+    "operation": "reference-catalog.infrastructure.files.files",
+    "kind": "io"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "infrastructure/html.ts",
+    "operation": "reference-catalog.infrastructure.html.elements",
+    "kind": "io"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "infrastructure/html.ts",
+    "operation": "reference-catalog.infrastructure.html.attr",
+    "kind": "io"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "infrastructure/html.ts",
+    "operation": "reference-catalog.infrastructure.html.hasClass",
+    "kind": "io"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "infrastructure/html.ts",
+    "operation": "reference-catalog.infrastructure.html.content",
+    "kind": "io"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "infrastructure/html.ts",
+    "operation": "reference-catalog.infrastructure.html.inner",
+    "kind": "io"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "infrastructure/html.ts",
+    "operation": "reference-catalog.infrastructure.html.escape",
+    "kind": "io"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "infrastructure/html.ts",
+    "operation": "reference-catalog.infrastructure.html.replace",
+    "kind": "io"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "infrastructure/html.ts",
+    "operation": "reference-catalog.infrastructure.html.parseHtml",
+    "kind": "io"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "infrastructure/imports.ts",
+    "operation": "reference-catalog.infrastructure.imports.importTargets",
+    "kind": "io"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "infrastructure/linker.ts",
+    "operation": "reference-catalog.infrastructure.linker.linkPages",
+    "kind": "io"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "infrastructure/pages.ts",
+    "operation": "reference-catalog.infrastructure.pages.readPage",
+    "kind": "io"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "infrastructure/process.ts",
+    "operation": "reference-catalog.infrastructure.process.quarto",
+    "kind": "command"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "infrastructure/publish.ts",
+    "operation": "reference-catalog.infrastructure.publish.publish",
+    "kind": "io"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "infrastructure/search.ts",
+    "operation": "reference-catalog.infrastructure.search.searchIndexBase",
+    "kind": "io"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "infrastructure/search.ts",
+    "operation": "reference-catalog.infrastructure.search.readable",
+    "kind": "io"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "infrastructure/search.ts",
+    "operation": "reference-catalog.infrastructure.search.updateSearch",
+    "kind": "io"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "lua/constants.lua",
+    "operation": "reference-catalog.lua.constants.handler.*",
+    "kind": "phase"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "lua/diagnostics.lua",
+    "operation": "reference-catalog.lua.diagnostics.message",
+    "kind": "phase"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "lua/generated/reference-styles.lua",
+    "operation": "reference-catalog.lua.generated.reference-styles.handler.*",
+    "kind": "phase"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "lua/links.lua",
+    "operation": "reference-catalog.lua.links.link",
+    "kind": "phase"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "lua/probes.lua",
+    "operation": "reference-catalog.lua.probes.handler.*",
+    "kind": "phase"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "lua/requests.lua",
+    "operation": "reference-catalog.lua.requests.handler.*",
+    "kind": "phase"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "lua/shortcodes.lua",
+    "operation": "reference-catalog.lua.shortcodes.handler.*",
+    "kind": "phase"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "lua/targets.lua",
+    "operation": "reference-catalog.lua.targets.walk.1",
+    "kind": "ast_walk",
+    "scope": "block"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "lua/targets.lua",
+    "operation": "reference-catalog.lua.targets.init",
+    "kind": "phase"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "lua/targets.lua",
+    "operation": "reference-catalog.lua.targets.capture",
+    "kind": "phase"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "lua/targets.lua",
+    "operation": "reference-catalog.lua.targets.equations",
+    "kind": "phase"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "lua/targets.lua",
+    "operation": "reference-catalog.lua.targets.sorted",
+    "kind": "phase"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "lua/targets.lua",
+    "operation": "reference-catalog.lua.targets.title",
+    "kind": "phase"
+  },
+  {
+    "extension": "reference-catalog",
+    "path": "lua/targets.lua",
+    "operation": "reference-catalog.lua.targets.heading_title",
+    "kind": "phase"
+  },
+  {
+    "extension": "project-download",
+    "path": "application/publish.ts",
+    "operation": "project-download.application.publish.publish",
+    "kind": "phase"
+  },
+  {
+    "extension": "project-download",
+    "path": "filter.lua",
+    "operation": "project-download.filter.walk.1",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "project-download",
+    "path": "filter.lua",
+    "operation": "project-download.filter.walk.2",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "project-download",
+    "path": "filter.lua",
+    "operation": "project-download.filter.handler.*",
+    "kind": "phase"
+  },
+  {
+    "extension": "project-download",
+    "path": "infrastructure/files.ts",
+    "operation": "project-download.infrastructure.files.exists",
+    "kind": "io"
+  },
+  {
+    "extension": "project-download",
+    "path": "infrastructure/files.ts",
+    "operation": "project-download.infrastructure.files.child",
+    "kind": "io"
+  },
+  {
+    "extension": "project-download",
+    "path": "infrastructure/files.ts",
+    "operation": "project-download.infrastructure.files.noSymlinks",
+    "kind": "io"
+  },
+  {
+    "extension": "project-download",
+    "path": "infrastructure/files.ts",
+    "operation": "project-download.infrastructure.files.resourceFiles",
+    "kind": "io"
+  },
+  {
+    "extension": "project-download",
+    "path": "infrastructure/runtime.ts",
+    "operation": "project-download.infrastructure.runtime.clearOwned",
+    "kind": "io"
+  },
+  {
+    "extension": "project-download",
+    "path": "infrastructure/runtime.ts",
+    "operation": "project-download.infrastructure.runtime.prepare",
+    "kind": "io"
+  },
+  {
+    "extension": "project-download",
+    "path": "infrastructure/runtime.ts",
+    "operation": "project-download.infrastructure.runtime.finish",
+    "kind": "io"
+  },
+  {
+    "extension": "project-download",
+    "path": "shortcodes.lua",
+    "operation": "project-download.shortcodes.handler.*",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "application/completion.ts",
+    "operation": "course-prairielearn.application.completion.validateCompletionPolicy",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "application/completion.ts",
+    "operation": "course-prairielearn.application.completion.completionPolicy",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "application/completion.ts",
+    "operation": "course-prairielearn.application.completion.evaluateCompletion",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "application/declarations.ts",
+    "operation": "course-prairielearn.application.declarations.closed",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "application/declarations.ts",
+    "operation": "course-prairielearn.application.declarations.question",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "application/declarations.ts",
+    "operation": "course-prairielearn.application.declarations.declarations",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "application/export-course.ts",
+    "operation": "course-prairielearn.application.export-course.identity",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "application/export-course.ts",
+    "operation": "course-prairielearn.application.export-course.exportCourse",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "application/export.ts",
+    "operation": "course-prairielearn.application.export.uuid",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "application/export.ts",
+    "operation": "course-prairielearn.application.export.exportPrairieLearn",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "application/grading-descriptor.ts",
+    "operation": "course-prairielearn.application.grading-descriptor.normalizeDiscovery",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "application/grading-policy.ts",
+    "operation": "course-prairielearn.application.grading-policy.gradingPolicy",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "application/native-semantics.ts",
+    "operation": "course-prairielearn.application.native-semantics.validateAssessmentSemantics",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "application/runtime-descriptor.ts",
+    "operation": "course-prairielearn.application.runtime-descriptor.runtimeDescriptor",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "application/slots.ts",
+    "operation": "course-prairielearn.application.slots.validateSlots",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "application/slots.ts",
+    "operation": "course-prairielearn.application.slots.qualifiedSlots",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "application/slots.ts",
+    "operation": "course-prairielearn.application.slots.nativeSlotBlocks",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "application/source-selection.ts",
+    "operation": "course-prairielearn.application.source-selection.hash",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "application/source-selection.ts",
+    "operation": "course-prairielearn.application.source-selection.canonical",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "application/source-selection.ts",
+    "operation": "course-prairielearn.application.source-selection.readSelected",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "application/source-selection.ts",
+    "operation": "course-prairielearn.application.source-selection.selectedSources",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "application/verification-inventory.ts",
+    "operation": "course-prairielearn.application.verification-inventory.verificationInventoryHash",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "assessment.lua",
+    "operation": "course-prairielearn.assessment.declarations",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "assessment.lua",
+    "operation": "course-prairielearn.assessment.collect",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "diagnostics.lua",
+    "operation": "course-prairielearn.diagnostics.message",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "filter.lua",
+    "operation": "course-prairielearn.filter.handler.*",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "native.lua",
+    "operation": "course-prairielearn.native.walk.1",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "native.lua",
+    "operation": "course-prairielearn.native.source",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "native.lua",
+    "operation": "course-prairielearn.native.target",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "native.lua",
+    "operation": "course-prairielearn.native.read",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "native.lua",
+    "operation": "course-prairielearn.native.vet",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "native.lua",
+    "operation": "course-prairielearn.native.write",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "validate.lua",
+    "operation": "course-prairielearn.validate.walk.1",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "validate.lua",
+    "operation": "course-prairielearn.validate.walk.2",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "validate.lua",
+    "operation": "course-prairielearn.validate.walk.3",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "validate.lua",
+    "operation": "course-prairielearn.validate.walk.4",
+    "kind": "ast_walk",
+    "scope": "fragment"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "validate.lua",
+    "operation": "course-prairielearn.validate.walk.5",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "validate.lua",
+    "operation": "course-prairielearn.validate.walk.6",
+    "kind": "ast_walk",
+    "scope": "full-document"
+  },
+  {
+    "extension": "course-prairielearn",
+    "path": "validate.lua",
+    "operation": "course-prairielearn.validate.validate",
+    "kind": "phase"
+  }
+]
