@@ -68,3 +68,46 @@ Deno.test("report separates clock totals, does not claim self time, and retains 
     await Deno.remove(root, { recursive: true });
   }
 });
+
+Deno.test("report processes an async run stream before requesting the next raw journal", async () => {
+  const root = await Deno.makeTempDir();
+  const run: NormalizedRun = {
+    runId: "r",
+    events: [],
+    dataValid: true,
+    executors: {},
+    quality: { droppedEvents: 0, incompleteSpans: 0, coverageComplete: true, errors: [] },
+  };
+  try {
+    async function* runs() {
+      yield run;
+      assert((await Deno.stat(join(root, "runs/r/wall.trace.json"))).isFile);
+      yield { ...run, runId: "second" };
+    }
+    await Deno.mkdir(join(root, "benchmarks"));
+    await Deno.writeTextFile(
+      join(root, "benchmarks/scenario.initial10.json"),
+      JSON.stringify({
+        scenario: "scenario",
+        complete: true,
+        left: "clean-control",
+        right: "candidate",
+        comparison: { pairs: 10, medianRatio: 1, interval95: [.99, 1.02], status: "INCONCLUSIVE" },
+      }),
+    );
+    await writeExperimentReport(
+      { experimentId: "e", sources: [], packages: [], runtime: {} },
+      runs(),
+      root,
+    );
+    const summary = JSON.parse(await Deno.readTextFile(join(root, "summary.json")));
+    assert.deepEqual(summary.map((r: { run_id: string }) => r.run_id), ["r", "second"]);
+    assert(
+      (await Deno.readTextFile(join(root, "report.md"))).includes(
+        "benchmarks/scenario.initial10.json",
+      ),
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

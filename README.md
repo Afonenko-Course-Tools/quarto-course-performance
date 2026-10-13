@@ -57,7 +57,7 @@ deno task perf run --workspace .workspace/java --scenario java-pl-export --mode 
 
 Все фактически установленные копии `_extensions` находятся и заменяются в disposable Java copy. Receipts фиксируют owner SHA, package hash и destination paths; symlinks в package/course input запрещены. Изменённый checkout или runtime hash прерывает подготовку. Копирование и очистка output находятся вне измеряемого интервала. Каждый диагностический запуск получает snapshot backend и copy Quarto share/data-dir со своими хешами.
 
-`java-repeat-student` повторно использует outputs внутри benchmark series; остальные render сценарии очищают только перечисленные `cleanPaths`. Env старых и новых profiler очищается, функциональные env и course profile сохраняются. PL экспорт использует закреплённый внешний registry и пишет локальную поставку в `{run_output}`. `{course_root}`, `{run_output}`, `{runtime_registry}` заменяются внутри argv, без shell evaluation.
+`java-repeat-student` повторно использует outputs внутри benchmark series; функциональную проверку двух запусков одной copy выполняет `tools/repeat-java.ts`; остальные render сценарии очищают только перечисленные `cleanPaths`. Env старых и новых profiler очищается, функциональные env и course profile сохраняются. PL экспорт использует закреплённый внешний registry и пишет локальную поставку в `{run_output}`. `{course_root}`, `{run_output}`, `{runtime_registry}` заменяются внутри argv, без shell evaluation.
 
 ## Парные измерения и отчёт
 
@@ -96,3 +96,16 @@ deno run -A tools/sync-bridge.ts --check /absolute/quarto-course /absolute/quart
 ```
 
 `tools/instrument-owners.ts` — однократная миграция первоначальных owner PR. На уже размеченных исходниках она отказывает; дальнейшие semantic операции добавляются вручную с owner behaviour tests. В обычные packages входят только фасады и ручная разметка. Каждый владелец сохраняет свои contracts и native CI; совместная проверка Java выполняется на согласованном наборе immutable SHAs.
+
+## Проверка outputs и повторного render
+
+После benchmark и diagnostic builds:
+
+```sh
+deno run -A tools/repeat-java.ts /absolute/experiment-workspace
+deno run -A tools/validate-java.ts /absolute/experiment-workspace /absolute/upstream-workspace
+```
+
+Первая команда выполняет два реальных student render одной disposable copy без очистки outputs и сравнивает результат. Вторая сравнивает upstream/control/candidate/summary полных профилей, выбранные off/trace/cpu и PL export. Upstream из предыдущего эксперимента допускается только при совпадении immutable source SHAs. Внутренние profiles/events проверяются также внутри ZIP. Эти функциональные проверки не заменяют парный overhead benchmark.
+
+[Отчёт Java](docs/java-pilot-report.md) и [матрица требований](docs/requirements-status.md) фиксируют текущие результаты, ограничения и ссылки на связанные PR.

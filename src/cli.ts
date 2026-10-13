@@ -177,25 +177,27 @@ async function main(): Promise<number> {
     return result.buildExitCode ? 3 : result.dataValid ? 0 : 4;
   }
   if (command === "report" || command === "verify") {
-    const manifest = await manifestFor("candidate"), runs: NormalizedRun[] = [];
-    for await (const item of Deno.readDir(runRoot)) {
-      if (item.isDirectory) {
-        const dir = join(runRoot, item.name);
-        let meta;
-        try {
-          meta = JSON.parse(await Deno.readTextFile(join(dir, "run.json")));
-        } catch (e) {
-          if (e instanceof Deno.errors.NotFound) continue;
-          throw e;
+    const manifest = await manifestFor("candidate");
+    async function* runs(): AsyncGenerator<NormalizedRun> {
+      for await (const item of Deno.readDir(runRoot)) {
+        if (item.isDirectory) {
+          const dir = join(runRoot, item.name);
+          let meta;
+          try {
+            meta = JSON.parse(await Deno.readTextFile(join(dir, "run.json")));
+          } catch (e) {
+            if (e instanceof Deno.errors.NotFound) continue;
+            throw e;
+          }
+          if (meta.mode !== "off") yield await normalizeRun(dir);
         }
-        if (meta.mode !== "off") runs.push(await normalizeRun(dir));
       }
     }
     const experiment = flags["--experiment"];
     if (experiment && experiment !== manifest.experimentId) {
       throw new Error("Неверный experiment id");
     }
-    await writeExperimentReport(manifest, runs, workspace);
+    const report = await writeExperimentReport(manifest, runs(), workspace);
     console.log(`Отчёт: ${join(workspace, "report.md")}`);
     for await (const item of Deno.readDir(runRoot)) {
       if (!item.isDirectory) continue;
@@ -208,7 +210,7 @@ async function main(): Promise<number> {
       }
       if (meta.buildExitCode !== 0) return 3;
     }
-    return runs.some((r) => !r.dataValid) ? 4 : 0;
+    return report.dataValid ? 0 : 4;
   }
   if (command === "capabilities") {
     console.log(JSON.stringify(await probeQuarto(quarto), null, 2));

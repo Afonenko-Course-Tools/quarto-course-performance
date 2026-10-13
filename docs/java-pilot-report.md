@@ -8,7 +8,7 @@
 
 - Полные student/full summary: build exit 0, данные валидны, по 405 summaries без dropped events и incomplete spans. Установлены семь пакетов; наблюдались операции шести, `course-navigation` — `not-observed` в этом scope.
 - Выбранные TS и Lua trace, TS V8 CPU profile, отдельный PL export в off/summary: build exit 0, данные валидны. Runtime registry закреплён на PrairieLearn Platform v2.0.0 (`b971a61a2386fbf4ae7fcfc9394d307359bc7889`). Проверка не запускает grading или публикацию.
-- Performance: 52 tests, typecheck и fmt проходят. Native fixtures проверяют off identity, values/this/ошибки, async siblings, Lua nil returns, корутины, tail calls, signal/exit, clocks, manifests, outputs, launchers и качество данных. Дополнительные Lua regression fixtures сначала воспроизвели потерю parent/error, после исправления проходят.
+- Performance: 53 tests, typecheck и fmt проходят. Native fixtures проверяют off identity, values/this/ошибки, async siblings, Lua nil returns, корутины, tail calls, signal/exit, clocks, manifests, outputs, launchers и качество данных. Дополнительные Lua regression fixtures сначала воспроизвели потерю parent/error, после исправления проходят.
 - Owner checks: Core native и browser; QRC native, HTTP и browser; Publisher native; Download install/native; PrairieLearn 49 unit, native и Java demo прошли. Publisher resources fixture проверен с его CI-pinned Core v4; интеграционный Java использует актуальный Core v6. Это разные contract checks.
 - ABI audit: одинаковый ABI 1 в семи packages, 224 зарегистрированные операции; внутренние agents/launchers отсутствуют в распространяемых packages.
 - Synthetic Core scaling 1/2/4 exercises: full walks 27/27/27, fragment walks 93/120/174; off и summary outputs эквивалентны. Наблюдение не доказывает избыточность обходов.
@@ -34,3 +34,14 @@ Hyperfine 2.0.0; warmup каждого варианта исключён, зат
 Самопроверка выполнена тем же implementer; независимая рецензия не заявляется. Проверка охватывает ABI/off, module scope, Lua error unwinding, clocks, process boundaries, package distribution и качество данных. Итоговая матрица R-01–R-18 и ссылки на PR будут дополнены фактическими результатами оставшихся проверок.
 
 Подробная трассировка относится только к выбранному поддерживаемому scope. Lua CPU и TS wall не совмещаются, inclusive времена не суммируются. `node_visits` недоступен; callback counts не заменяют его. Подтверждённый устранимый bottleneck пока не выявлен; отчёт не заявляет ускорение курса.
+
+## Связанные PR
+
+- [quarto-course-performance](https://github.com/Afonenko-Course-Tools/quarto-course-performance/pull/1) — OPEN draft.
+- [quarto-course](https://github.com/Afonenko-Course-Tools/quarto-course/pull/33) — OPEN draft.
+- [quarto-project-publish](https://github.com/Afonenko-Course-Tools/quarto-project-publish/pull/12) — OPEN draft.
+- [quarto-reference-catalog](https://github.com/Afonenko-Course-Tools/quarto-reference-catalog/pull/17) — OPEN draft.
+- [quarto-project-download](https://github.com/Afonenko-Course-Tools/quarto-project-download/pull/9) — OPEN draft.
+- [quarto-course-prairielearn](https://github.com/Afonenko-Course-Tools/quarto-course-prairielearn/pull/17) — OPEN draft.
+
+Performance, Core, QRC, Download и PrairieLearn GitHub checks прошли; Publisher check ещё выполняется. Первая Performance CI выявила отличие native signal status между версиями GNU time. Runner теперь сохраняет status исходного инструмента отдельным внешним помощником; Hyperfine benchmark не использует помощник. Повторная CI прошла (53 tests).

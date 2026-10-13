@@ -36,12 +36,34 @@ export function operationTotals(run: NormalizedRun) {
   }
   return [...totals.values()].sort((a, b) => b.inclusive_us - a.inclusive_us);
 }
-async function jsonFiles(directory: string, suffix: string) {
+function summarizeRun(run: NormalizedRun) {
+  return {
+    run_id: run.runId,
+    data_valid: run.dataValid,
+    events: run.events.length,
+    quality: run.quality,
+    operations: operationTotals(run).map((o) => ({
+      ...o,
+      quality: run.dataValid ? "observed-exact" : "partial",
+      completion_scope: "recorded-end-events",
+    })),
+    counters: Object.values(run.executors).map((e) => ({
+      process_id: e.process_id,
+      executor_id: e.executor_id,
+      clock_domain: e.clock_domain,
+      counters: e.counters,
+      node_visits: null,
+    })),
+  };
+}
+
+async function jsonFiles(directory: string, suffix: string, retainFileName = false) {
   const result: Record<string, unknown>[] = [];
   try {
     for await (const file of Deno.readDir(directory)) {
       if (file.isFile && file.name.endsWith(suffix)) {
-        result.push(JSON.parse(await Deno.readTextFile(join(directory, file.name))));
+        const record = JSON.parse(await Deno.readTextFile(join(directory, file.name)));
+        result.push(retainFileName ? { ...record, file_name: file.name } : record);
       }
     }
   } catch (e) {
@@ -51,7 +73,7 @@ async function jsonFiles(directory: string, suffix: string) {
 }
 export async function writeExperimentReport(
   manifest: SourceManifest,
-  runs: NormalizedRun[],
+  runs: Iterable<NormalizedRun> | AsyncIterable<NormalizedRun>,
   output: string,
 ) {
   await Deno.mkdir(output, { recursive: true });
@@ -78,40 +100,10 @@ export async function writeExperimentReport(
   } catch (e) {
     if (!(e instanceof Deno.errors.NotFound)) throw e;
   }
-  const benchmarks = await jsonFiles(join(output, "benchmarks"), ".json");
-  const summary = runs.map((run) => ({
-    run_id: run.runId,
-    data_valid: run.dataValid,
-    events: run.events.length,
-    quality: run.quality,
-    operations: operationTotals(run).map((o) => ({
-      ...o,
-      quality: run.dataValid ? "observed-exact" : "partial",
-      completion_scope: "recorded-end-events",
-    })),
-    counters: Object.values(run.executors).map((e) => ({
-      process_id: e.process_id,
-      executor_id: e.executor_id,
-      clock_domain: e.clock_domain,
-      counters: e.counters,
-      node_visits: null,
-    })),
-  }));
-  const data = {
-    manifest,
-    summary,
-    quality: runs.map((r) => ({ run_id: r.runId, ...r.quality })),
-    coverage,
-    builds,
-    benchmarks,
-  };
-  for (const [name, contents] of Object.entries(data)) {
-    await Deno.writeTextFile(
-      join(output, name + ".json"),
-      JSON.stringify(contents, null, 2) + "\n",
-    );
-  }
-  for (const run of runs) {
+  const benchmarks = await jsonFiles(join(output, "benchmarks"), ".json", true);
+  const summary: ReturnType<typeof summarizeRun>[] = [];
+  for await (const run of runs) {
+    summary.push(summarizeRun(run));
     const path = join(output, "runs", run.runId);
     await Deno.mkdir(path, { recursive: true });
     const trace = traces(run);
@@ -137,6 +129,20 @@ export async function writeExperimentReport(
         null,
         2,
       ) + "\n",
+    );
+  }
+  const data = {
+    manifest,
+    summary,
+    quality: summary.map((r) => ({ run_id: r.run_id, ...r.quality })),
+    coverage,
+    builds,
+    benchmarks,
+  };
+  for (const [name, contents] of Object.entries(data)) {
+    await Deno.writeTextFile(
+      join(output, name + ".json"),
+      JSON.stringify(contents, null, 2) + "\n",
     );
   }
   const lines = [
@@ -171,7 +177,7 @@ export async function writeExperimentReport(
         interval95: number[];
         status: string;
       };
-      return `| [${b.scenario}](benchmarks/${b.scenario}.json) | ${b.left} / ${b.right} | ${c.pairs} | ${
+      return `| [${b.scenario}](benchmarks/${b.file_name}) | ${b.left} / ${b.right} | ${c.pairs} | ${
         c.medianRatio.toFixed(5)
       } | ${c.interval95.map((n) => n.toFixed(5)).join("–")} | ${c.status} |`;
     }),
@@ -182,9 +188,9 @@ export async function writeExperimentReport(
     "",
     "| Запуск | Данные | Потери | Незавершённые | Ошибки |",
     "| --- | --- | ---: | ---: | ---: |",
-    ...runs.map((r) =>
-      `| [${r.runId}](runs/${r.runId}/coverage.json) | ${
-        r.dataValid ? "VALID" : "INVALID"
+    ...summary.map((r) =>
+      `| [${r.run_id}](runs/${r.run_id}/coverage.json) | ${
+        r.data_valid ? "VALID" : "INVALID"
       } | ${r.quality.droppedEvents} | ${r.quality.incompleteSpans} | ${r.quality.errors.length} |`
     ),
     "",
@@ -192,21 +198,21 @@ export async function writeExperimentReport(
     "",
     "## Операции для дальнейшего исследования",
     "",
-    ...runs.flatMap(
+    ...summary.flatMap(
       (r) => [
-        `### ${r.runId}`,
+        `### ${r.run_id}`,
         "",
         ...(["monotonic_process", "process_cpu"] as const).flatMap((clock) => [
           `Шкала \`${clock}\`; первые 5 операций по inclusive времени:`,
           "",
-          ...operationTotals(r).filter((o) => o.clock === clock).slice(0, 5).map((o) =>
+          ...r.operations.filter((o) => o.clock === clock).slice(0, 5).map((o) =>
             `- \`${o.operation}\`: ${o.completed} завершений, ${
               (o.inclusive_us / 1e6).toFixed(3)
             } с; ошибок ${o.errors}.`
           ),
           "",
         ]),
-        `Raw: [events](runs/${r.runId}/events/), [wall trace](runs/${r.runId}/wall.trace.json), [Lua CPU trace](runs/${r.runId}/lua-cpu.trace.json), [causal graph](runs/${r.runId}/causal.json).`,
+        `Raw: [events](runs/${r.run_id}/events/), [wall trace](runs/${r.run_id}/wall.trace.json), [Lua CPU trace](runs/${r.run_id}/lua-cpu.trace.json), [causal graph](runs/${r.run_id}/causal.json).`,
         "",
       ],
     ),
@@ -221,4 +227,5 @@ export async function writeExperimentReport(
     "Lua sampling backend: unavailable. Lua CPU начинается локально в каждом executor; на wall шкалу не переносится. CPU samples Deno не являются точными счётчиками вызовов. TS symbol mapping указывает исходные диапазоны; универсальное восстановление transpiled строк CPU profile не гарантируется. Lua функции на одинаковых строках различаются runtime identity и ordinal первого наблюдения; ordinal между runs не обещает стабильность.",
   ];
   await Deno.writeTextFile(join(output, "report.md"), lines.join("\n") + "\n");
+  return { dataValid: summary.every((r) => r.data_valid), diagnostics: summary.length };
 }
