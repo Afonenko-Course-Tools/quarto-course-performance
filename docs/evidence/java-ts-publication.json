@@ -1,0 +1,92 @@
+{
+  "scenario": "java-ts-publication",
+  "left": "clean-control",
+  "right": "candidate",
+  "pairs": [
+    {
+      "order": "AB",
+      "controlWall": 3.552661232,
+      "candidateWall": 3.624803475,
+      "controlRunId": "a80cb113-d40d-4e72-b462-6424cb05056b",
+      "candidateRunId": "a1b5a60c-6768-4d05-b3a7-464c34d2e842"
+    },
+    {
+      "order": "BA",
+      "controlWall": 3.542835034,
+      "candidateWall": 3.584227534,
+      "controlRunId": "d4c6b52a-5ac8-49e9-9eaa-b43a2af07501",
+      "candidateRunId": "e24addda-a53d-48cb-bf46-5a0323e8a3b3"
+    },
+    {
+      "order": "AB",
+      "controlWall": 3.8827992890000003,
+      "candidateWall": 3.664081406,
+      "controlRunId": "ec1ba1c1-811d-4409-843c-8381876e91e6",
+      "candidateRunId": "46696359-04e2-4554-8f8b-306ebbd3084e"
+    },
+    {
+      "order": "BA",
+      "controlWall": 3.672002344,
+      "candidateWall": 3.639499967,
+      "controlRunId": "9b16f8d5-430a-4be3-a612-3bdb8c8d719b",
+      "candidateRunId": "881b9df4-fa2d-4a00-84ef-9a95a6a51d60"
+    },
+    {
+      "order": "AB",
+      "controlWall": 3.746045602,
+      "candidateWall": 3.648579706,
+      "controlRunId": "3bc50cef-7e52-42eb-a575-4bcf7d30b90d",
+      "candidateRunId": "1c6b89d8-991c-44f8-a952-b193d7a7b405"
+    },
+    {
+      "order": "BA",
+      "controlWall": 3.668222864,
+      "candidateWall": 3.632639977,
+      "controlRunId": "15ba3f60-55c5-4cde-b5fd-25022f7a42f0",
+      "candidateRunId": "d21d3bed-92f7-40fd-b714-5b49c4214ab8"
+    },
+    {
+      "order": "AB",
+      "controlWall": 3.692009143,
+      "candidateWall": 3.804775747,
+      "controlRunId": "8c6ba212-19bc-446a-a1f5-41629f270c8b",
+      "candidateRunId": "9b659f91-938f-4ada-850d-8926d0479aa8"
+    },
+    {
+      "order": "BA",
+      "controlWall": 3.78906488,
+      "candidateWall": 3.761835949,
+      "controlRunId": "456133e4-8924-48c4-8da0-8ba8386ee202",
+      "candidateRunId": "06b59a5a-1102-458c-9e44-39772c1aa8a4"
+    },
+    {
+      "order": "AB",
+      "controlWall": 3.700791791,
+      "candidateWall": 3.963989938,
+      "controlRunId": "1d6c629b-045d-4a8f-8b4e-6eb106493451",
+      "candidateRunId": "1f02ac2a-2dae-42de-99ca-6f2f68255877"
+    },
+    {
+      "order": "BA",
+      "controlWall": 3.800844843,
+      "candidateWall": 3.861456783,
+      "controlRunId": "051701b0-e0d3-4518-ba30-9e5d64911c9f",
+      "candidateRunId": "89c372ed-470f-451c-a51f-c6d1afa2648f"
+    }
+  ],
+  "warmups": [
+    "443f3746-c92f-4597-a3df-dc917d81f3af",
+    "4bc2522f-291e-4f71-a63f-9481bb765475"
+  ],
+  "seed": 42,
+  "complete": true,
+  "comparison": {
+    "medianRatio": 1.0022486261298527,
+    "interval95": [
+      0.982565126845265,
+      1.02324519499331
+    ],
+    "status": "INCONCLUSIVE",
+    "pairs": 10
+  }
+}

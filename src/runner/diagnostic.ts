@@ -3,7 +3,6 @@ import { pathToFileURL } from "node:url";
 import { prepareLaunchers } from "../launchers/setup.ts";
 import { probeQuarto } from "../adapters/quarto/capabilities.ts";
 import { prepareFilterAdapter } from "../adapters/quarto/filter-trace.ts";
-import { instrumentModule } from "../instrumentation/ts/transform.ts";
 import { contained, hashFile } from "../sources/snapshot.ts";
 import type { PreparationReceipt, PreparedVariant, Scenario } from "../config/types.ts";
 export async function prepareDiagnostic(
@@ -51,6 +50,7 @@ export async function prepareDiagnostic(
       coverage.ts.push({ path: module, instrumentation: "manual-only" });
       continue;
     }
+    const { instrumentModule } = await import("../instrumentation/ts/transform.ts");
     const source = await Deno.readTextFile(path),
       sourceHash = await hashFile(path),
       result = instrumentModule(source, module, { strict: scenario.scope.strict, bridgeUrl });

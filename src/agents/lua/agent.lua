@@ -34,7 +34,10 @@ return function(config)
   local stacks = setmetatable({}, {__mode='k'})
   local main_thread = coroutine.running()
   local sequence, serial, dropped, aborted = 0, 0, 0, 0
-  local hooks, manually_wrapped = {}, setmetatable({}, {__mode='k'})
+  local hooks, manually_wrapped = setmetatable({}, {__mode='k'}), setmetatable({}, {__mode='k'})
+  local creator_spans=setmetatable({}, {__mode='k'})
+  local native_create,native_wrap=coroutine.create,coroutine.wrap
+  local active_hook
   local function_symbols, symbol_ordinals, symbols = setmetatable({}, {__mode='k'}), {}, {}
   arrays[symbols]=true
   local executor_id = config.executorId or ('lua-' .. tostring({}):gsub('[^%w]',''))
@@ -54,7 +57,7 @@ return function(config)
   end
   local function begin(spec, push)
     serial=serial+1; local id=config.processId..'-'..executor_id..'-'..serial
-    local current=stack(); local parent=current[#current] or os.getenv('COURSE_PERF_PARENT_SPAN_ID')
+    local current=stack(); local parent=current[#current] or creator_spans[coroutine.running() or main_thread] or os.getenv('COURSE_PERF_PARENT_SPAN_ID')
     local key='calls.'..spec.id; counters[key]=(counters[key] or 0)+1
     if spec.id=='quarto.filter.run' then counters.filter_runs=(counters.filter_runs or 0)+1 end
     local handler=spec.id:match('%.handler%.(.+)$');if handler then local name='handler_calls.'..handler;counters[name]=(counters[name] or 0)+1 end
@@ -103,6 +106,23 @@ return function(config)
     env.COURSE_PERF_PARENT_SPAN_ID=stack()[#stack()]
     return env
   end}
+  local function register_thread(thread,parent)
+    creator_spans[thread]=parent;hooks[thread]=true
+    if active_hook then debug.sethook(thread,active_hook,'cr') end
+  end
+  local create_proxy=function(fn)
+    local parent=stack()[#stack()]
+    local thread=native_create(fn);register_thread(thread,parent);return thread
+  end
+  local wrap_proxy=function(fn)
+    local parent=stack()[#stack()]
+    local wrapped=native_wrap(fn)
+    local _,thread=debug.getupvalue(wrapped,1)
+    if type(thread)=='thread' then register_thread(thread,parent)
+    else errors[#errors+1]='coroutine.wrap: thread identity недоступна' end
+    return wrapped
+  end
+  coroutine.create=create_proxy;coroutine.wrap=wrap_proxy
   local function flush()
     local failures=rawget(_G,'__course_performance_failures_v1') or {}
     arrays[failures]=true
@@ -117,16 +137,32 @@ return function(config)
     if not ok then errors[#errors+1]='flush: '..tostring(err) end
   end
   local trace_frames=setmetatable({}, {__mode='k'})
+  local function disable_hooks()
+    if active_hook and debug.gethook()==active_hook then debug.sethook() end
+    for thread in pairs(hooks) do
+      if debug.gethook(thread)==active_hook then debug.sethook(thread) end
+    end
+    active_hook=nil
+  end
+  local function close_frame(frame,status)
+    if frame.id then finish(frame.id,status) end
+    for i=#(frame.tails or {}),1,-1 do if frame.tails[i].id then finish(frame.tails[i].id,status) end end
+  end
   local function stop_trace()
-    debug.sethook()
-    for thread in pairs(hooks) do if coroutine.status(thread)~='dead' then debug.sethook(thread) end end
+    disable_hooks()
     for _,frames in pairs(trace_frames) do
-      for i=#frames,1,-1 do if frames[i].id then finish(frames[i].id,'aborted',false) end end
+      for i=#frames,1,-1 do close_frame(frames[i],'aborted') end
+    end
+    for _,current in pairs(stacks) do
+      for i=#current,1,-1 do if not active[current[i]] then table.remove(current,i) end end
     end
     trace_frames=setmetatable({}, {__mode='k'})
   end
   local function start_trace(scope)
     if debug.gethook() then errors[#errors+1]='Конфликт debug hooks';return false end
+    for thread in pairs(hooks) do
+      if debug.gethook(thread) then errors[#errors+1]='Конфликт coroutine debug hooks';return false end
+    end
     local function selected(source)
       if source==agent_source then return false end
       for _,path in ipairs(scope) do if source:find(path,1,true) then return true end end
@@ -137,8 +173,10 @@ return function(config)
       local thread=coroutine.running() or main_thread
       local frames=trace_frames[thread] or {};trace_frames[thread]=frames
       local info=debug.getinfo(2,'fSn')
+      local tails
       if event=='tail call' then
-        local previous=table.remove(frames);if previous and previous.id then finish(previous.id,'ok') end
+        local previous=table.remove(frames)
+        if previous then tails=previous.tails or {};previous.tails=nil;tails[#tails+1]=previous end
       end
       if event=='call' or event=='tail call' then
         local id
@@ -152,25 +190,27 @@ return function(config)
           end
           id=begin{id=symbol,symbol_id=symbol,kind='function',origin='auto'}
         end
-        frames[#frames+1]={id=id,fn=info.func}
+        frames[#frames+1]={id=id,fn=info.func,tails=tails}
       elseif event=='return' then
         -- Calls made before hook installation have no corresponding frame.
         local matched
         for i=#frames,1,-1 do if frames[i].fn==info.func then matched=i;break end end
         if matched then
-          for i=#frames,matched+1,-1 do local frame=table.remove(frames);if frame.id then finish(frame.id,'error') end end
-          local frame=table.remove(frames);if frame.id then finish(frame.id,'ok') end
+          for i=#frames,matched+1,-1 do close_frame(table.remove(frames),'error') end
+          close_frame(table.remove(frames),'ok')
         end
       end
     end
-    debug.sethook(hook,'cr')
-    local create=coroutine.create
-    coroutine.create=function(fn)
-      local thread=create(fn);debug.sethook(thread,hook,'cr');hooks[thread]=true;return thread
-    end
+    active_hook=hook;debug.sethook(hook,'cr')
+    for thread in pairs(hooks) do if coroutine.status(thread)~='dead' then debug.sethook(thread,hook,'cr') end end
     return true
   end
-  local function shutdown() debug.sethook();flush() end
+  local function shutdown()
+    disable_hooks()
+    if coroutine.create==create_proxy then coroutine.create=native_create end
+    if coroutine.wrap==wrap_proxy then coroutine.wrap=native_wrap end
+    flush()
+  end
   local agent={abiVersion=1,metrics=metrics,flush=flush,start_trace=start_trace,stop_trace=stop_trace,shutdown=shutdown}
   _G.__course_performance_agent_v1=agent
   return agent

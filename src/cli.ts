@@ -5,7 +5,6 @@ import { freezeVariants } from "./sources/freeze.ts";
 import { prepareVariant } from "./sources/prepare.ts";
 import { probeQuarto } from "./adapters/quarto/capabilities.ts";
 import { executeScenario } from "./runner/execute.ts";
-import { prepareDiagnostic } from "./runner/diagnostic.ts";
 import { benchmarkPair } from "./runner/benchmark.ts";
 import { compareBenchmarks } from "./analysis/compare.ts";
 import { type NormalizedRun, normalizeRun } from "./analysis/normalize.ts";
@@ -70,7 +69,11 @@ async function main(): Promise<number> {
   const manifestFor = async (variant: Variant): Promise<SourceManifest> =>
     JSON.parse(await Deno.readTextFile(join(workspace, variant + ".manifest.json")));
   const runRoot = join(workspace, "runs"),
-    env = { XDG_CACHE_HOME: join(workspace, "cache"), QUARTO_RUN_NO_NETWORK: "true" };
+    env = {
+      XDG_CACHE_HOME: join(workspace, "cache"),
+      QUARTO_RUN_NO_NETWORK: "true",
+      QUARTO: quarto,
+    };
   if (command === "run" || command === "benchmark") {
     const runtimeRegistry = (await manifestFor("candidate")).runtime.runtimeRegistry?.path;
     const scenario = config.scenarios.find((s) => s.id === flags["--scenario"]);
@@ -133,12 +136,14 @@ async function main(): Promise<number> {
       !["upstream", "clean-control", "candidate"].includes(variant)
     ) throw new Error("Неизвестный mode/variant");
     const prepared = await prepare(variant), actual = { ...scenario, executable: quarto, mode };
-    const diagnostic = mode === "off" ? undefined : await prepareDiagnostic(
-      actual,
-      prepared,
-      await Deno.makeTempDir({ dir: workspace, prefix: "diagnostic-" }),
-      quarto,
-    );
+    const diagnostic = mode === "off"
+      ? undefined
+      : await (await import("./runner/diagnostic.ts")).prepareDiagnostic(
+        actual,
+        prepared,
+        await Deno.makeTempDir({ dir: workspace, prefix: "diagnostic-" }),
+        quarto,
+      );
     const result = await executeScenario(actual, prepared, mode, {
       outputRoot: runRoot,
       env,

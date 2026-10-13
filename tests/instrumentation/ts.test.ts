@@ -45,3 +45,21 @@ Deno.test("manual wrapper registration is excluded from automatic trace", () => 
   assert.equal(result.symbols[0].manuallyWrapped, true);
   assert(!result.source.includes("return __coursePerf"));
 });
+Deno.test("module manual binding does not hide a shadowed nested function; unsupported local rebinding is explicit", () => {
+  const source =
+    "function f(){return 1;} function outer(){function f(){return 7;}return f();} f=metrics.wrapSync({id:'f',kind:'function'},f);";
+  const result = instrumentModule(source, "shadow.ts", { strict: true, bridgeUrl: bridge });
+  const inner = result.symbols.find((s) =>
+    source.slice(s.start, s.end) === "function f(){return 7;}"
+  )!;
+  assert.equal(inner.manuallyWrapped, false);
+  assert.throws(
+    () =>
+      instrumentModule(
+        "function outer(){function f(){return 1;} f=metrics.wrapSync({},f);}",
+        "local.ts",
+        { strict: true, bridgeUrl: bridge },
+      ),
+    /coverage/i,
+  );
+});

@@ -148,11 +148,13 @@ export function installTsAgent(config: AgentConfig) {
       };
     },
   };
+  const calibrationBefore = timestamp(), epoch = Date.now(), calibrationAfter = timestamp();
   const calibration = {
     time_origin_ms: performance.timeOrigin,
-    wall_epoch_ms: Date.now(),
-    monotonic_us: timestamp(),
-    uncertainty_us: 1000,
+    wall_epoch_ms: epoch,
+    monotonic_us: (calibrationBefore + calibrationAfter) / 2,
+    uncertainty_us: 1000 + (calibrationAfter - calibrationBefore) / 2,
+    uncertainty_scope: "локальное чтение epoch; системный дрейф не ограничен",
   };
   function flush() {
     const failures = (registry[Symbol.for("course.performance.failures.v1")] ?? []) as string[];

@@ -130,3 +130,52 @@ agent.stop_trace();agent.flush();return {}`,
   assert.equal((result as { data_valid: boolean }).data_valid, true);
   assert(events.some((e) => e.status === "error"));
 });
+
+Deno.test("Lua coroutine factories inherit creator span and stop removes hooks from wrapped threads", async () => {
+  const { events, result } = await fixture(`
+local agent=dofile(${
+    JSON.stringify(project + "src/agents/lua/agent.lua")
+  }){experimentId='e',runId='r',processId='p',executorId='lua',outputDirectory=os.getenv('COURSE_PERF_OUTPUT_DIR'),mode='summary'}
+local m=agent.metrics
+local child=m.wrap_sync({id='child',kind='phase'},function()return 1,nil,3,nil end)
+local outer=m.wrap_sync({id='outer',kind='phase'},function()
+ local co=coroutine.create(child);local values=table.pack(coroutine.resume(co));assert(values.n==5 and values[2]==1 and values[4]==3)
+ local wrapped=coroutine.wrap(child);values=table.pack(wrapped());assert(values.n==4 and values[1]==1 and values[3]==3)
+end)
+outer()
+agent.start_trace({'fixture.lua'})
+local wrapped=coroutine.wrap(function()coroutine.yield(7);return 8 end)
+local _,thread=debug.getupvalue(wrapped,1)
+assert(wrapped()==7)
+agent.stop_trace();assert(debug.gethook(thread)==nil);assert(wrapped()==8)
+agent.flush();return {}`);
+  const all = events as Record<string, unknown>[];
+  const outer = all.find((e) => e.event === "begin" && e.operation_id === "outer")!;
+  const children = all.filter((e) => e.event === "begin" && e.operation_id === "child");
+  assert.equal(children.length, 2);
+  assert(children.every((e) => e.parent_span_id === outer.span_id));
+  // Stopping a suspended observed function records an aborted span.
+  assert((result as { incomplete_spans: number }).incomplete_spans > 0);
+});
+
+Deno.test("Lua tail caller remains the logical parent and inherits the callee failure", async () => {
+  const { events, result } = await fixture(
+    `
+local agent=dofile(${
+      JSON.stringify(project + "src/agents/lua/agent.lua")
+    }){experimentId='e',runId='r',processId='p',executorId='lua',outputDirectory=os.getenv('COURSE_PERF_OUTPUT_DIR'),mode='trace'}
+local err={tail=true}
+local function leaf() error(err) end
+local function outer() return leaf() end
+agent.start_trace({'fixture.lua'})
+local ok,value=pcall(outer);assert(not ok and value==err)
+agent.stop_trace();agent.flush();return {}`,
+    "trace",
+  );
+  const all = events as Record<string, unknown>[];
+  const begins = all.filter((e) => e.event === "begin");
+  assert.equal(begins.length, 2);
+  assert.equal(begins[1].parent_span_id, begins[0].span_id);
+  assert.equal(all.filter((e) => e.event === "end" && e.status === "error").length, 2);
+  assert.equal((result as { data_valid: boolean }).data_valid, true);
+});

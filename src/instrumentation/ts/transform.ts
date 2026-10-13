@@ -29,7 +29,28 @@ export function instrumentModule(
       ts.isBinaryExpression(node) && ts.isIdentifier(node.left) &&
       ts.isCallExpression(node.right) && ts.isPropertyAccessExpression(node.right.expression) &&
       /^wrap(Sync|Async|Walk)$/.test(node.right.expression.name.text)
-    ) manuallyWrapped.add(node.left.text);
+    ) {
+      const name = node.left.text;
+      if (
+        ts.isExpressionStatement(node.parent) && node.parent.parent === file &&
+        file.statements.some((s) => ts.isFunctionDeclaration(s) && s.name?.text === name && s.body)
+      ) {
+        manuallyWrapped.add(name);
+      } else {skipped.push({
+          position: node.getStart(file),
+          reason: "Local/aliased manual rebind не поддержан",
+        });}
+    }
+    if (
+      ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) &&
+      /^wrap(Sync|Async|Walk)$/.test(node.expression.name.text) &&
+      node.arguments.some((a) => ts.isArrowFunction(a) || ts.isFunctionExpression(a))
+    ) {
+      skipped.push({
+        position: node.getStart(file),
+        reason: "Inline manual callback не поддержан",
+      });
+    }
     ts.forEachChild(node, findManual);
   }
   findManual(file);
@@ -56,7 +77,9 @@ export function instrumentModule(
         skipped.push({ position: node.getStart(file), reason: "Direct eval изменяет scope" });
       } else {
         const start = node.getStart(file), end = node.end, id = `${path}:${start}:${end}`;
-        const name = node.name?.getText(file), manual = !!name && manuallyWrapped.has(name);
+        const name = node.name?.getText(file),
+          manual = ts.isFunctionDeclaration(node) && node.parent === file && !!name &&
+            manuallyWrapped.has(name);
         symbols.push({ id, path, start, end, manuallyWrapped: manual });
         if (!manual) {
           const async = node.modifiers?.some((m) => m.kind === ts.SyntaxKind.AsyncKeyword),

@@ -168,3 +168,27 @@ Deno.test("bootstrap preserves import.meta.main, shebang, args and relative impo
     await Deno.remove(root, { recursive: true });
   }
 });
+Deno.test("calibration uncertainty includes a stalled epoch-clock read", async () => {
+  const root = await Deno.makeTempDir(), original = Date.now;
+  try {
+    Date.now = () => {
+      const start = performance.now();
+      while (performance.now() - start < 20) {}
+      return original();
+    };
+    const a = installTsAgent({
+      experimentId: "e",
+      runId: "r",
+      processId: "p",
+      outputDirectory: root,
+      mode: "summary",
+    });
+    a.flush();
+    const s = JSON.parse(await Deno.readTextFile(join(root, "events/p/ts.summary.json")));
+    assert(s.calibration.uncertainty_us >= 10000);
+  } finally {
+    Date.now = original;
+    Reflect.deleteProperty(globalThis, Symbol.for("course.performance.agent.v1"));
+    await Deno.remove(root, { recursive: true });
+  }
+});

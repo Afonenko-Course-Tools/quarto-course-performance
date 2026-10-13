@@ -113,3 +113,41 @@ Deno.test("off clears an inherited diagnostic Quarto share override", () => {
     { FUNCTIONAL: "keep" },
   );
 });
+
+Deno.test("resource measurement retains the tool signal separately from a numeric exit", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const script = join(root, "signal.ts");
+    await Deno.writeTextFile(script, "Deno.kill(Deno.pid, 'SIGTERM');await new Promise(()=>{});");
+    const scenario: Scenario = {
+      id: "signal",
+      project: "Java",
+      cwd: ".",
+      executable: Deno.execPath(),
+      args: ["run", "-A", script],
+      courseProfile: "student",
+      cachePolicy: "repeat-render",
+      mode: "off",
+      scope: { modules: [], extensions: [], strict: true },
+      resources: { wall: true, cpu: true, peakRss: true },
+    };
+    const prepared: PreparedVariant = {
+      variant: "candidate",
+      root,
+      manifest: { experimentId: "e", sources: [], packages: [], runtime: {} },
+    };
+    const result = await executeScenario(scenario, prepared, "off", {
+      outputRoot: join(root, "runs"),
+    });
+    assert.equal(result.signal, "SIGTERM");
+    assert.equal(result.buildExitCode, 143);
+    await Deno.writeTextFile(script, "Deno.exit(143);");
+    const numeric = await executeScenario(scenario, prepared, "off", {
+      outputRoot: join(root, "runs"),
+    });
+    assert.equal(numeric.signal, null);
+    assert.equal(numeric.buildExitCode, 143);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
