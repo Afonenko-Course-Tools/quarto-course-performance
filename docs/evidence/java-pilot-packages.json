@@ -1,0 +1,1398 @@
+[
+  {
+    "runId": "0468a3a1-a4a9-4cd3-a3a8-0744f6dcbb62",
+    "scenario": "java-full-full",
+    "mode": "summary",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "packages": [
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-core",
+        "packageHash": "0b1ebe3e6319f76de627429d4984ec4c4901a0ed9141bad30d4faa5e8df399f8",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-core",
+          "handbook/_extensions/Afonenko-Course-Tools/course-core",
+          "lectures/_extensions/Afonenko-Course-Tools/course-core",
+          "practice/_extensions/Afonenko-Course-Tools/course-core",
+          "tasks/_extensions/Afonenko-Course-Tools/course-core",
+          "theory/_extensions/Afonenko-Course-Tools/course-core"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-navigation",
+        "packageHash": "87be78b71051da819f2400c0dbfd1801ed36c725a79b6a68bbefc6b6da53fa42",
+        "destinationPaths": [
+          "lectures/_extensions/Afonenko-Course-Tools/course-navigation",
+          "practice/_extensions/Afonenko-Course-Tools/course-navigation",
+          "tasks/_extensions/Afonenko-Course-Tools/course-navigation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-presentation",
+        "packageHash": "a4ff020811dba2ec537c0c576eee6b09de5cf514456a016a817a232c4fb56f94",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-presentation",
+          "handbook/_extensions/Afonenko-Course-Tools/course-presentation",
+          "lectures/_extensions/Afonenko-Course-Tools/course-presentation",
+          "practice/_extensions/Afonenko-Course-Tools/course-presentation",
+          "tasks/_extensions/Afonenko-Course-Tools/course-presentation",
+          "theory/_extensions/Afonenko-Course-Tools/course-presentation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-publish",
+        "ownerSha": "4ae217c6857bf9c3f08918a505000307293e0352",
+        "extensionId": "course-site",
+        "packageHash": "2bbd1fe5e56d53fa246aac571bd7015d0039b058cf89fe2419a9d7b2b6189f95",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-site"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-reference-catalog",
+        "ownerSha": "5868fa0bc4bf1927a3868e2b90409ec722075e32",
+        "extensionId": "reference-catalog",
+        "packageHash": "0386828747a3c7ecba27d766fdcae0b9cc11dbbce26388550771b124dc99df64",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/reference-catalog",
+          "handbook/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "lectures/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "practice/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "tasks/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "theory/_extensions/Afonenko-Course-Tools/reference-catalog"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-download",
+        "ownerSha": "1c84e7d566f808252ae23d706eaa068bf71f3f90",
+        "extensionId": "project-download",
+        "packageHash": "c5474831e0b9f65b7eab3b8cdf9a4eb9f91db951f1f8d8bfac7f2a0c916c5b35",
+        "destinationPaths": [
+          "tasks/_extensions/Afonenko-Course-Tools/project-download"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course-prairielearn",
+        "ownerSha": "294199f342a3d55382eff759e7f650f55ccdcda0",
+        "extensionId": "course-prairielearn",
+        "packageHash": "e4aa9cba8f1604201b1c6a1c96f2c8e96eb6861ec04afdcdf1c55e75b129f3ee",
+        "destinationPaths": [
+          "tasks/_extensions/Afonenko-Course-Tools/course-prairielearn"
+        ]
+      }
+    ],
+    "manifestSha256": "4bdc1d339793ca109d91e7ae903394d50b12cb5a5025c09fc884d3adc2195ddd",
+    "artifacts": {
+      "run.json": {
+        "sha256": "1f8d4568a2b278e846f9aa15366ef9e05fd9511a047207246c115cf109e92728",
+        "bytes": 1896
+      },
+      "manifest.json": {
+        "sha256": "4bdc1d339793ca109d91e7ae903394d50b12cb5a5025c09fc884d3adc2195ddd",
+        "bytes": 11481
+      },
+      "coverage.json": {
+        "sha256": "87b63bd1245c76586ae8ed0458bde889e3a505751b6c6a229418fe7821785fcb",
+        "bytes": 45966
+      },
+      "wall.trace.json": {
+        "sha256": "8ca573ce39c5387282dcf00a50de2055f1064477c9154dcef6006411a97651fa",
+        "bytes": 12643286
+      },
+      "lua-cpu.trace.json": {
+        "sha256": "26bdcde09a2a9d8dc0849fa24df84e45e02881ccd2f9cf15c49bc251bbf1ea0a",
+        "bytes": 167126188
+      },
+      "causal.json": {
+        "sha256": "44e80e4681e2f0ef925396d9d2af75dcb0a605eb73da6476d320fed44fca9070",
+        "bytes": 153390203
+      }
+    }
+  },
+  {
+    "runId": "0c000e83-a5a8-42d1-9c5c-c59ca59d18c7",
+    "scenario": "java-ts-publication",
+    "mode": "cpu",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "packages": [
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-core",
+        "packageHash": "0b1ebe3e6319f76de627429d4984ec4c4901a0ed9141bad30d4faa5e8df399f8",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-b252387d6f9e29d8/candidate/_extensions/Afonenko-Course-Tools/course-core",
+          "$FUNCTIONAL_WORKSPACE/prepared-b252387d6f9e29d8/candidate/handbook/_extensions/Afonenko-Course-Tools/course-core",
+          "$FUNCTIONAL_WORKSPACE/prepared-b252387d6f9e29d8/candidate/lectures/_extensions/Afonenko-Course-Tools/course-core",
+          "_extensions/Afonenko-Course-Tools/course-core",
+          "$FUNCTIONAL_WORKSPACE/prepared-b252387d6f9e29d8/candidate/tasks/_extensions/Afonenko-Course-Tools/course-core",
+          "$FUNCTIONAL_WORKSPACE/prepared-b252387d6f9e29d8/candidate/theory/_extensions/Afonenko-Course-Tools/course-core"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-navigation",
+        "packageHash": "87be78b71051da819f2400c0dbfd1801ed36c725a79b6a68bbefc6b6da53fa42",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-b252387d6f9e29d8/candidate/lectures/_extensions/Afonenko-Course-Tools/course-navigation",
+          "_extensions/Afonenko-Course-Tools/course-navigation",
+          "$FUNCTIONAL_WORKSPACE/prepared-b252387d6f9e29d8/candidate/tasks/_extensions/Afonenko-Course-Tools/course-navigation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-presentation",
+        "packageHash": "a4ff020811dba2ec537c0c576eee6b09de5cf514456a016a817a232c4fb56f94",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-b252387d6f9e29d8/candidate/_extensions/Afonenko-Course-Tools/course-presentation",
+          "$FUNCTIONAL_WORKSPACE/prepared-b252387d6f9e29d8/candidate/handbook/_extensions/Afonenko-Course-Tools/course-presentation",
+          "$FUNCTIONAL_WORKSPACE/prepared-b252387d6f9e29d8/candidate/lectures/_extensions/Afonenko-Course-Tools/course-presentation",
+          "_extensions/Afonenko-Course-Tools/course-presentation",
+          "$FUNCTIONAL_WORKSPACE/prepared-b252387d6f9e29d8/candidate/tasks/_extensions/Afonenko-Course-Tools/course-presentation",
+          "$FUNCTIONAL_WORKSPACE/prepared-b252387d6f9e29d8/candidate/theory/_extensions/Afonenko-Course-Tools/course-presentation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-publish",
+        "ownerSha": "4ae217c6857bf9c3f08918a505000307293e0352",
+        "extensionId": "course-site",
+        "packageHash": "2bbd1fe5e56d53fa246aac571bd7015d0039b058cf89fe2419a9d7b2b6189f95",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-b252387d6f9e29d8/candidate/_extensions/Afonenko-Course-Tools/course-site"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-reference-catalog",
+        "ownerSha": "5868fa0bc4bf1927a3868e2b90409ec722075e32",
+        "extensionId": "reference-catalog",
+        "packageHash": "0386828747a3c7ecba27d766fdcae0b9cc11dbbce26388550771b124dc99df64",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-b252387d6f9e29d8/candidate/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "$FUNCTIONAL_WORKSPACE/prepared-b252387d6f9e29d8/candidate/handbook/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "$FUNCTIONAL_WORKSPACE/prepared-b252387d6f9e29d8/candidate/lectures/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "_extensions/Afonenko-Course-Tools/reference-catalog",
+          "$FUNCTIONAL_WORKSPACE/prepared-b252387d6f9e29d8/candidate/tasks/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "$FUNCTIONAL_WORKSPACE/prepared-b252387d6f9e29d8/candidate/theory/_extensions/Afonenko-Course-Tools/reference-catalog"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-download",
+        "ownerSha": "1c84e7d566f808252ae23d706eaa068bf71f3f90",
+        "extensionId": "project-download",
+        "packageHash": "c5474831e0b9f65b7eab3b8cdf9a4eb9f91db951f1f8d8bfac7f2a0c916c5b35",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-b252387d6f9e29d8/candidate/tasks/_extensions/Afonenko-Course-Tools/project-download"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course-prairielearn",
+        "ownerSha": "294199f342a3d55382eff759e7f650f55ccdcda0",
+        "extensionId": "course-prairielearn",
+        "packageHash": "e4aa9cba8f1604201b1c6a1c96f2c8e96eb6861ec04afdcdf1c55e75b129f3ee",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-b252387d6f9e29d8/candidate/tasks/_extensions/Afonenko-Course-Tools/course-prairielearn"
+        ]
+      }
+    ],
+    "manifestSha256": "fd8de5613ecab769f7b8afaf63ed21bc1e47b228fd4eaee72d98daaa1c8e4d78",
+    "artifacts": {
+      "run.json": {
+        "sha256": "e0ea9ef9522415445e486238f32b1fb0f5f946154ac064ed26d6c500ab925eba",
+        "bytes": 1928
+      },
+      "manifest.json": {
+        "sha256": "fd8de5613ecab769f7b8afaf63ed21bc1e47b228fd4eaee72d98daaa1c8e4d78",
+        "bytes": 11481
+      },
+      "coverage.json": {
+        "sha256": "294422726ed961aa9bf7a897557fa7fe4e4d9d7a1a1eb410ea73f18935f77eb1",
+        "bytes": 46132
+      },
+      "wall.trace.json": {
+        "sha256": "bf25e26ee4a95c7f1b4729a5ffb76b29dee9f280ab1c1caaf41e8f9b885594ee",
+        "bytes": 25310
+      },
+      "lua-cpu.trace.json": {
+        "sha256": "d9b5ea0ac437165761cf4e6a2549ff771965a80f8c4acc475fbeaebfe5fd83e8",
+        "bytes": 335693
+      },
+      "causal.json": {
+        "sha256": "aa9f43afc722c8f72edbb4937cfbcfb78cd67683dafc3ff12562e0c3e6312e2d",
+        "bytes": 311176
+      }
+    }
+  },
+  {
+    "runId": "2990c474-1b56-4823-983a-19f1c5bebfd1",
+    "scenario": "java-ast-document",
+    "mode": "trace",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "packages": [
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-core",
+        "packageHash": "0b1ebe3e6319f76de627429d4984ec4c4901a0ed9141bad30d4faa5e8df399f8",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-452062c232c25476/candidate/_extensions/Afonenko-Course-Tools/course-core",
+          "$FUNCTIONAL_WORKSPACE/prepared-452062c232c25476/candidate/handbook/_extensions/Afonenko-Course-Tools/course-core",
+          "$FUNCTIONAL_WORKSPACE/prepared-452062c232c25476/candidate/lectures/_extensions/Afonenko-Course-Tools/course-core",
+          "$FUNCTIONAL_WORKSPACE/prepared-452062c232c25476/candidate/practice/_extensions/Afonenko-Course-Tools/course-core",
+          "_extensions/Afonenko-Course-Tools/course-core",
+          "$FUNCTIONAL_WORKSPACE/prepared-452062c232c25476/candidate/theory/_extensions/Afonenko-Course-Tools/course-core"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-navigation",
+        "packageHash": "87be78b71051da819f2400c0dbfd1801ed36c725a79b6a68bbefc6b6da53fa42",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-452062c232c25476/candidate/lectures/_extensions/Afonenko-Course-Tools/course-navigation",
+          "$FUNCTIONAL_WORKSPACE/prepared-452062c232c25476/candidate/practice/_extensions/Afonenko-Course-Tools/course-navigation",
+          "_extensions/Afonenko-Course-Tools/course-navigation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-presentation",
+        "packageHash": "a4ff020811dba2ec537c0c576eee6b09de5cf514456a016a817a232c4fb56f94",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-452062c232c25476/candidate/_extensions/Afonenko-Course-Tools/course-presentation",
+          "$FUNCTIONAL_WORKSPACE/prepared-452062c232c25476/candidate/handbook/_extensions/Afonenko-Course-Tools/course-presentation",
+          "$FUNCTIONAL_WORKSPACE/prepared-452062c232c25476/candidate/lectures/_extensions/Afonenko-Course-Tools/course-presentation",
+          "$FUNCTIONAL_WORKSPACE/prepared-452062c232c25476/candidate/practice/_extensions/Afonenko-Course-Tools/course-presentation",
+          "_extensions/Afonenko-Course-Tools/course-presentation",
+          "$FUNCTIONAL_WORKSPACE/prepared-452062c232c25476/candidate/theory/_extensions/Afonenko-Course-Tools/course-presentation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-publish",
+        "ownerSha": "4ae217c6857bf9c3f08918a505000307293e0352",
+        "extensionId": "course-site",
+        "packageHash": "2bbd1fe5e56d53fa246aac571bd7015d0039b058cf89fe2419a9d7b2b6189f95",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-452062c232c25476/candidate/_extensions/Afonenko-Course-Tools/course-site"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-reference-catalog",
+        "ownerSha": "5868fa0bc4bf1927a3868e2b90409ec722075e32",
+        "extensionId": "reference-catalog",
+        "packageHash": "0386828747a3c7ecba27d766fdcae0b9cc11dbbce26388550771b124dc99df64",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-452062c232c25476/candidate/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "$FUNCTIONAL_WORKSPACE/prepared-452062c232c25476/candidate/handbook/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "$FUNCTIONAL_WORKSPACE/prepared-452062c232c25476/candidate/lectures/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "$FUNCTIONAL_WORKSPACE/prepared-452062c232c25476/candidate/practice/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "_extensions/Afonenko-Course-Tools/reference-catalog",
+          "$FUNCTIONAL_WORKSPACE/prepared-452062c232c25476/candidate/theory/_extensions/Afonenko-Course-Tools/reference-catalog"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-download",
+        "ownerSha": "1c84e7d566f808252ae23d706eaa068bf71f3f90",
+        "extensionId": "project-download",
+        "packageHash": "c5474831e0b9f65b7eab3b8cdf9a4eb9f91db951f1f8d8bfac7f2a0c916c5b35",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/project-download"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course-prairielearn",
+        "ownerSha": "294199f342a3d55382eff759e7f650f55ccdcda0",
+        "extensionId": "course-prairielearn",
+        "packageHash": "e4aa9cba8f1604201b1c6a1c96f2c8e96eb6861ec04afdcdf1c55e75b129f3ee",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-prairielearn"
+        ]
+      }
+    ],
+    "manifestSha256": "d3666c6f0da129e0decad1e199ec14e48a7d4e7c5204fb3f0e3e1aa8733c9bf4",
+    "artifacts": {
+      "run.json": {
+        "sha256": "5ea33ac2666784aae282c48e5ff6a482f8ebd6819ec315c934d5b49bea25e2a3",
+        "bytes": 1937
+      },
+      "manifest.json": {
+        "sha256": "d3666c6f0da129e0decad1e199ec14e48a7d4e7c5204fb3f0e3e1aa8733c9bf4",
+        "bytes": 11481
+      },
+      "coverage.json": {
+        "sha256": "1ab180b598eae899e1a6899b45ca4372e8a237a8c0c3674bc323d4167fd9198b",
+        "bytes": 46056
+      },
+      "wall.trace.json": {
+        "sha256": "a5de305f78d6bbdf07be1f169d8865da8ae16553408280c1aa50d1cae8e1d25b",
+        "bytes": 104375
+      },
+      "lua-cpu.trace.json": {
+        "sha256": "6aaa9680c15520308aab6282076f6705ca670a0f03627ac6fb95b6607eca9b6b",
+        "bytes": 4567867
+      },
+      "causal.json": {
+        "sha256": "15928e4319e61dfa091890ea25fe9673d9b34867b7473a2e04fa50d47cdd8ee4",
+        "bytes": 3995866
+      }
+    }
+  },
+  {
+    "runId": "2e1b53a3-dc89-4932-a72e-5671385b490a",
+    "scenario": "java-repeat-student",
+    "mode": "off",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "packages": [
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-core",
+        "packageHash": "0b1ebe3e6319f76de627429d4984ec4c4901a0ed9141bad30d4faa5e8df399f8",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-core",
+          "handbook/_extensions/Afonenko-Course-Tools/course-core",
+          "lectures/_extensions/Afonenko-Course-Tools/course-core",
+          "practice/_extensions/Afonenko-Course-Tools/course-core",
+          "tasks/_extensions/Afonenko-Course-Tools/course-core",
+          "theory/_extensions/Afonenko-Course-Tools/course-core"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-navigation",
+        "packageHash": "87be78b71051da819f2400c0dbfd1801ed36c725a79b6a68bbefc6b6da53fa42",
+        "destinationPaths": [
+          "lectures/_extensions/Afonenko-Course-Tools/course-navigation",
+          "practice/_extensions/Afonenko-Course-Tools/course-navigation",
+          "tasks/_extensions/Afonenko-Course-Tools/course-navigation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-presentation",
+        "packageHash": "a4ff020811dba2ec537c0c576eee6b09de5cf514456a016a817a232c4fb56f94",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-presentation",
+          "handbook/_extensions/Afonenko-Course-Tools/course-presentation",
+          "lectures/_extensions/Afonenko-Course-Tools/course-presentation",
+          "practice/_extensions/Afonenko-Course-Tools/course-presentation",
+          "tasks/_extensions/Afonenko-Course-Tools/course-presentation",
+          "theory/_extensions/Afonenko-Course-Tools/course-presentation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-publish",
+        "ownerSha": "4ae217c6857bf9c3f08918a505000307293e0352",
+        "extensionId": "course-site",
+        "packageHash": "2bbd1fe5e56d53fa246aac571bd7015d0039b058cf89fe2419a9d7b2b6189f95",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-site"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-reference-catalog",
+        "ownerSha": "5868fa0bc4bf1927a3868e2b90409ec722075e32",
+        "extensionId": "reference-catalog",
+        "packageHash": "0386828747a3c7ecba27d766fdcae0b9cc11dbbce26388550771b124dc99df64",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/reference-catalog",
+          "handbook/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "lectures/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "practice/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "tasks/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "theory/_extensions/Afonenko-Course-Tools/reference-catalog"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-download",
+        "ownerSha": "1c84e7d566f808252ae23d706eaa068bf71f3f90",
+        "extensionId": "project-download",
+        "packageHash": "c5474831e0b9f65b7eab3b8cdf9a4eb9f91db951f1f8d8bfac7f2a0c916c5b35",
+        "destinationPaths": [
+          "tasks/_extensions/Afonenko-Course-Tools/project-download"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course-prairielearn",
+        "ownerSha": "294199f342a3d55382eff759e7f650f55ccdcda0",
+        "extensionId": "course-prairielearn",
+        "packageHash": "e4aa9cba8f1604201b1c6a1c96f2c8e96eb6861ec04afdcdf1c55e75b129f3ee",
+        "destinationPaths": [
+          "tasks/_extensions/Afonenko-Course-Tools/course-prairielearn"
+        ]
+      }
+    ],
+    "manifestSha256": "d9d6ac5470b06a58e88050b8a8d1e8e286bea35c9c8d075abfd405979519f767",
+    "artifacts": {
+      "run.json": {
+        "sha256": "591200f70a16bbca3fa8376648a1de49bc7d5c7d106cf9dd6e68e31c82a276c6",
+        "bytes": 857
+      },
+      "manifest.json": {
+        "sha256": "d9d6ac5470b06a58e88050b8a8d1e8e286bea35c9c8d075abfd405979519f767",
+        "bytes": 11433
+      }
+    }
+  },
+  {
+    "runId": "72c6506f-edd0-4815-a263-f25554690b32",
+    "scenario": "java-full-student",
+    "mode": "summary",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "packages": [
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-core",
+        "packageHash": "0b1ebe3e6319f76de627429d4984ec4c4901a0ed9141bad30d4faa5e8df399f8",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-core",
+          "handbook/_extensions/Afonenko-Course-Tools/course-core",
+          "lectures/_extensions/Afonenko-Course-Tools/course-core",
+          "practice/_extensions/Afonenko-Course-Tools/course-core",
+          "tasks/_extensions/Afonenko-Course-Tools/course-core",
+          "theory/_extensions/Afonenko-Course-Tools/course-core"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-navigation",
+        "packageHash": "87be78b71051da819f2400c0dbfd1801ed36c725a79b6a68bbefc6b6da53fa42",
+        "destinationPaths": [
+          "lectures/_extensions/Afonenko-Course-Tools/course-navigation",
+          "practice/_extensions/Afonenko-Course-Tools/course-navigation",
+          "tasks/_extensions/Afonenko-Course-Tools/course-navigation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-presentation",
+        "packageHash": "a4ff020811dba2ec537c0c576eee6b09de5cf514456a016a817a232c4fb56f94",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-presentation",
+          "handbook/_extensions/Afonenko-Course-Tools/course-presentation",
+          "lectures/_extensions/Afonenko-Course-Tools/course-presentation",
+          "practice/_extensions/Afonenko-Course-Tools/course-presentation",
+          "tasks/_extensions/Afonenko-Course-Tools/course-presentation",
+          "theory/_extensions/Afonenko-Course-Tools/course-presentation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-publish",
+        "ownerSha": "4ae217c6857bf9c3f08918a505000307293e0352",
+        "extensionId": "course-site",
+        "packageHash": "2bbd1fe5e56d53fa246aac571bd7015d0039b058cf89fe2419a9d7b2b6189f95",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-site"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-reference-catalog",
+        "ownerSha": "5868fa0bc4bf1927a3868e2b90409ec722075e32",
+        "extensionId": "reference-catalog",
+        "packageHash": "0386828747a3c7ecba27d766fdcae0b9cc11dbbce26388550771b124dc99df64",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/reference-catalog",
+          "handbook/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "lectures/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "practice/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "tasks/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "theory/_extensions/Afonenko-Course-Tools/reference-catalog"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-download",
+        "ownerSha": "1c84e7d566f808252ae23d706eaa068bf71f3f90",
+        "extensionId": "project-download",
+        "packageHash": "c5474831e0b9f65b7eab3b8cdf9a4eb9f91db951f1f8d8bfac7f2a0c916c5b35",
+        "destinationPaths": [
+          "tasks/_extensions/Afonenko-Course-Tools/project-download"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course-prairielearn",
+        "ownerSha": "294199f342a3d55382eff759e7f650f55ccdcda0",
+        "extensionId": "course-prairielearn",
+        "packageHash": "e4aa9cba8f1604201b1c6a1c96f2c8e96eb6861ec04afdcdf1c55e75b129f3ee",
+        "destinationPaths": [
+          "tasks/_extensions/Afonenko-Course-Tools/course-prairielearn"
+        ]
+      }
+    ],
+    "manifestSha256": "9ae1799c7b9cee3178bae6906514caafa2297c27b545473f7d36191063d0929c",
+    "artifacts": {
+      "run.json": {
+        "sha256": "1093174e3fff6901c50a7861027bf26718f92ff50d704809c99a8e13d4b5f6f5",
+        "bytes": 1905
+      },
+      "manifest.json": {
+        "sha256": "9ae1799c7b9cee3178bae6906514caafa2297c27b545473f7d36191063d0929c",
+        "bytes": 11481
+      },
+      "coverage.json": {
+        "sha256": "87b63bd1245c76586ae8ed0458bde889e3a505751b6c6a229418fe7821785fcb",
+        "bytes": 45966
+      },
+      "wall.trace.json": {
+        "sha256": "038566eb31c38c8a7f30cf473e80c45f88fd8d4346ec5ec7f9c5c9c736b2c2f1",
+        "bytes": 12640826
+      },
+      "lua-cpu.trace.json": {
+        "sha256": "87f31dc31f29ff187207267359f6861d7d74a913c46a6649b436913916dc2bfe",
+        "bytes": 167324220
+      },
+      "causal.json": {
+        "sha256": "534d4cdfac9f11ec1c679a162f0a32684cca8162052e2f27714b7b4aa09ea3d7",
+        "bytes": 153555580
+      }
+    }
+  },
+  {
+    "runId": "80f98f08-9f96-417e-868e-6a68c88153ae",
+    "scenario": "java-full-full",
+    "mode": "off",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "packages": [
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-core",
+        "packageHash": "0b1ebe3e6319f76de627429d4984ec4c4901a0ed9141bad30d4faa5e8df399f8",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-core",
+          "handbook/_extensions/Afonenko-Course-Tools/course-core",
+          "lectures/_extensions/Afonenko-Course-Tools/course-core",
+          "practice/_extensions/Afonenko-Course-Tools/course-core",
+          "tasks/_extensions/Afonenko-Course-Tools/course-core",
+          "theory/_extensions/Afonenko-Course-Tools/course-core"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-navigation",
+        "packageHash": "87be78b71051da819f2400c0dbfd1801ed36c725a79b6a68bbefc6b6da53fa42",
+        "destinationPaths": [
+          "lectures/_extensions/Afonenko-Course-Tools/course-navigation",
+          "practice/_extensions/Afonenko-Course-Tools/course-navigation",
+          "tasks/_extensions/Afonenko-Course-Tools/course-navigation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-presentation",
+        "packageHash": "a4ff020811dba2ec537c0c576eee6b09de5cf514456a016a817a232c4fb56f94",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-presentation",
+          "handbook/_extensions/Afonenko-Course-Tools/course-presentation",
+          "lectures/_extensions/Afonenko-Course-Tools/course-presentation",
+          "practice/_extensions/Afonenko-Course-Tools/course-presentation",
+          "tasks/_extensions/Afonenko-Course-Tools/course-presentation",
+          "theory/_extensions/Afonenko-Course-Tools/course-presentation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-publish",
+        "ownerSha": "4ae217c6857bf9c3f08918a505000307293e0352",
+        "extensionId": "course-site",
+        "packageHash": "2bbd1fe5e56d53fa246aac571bd7015d0039b058cf89fe2419a9d7b2b6189f95",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-site"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-reference-catalog",
+        "ownerSha": "5868fa0bc4bf1927a3868e2b90409ec722075e32",
+        "extensionId": "reference-catalog",
+        "packageHash": "0386828747a3c7ecba27d766fdcae0b9cc11dbbce26388550771b124dc99df64",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/reference-catalog",
+          "handbook/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "lectures/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "practice/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "tasks/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "theory/_extensions/Afonenko-Course-Tools/reference-catalog"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-download",
+        "ownerSha": "1c84e7d566f808252ae23d706eaa068bf71f3f90",
+        "extensionId": "project-download",
+        "packageHash": "c5474831e0b9f65b7eab3b8cdf9a4eb9f91db951f1f8d8bfac7f2a0c916c5b35",
+        "destinationPaths": [
+          "tasks/_extensions/Afonenko-Course-Tools/project-download"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course-prairielearn",
+        "ownerSha": "294199f342a3d55382eff759e7f650f55ccdcda0",
+        "extensionId": "course-prairielearn",
+        "packageHash": "e4aa9cba8f1604201b1c6a1c96f2c8e96eb6861ec04afdcdf1c55e75b129f3ee",
+        "destinationPaths": [
+          "tasks/_extensions/Afonenko-Course-Tools/course-prairielearn"
+        ]
+      }
+    ],
+    "manifestSha256": "e9b2a1fb67296f7b2c99368330e05f85e88f5a793bf5610dbcc3dda9f3de28b1",
+    "artifacts": {
+      "run.json": {
+        "sha256": "9e712cffa9f85d916a65173e1e9fed96a13e117242f050ab276b73ebd80f1f27",
+        "bytes": 852
+      },
+      "manifest.json": {
+        "sha256": "e9b2a1fb67296f7b2c99368330e05f85e88f5a793bf5610dbcc3dda9f3de28b1",
+        "bytes": 11481
+      }
+    }
+  },
+  {
+    "runId": "816b5c51-bae3-4e12-83d3-ac8073c4135b",
+    "scenario": "java-full-student",
+    "mode": "off",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "packages": [
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-core",
+        "packageHash": "0b1ebe3e6319f76de627429d4984ec4c4901a0ed9141bad30d4faa5e8df399f8",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-core",
+          "handbook/_extensions/Afonenko-Course-Tools/course-core",
+          "lectures/_extensions/Afonenko-Course-Tools/course-core",
+          "practice/_extensions/Afonenko-Course-Tools/course-core",
+          "tasks/_extensions/Afonenko-Course-Tools/course-core",
+          "theory/_extensions/Afonenko-Course-Tools/course-core"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-navigation",
+        "packageHash": "87be78b71051da819f2400c0dbfd1801ed36c725a79b6a68bbefc6b6da53fa42",
+        "destinationPaths": [
+          "lectures/_extensions/Afonenko-Course-Tools/course-navigation",
+          "practice/_extensions/Afonenko-Course-Tools/course-navigation",
+          "tasks/_extensions/Afonenko-Course-Tools/course-navigation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-presentation",
+        "packageHash": "a4ff020811dba2ec537c0c576eee6b09de5cf514456a016a817a232c4fb56f94",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-presentation",
+          "handbook/_extensions/Afonenko-Course-Tools/course-presentation",
+          "lectures/_extensions/Afonenko-Course-Tools/course-presentation",
+          "practice/_extensions/Afonenko-Course-Tools/course-presentation",
+          "tasks/_extensions/Afonenko-Course-Tools/course-presentation",
+          "theory/_extensions/Afonenko-Course-Tools/course-presentation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-publish",
+        "ownerSha": "4ae217c6857bf9c3f08918a505000307293e0352",
+        "extensionId": "course-site",
+        "packageHash": "2bbd1fe5e56d53fa246aac571bd7015d0039b058cf89fe2419a9d7b2b6189f95",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-site"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-reference-catalog",
+        "ownerSha": "5868fa0bc4bf1927a3868e2b90409ec722075e32",
+        "extensionId": "reference-catalog",
+        "packageHash": "0386828747a3c7ecba27d766fdcae0b9cc11dbbce26388550771b124dc99df64",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/reference-catalog",
+          "handbook/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "lectures/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "practice/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "tasks/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "theory/_extensions/Afonenko-Course-Tools/reference-catalog"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-download",
+        "ownerSha": "1c84e7d566f808252ae23d706eaa068bf71f3f90",
+        "extensionId": "project-download",
+        "packageHash": "c5474831e0b9f65b7eab3b8cdf9a4eb9f91db951f1f8d8bfac7f2a0c916c5b35",
+        "destinationPaths": [
+          "tasks/_extensions/Afonenko-Course-Tools/project-download"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course-prairielearn",
+        "ownerSha": "294199f342a3d55382eff759e7f650f55ccdcda0",
+        "extensionId": "course-prairielearn",
+        "packageHash": "e4aa9cba8f1604201b1c6a1c96f2c8e96eb6861ec04afdcdf1c55e75b129f3ee",
+        "destinationPaths": [
+          "tasks/_extensions/Afonenko-Course-Tools/course-prairielearn"
+        ]
+      }
+    ],
+    "manifestSha256": "bdcf67e589253ff36a109c7cef1eea5c5581d566e9e58f8ed9bfec9b27fcce9d",
+    "artifacts": {
+      "run.json": {
+        "sha256": "e378fcf7e267a710e40dd0e9fa960fe684645798269302f65921b473eb2d5fcb",
+        "bytes": 856
+      },
+      "manifest.json": {
+        "sha256": "bdcf67e589253ff36a109c7cef1eea5c5581d566e9e58f8ed9bfec9b27fcce9d",
+        "bytes": 11481
+      }
+    }
+  },
+  {
+    "runId": "87c2ff51-0974-4629-bc49-3b532b3a27a7",
+    "scenario": "java-ts-publication",
+    "mode": "off",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "packages": [
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-core",
+        "packageHash": "0b1ebe3e6319f76de627429d4984ec4c4901a0ed9141bad30d4faa5e8df399f8",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-8ec5ce35d712dc15/candidate/_extensions/Afonenko-Course-Tools/course-core",
+          "$FUNCTIONAL_WORKSPACE/prepared-8ec5ce35d712dc15/candidate/handbook/_extensions/Afonenko-Course-Tools/course-core",
+          "$FUNCTIONAL_WORKSPACE/prepared-8ec5ce35d712dc15/candidate/lectures/_extensions/Afonenko-Course-Tools/course-core",
+          "_extensions/Afonenko-Course-Tools/course-core",
+          "$FUNCTIONAL_WORKSPACE/prepared-8ec5ce35d712dc15/candidate/tasks/_extensions/Afonenko-Course-Tools/course-core",
+          "$FUNCTIONAL_WORKSPACE/prepared-8ec5ce35d712dc15/candidate/theory/_extensions/Afonenko-Course-Tools/course-core"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-navigation",
+        "packageHash": "87be78b71051da819f2400c0dbfd1801ed36c725a79b6a68bbefc6b6da53fa42",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-8ec5ce35d712dc15/candidate/lectures/_extensions/Afonenko-Course-Tools/course-navigation",
+          "_extensions/Afonenko-Course-Tools/course-navigation",
+          "$FUNCTIONAL_WORKSPACE/prepared-8ec5ce35d712dc15/candidate/tasks/_extensions/Afonenko-Course-Tools/course-navigation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-presentation",
+        "packageHash": "a4ff020811dba2ec537c0c576eee6b09de5cf514456a016a817a232c4fb56f94",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-8ec5ce35d712dc15/candidate/_extensions/Afonenko-Course-Tools/course-presentation",
+          "$FUNCTIONAL_WORKSPACE/prepared-8ec5ce35d712dc15/candidate/handbook/_extensions/Afonenko-Course-Tools/course-presentation",
+          "$FUNCTIONAL_WORKSPACE/prepared-8ec5ce35d712dc15/candidate/lectures/_extensions/Afonenko-Course-Tools/course-presentation",
+          "_extensions/Afonenko-Course-Tools/course-presentation",
+          "$FUNCTIONAL_WORKSPACE/prepared-8ec5ce35d712dc15/candidate/tasks/_extensions/Afonenko-Course-Tools/course-presentation",
+          "$FUNCTIONAL_WORKSPACE/prepared-8ec5ce35d712dc15/candidate/theory/_extensions/Afonenko-Course-Tools/course-presentation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-publish",
+        "ownerSha": "4ae217c6857bf9c3f08918a505000307293e0352",
+        "extensionId": "course-site",
+        "packageHash": "2bbd1fe5e56d53fa246aac571bd7015d0039b058cf89fe2419a9d7b2b6189f95",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-8ec5ce35d712dc15/candidate/_extensions/Afonenko-Course-Tools/course-site"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-reference-catalog",
+        "ownerSha": "5868fa0bc4bf1927a3868e2b90409ec722075e32",
+        "extensionId": "reference-catalog",
+        "packageHash": "0386828747a3c7ecba27d766fdcae0b9cc11dbbce26388550771b124dc99df64",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-8ec5ce35d712dc15/candidate/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "$FUNCTIONAL_WORKSPACE/prepared-8ec5ce35d712dc15/candidate/handbook/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "$FUNCTIONAL_WORKSPACE/prepared-8ec5ce35d712dc15/candidate/lectures/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "_extensions/Afonenko-Course-Tools/reference-catalog",
+          "$FUNCTIONAL_WORKSPACE/prepared-8ec5ce35d712dc15/candidate/tasks/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "$FUNCTIONAL_WORKSPACE/prepared-8ec5ce35d712dc15/candidate/theory/_extensions/Afonenko-Course-Tools/reference-catalog"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-download",
+        "ownerSha": "1c84e7d566f808252ae23d706eaa068bf71f3f90",
+        "extensionId": "project-download",
+        "packageHash": "c5474831e0b9f65b7eab3b8cdf9a4eb9f91db951f1f8d8bfac7f2a0c916c5b35",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-8ec5ce35d712dc15/candidate/tasks/_extensions/Afonenko-Course-Tools/project-download"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course-prairielearn",
+        "ownerSha": "294199f342a3d55382eff759e7f650f55ccdcda0",
+        "extensionId": "course-prairielearn",
+        "packageHash": "e4aa9cba8f1604201b1c6a1c96f2c8e96eb6861ec04afdcdf1c55e75b129f3ee",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-8ec5ce35d712dc15/candidate/tasks/_extensions/Afonenko-Course-Tools/course-prairielearn"
+        ]
+      }
+    ],
+    "manifestSha256": "4b6db331742e7e3e2b1712a2f11a5ec463fde85148a3438c4da964cafd322cf6",
+    "artifacts": {
+      "run.json": {
+        "sha256": "bc76b436f49e9958aefcdd96cd129787fe03f9d53242a38391930a83da09da7d",
+        "bytes": 890
+      },
+      "manifest.json": {
+        "sha256": "4b6db331742e7e3e2b1712a2f11a5ec463fde85148a3438c4da964cafd322cf6",
+        "bytes": 11481
+      }
+    }
+  },
+  {
+    "runId": "8c1fd356-2217-4186-a796-8aa2024492be",
+    "scenario": "java-ast-document",
+    "mode": "off",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "packages": [
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-core",
+        "packageHash": "0b1ebe3e6319f76de627429d4984ec4c4901a0ed9141bad30d4faa5e8df399f8",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-38747733c0615232/candidate/_extensions/Afonenko-Course-Tools/course-core",
+          "$FUNCTIONAL_WORKSPACE/prepared-38747733c0615232/candidate/handbook/_extensions/Afonenko-Course-Tools/course-core",
+          "$FUNCTIONAL_WORKSPACE/prepared-38747733c0615232/candidate/lectures/_extensions/Afonenko-Course-Tools/course-core",
+          "$FUNCTIONAL_WORKSPACE/prepared-38747733c0615232/candidate/practice/_extensions/Afonenko-Course-Tools/course-core",
+          "_extensions/Afonenko-Course-Tools/course-core",
+          "$FUNCTIONAL_WORKSPACE/prepared-38747733c0615232/candidate/theory/_extensions/Afonenko-Course-Tools/course-core"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-navigation",
+        "packageHash": "87be78b71051da819f2400c0dbfd1801ed36c725a79b6a68bbefc6b6da53fa42",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-38747733c0615232/candidate/lectures/_extensions/Afonenko-Course-Tools/course-navigation",
+          "$FUNCTIONAL_WORKSPACE/prepared-38747733c0615232/candidate/practice/_extensions/Afonenko-Course-Tools/course-navigation",
+          "_extensions/Afonenko-Course-Tools/course-navigation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-presentation",
+        "packageHash": "a4ff020811dba2ec537c0c576eee6b09de5cf514456a016a817a232c4fb56f94",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-38747733c0615232/candidate/_extensions/Afonenko-Course-Tools/course-presentation",
+          "$FUNCTIONAL_WORKSPACE/prepared-38747733c0615232/candidate/handbook/_extensions/Afonenko-Course-Tools/course-presentation",
+          "$FUNCTIONAL_WORKSPACE/prepared-38747733c0615232/candidate/lectures/_extensions/Afonenko-Course-Tools/course-presentation",
+          "$FUNCTIONAL_WORKSPACE/prepared-38747733c0615232/candidate/practice/_extensions/Afonenko-Course-Tools/course-presentation",
+          "_extensions/Afonenko-Course-Tools/course-presentation",
+          "$FUNCTIONAL_WORKSPACE/prepared-38747733c0615232/candidate/theory/_extensions/Afonenko-Course-Tools/course-presentation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-publish",
+        "ownerSha": "4ae217c6857bf9c3f08918a505000307293e0352",
+        "extensionId": "course-site",
+        "packageHash": "2bbd1fe5e56d53fa246aac571bd7015d0039b058cf89fe2419a9d7b2b6189f95",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-38747733c0615232/candidate/_extensions/Afonenko-Course-Tools/course-site"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-reference-catalog",
+        "ownerSha": "5868fa0bc4bf1927a3868e2b90409ec722075e32",
+        "extensionId": "reference-catalog",
+        "packageHash": "0386828747a3c7ecba27d766fdcae0b9cc11dbbce26388550771b124dc99df64",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-38747733c0615232/candidate/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "$FUNCTIONAL_WORKSPACE/prepared-38747733c0615232/candidate/handbook/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "$FUNCTIONAL_WORKSPACE/prepared-38747733c0615232/candidate/lectures/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "$FUNCTIONAL_WORKSPACE/prepared-38747733c0615232/candidate/practice/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "_extensions/Afonenko-Course-Tools/reference-catalog",
+          "$FUNCTIONAL_WORKSPACE/prepared-38747733c0615232/candidate/theory/_extensions/Afonenko-Course-Tools/reference-catalog"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-download",
+        "ownerSha": "1c84e7d566f808252ae23d706eaa068bf71f3f90",
+        "extensionId": "project-download",
+        "packageHash": "c5474831e0b9f65b7eab3b8cdf9a4eb9f91db951f1f8d8bfac7f2a0c916c5b35",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/project-download"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course-prairielearn",
+        "ownerSha": "294199f342a3d55382eff759e7f650f55ccdcda0",
+        "extensionId": "course-prairielearn",
+        "packageHash": "e4aa9cba8f1604201b1c6a1c96f2c8e96eb6861ec04afdcdf1c55e75b129f3ee",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-prairielearn"
+        ]
+      }
+    ],
+    "manifestSha256": "b8243111935aff3f2713c7a0cc6108550706b92c4bfbd308f50a231d336cfe1f",
+    "artifacts": {
+      "run.json": {
+        "sha256": "d3fe3a0f1ac1c78f444685060f9f0dcd0c0874d9a5d707d7abba7653a6f0038a",
+        "bytes": 884
+      },
+      "manifest.json": {
+        "sha256": "b8243111935aff3f2713c7a0cc6108550706b92c4bfbd308f50a231d336cfe1f",
+        "bytes": 11481
+      }
+    }
+  },
+  {
+    "runId": "a87fe79e-87cd-4d99-8d06-d2f568e7ec89",
+    "scenario": "java-pl-export",
+    "mode": "off",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "packages": [
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-core",
+        "packageHash": "0b1ebe3e6319f76de627429d4984ec4c4901a0ed9141bad30d4faa5e8df399f8",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-core",
+          "handbook/_extensions/Afonenko-Course-Tools/course-core",
+          "lectures/_extensions/Afonenko-Course-Tools/course-core",
+          "practice/_extensions/Afonenko-Course-Tools/course-core",
+          "tasks/_extensions/Afonenko-Course-Tools/course-core",
+          "theory/_extensions/Afonenko-Course-Tools/course-core"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-navigation",
+        "packageHash": "87be78b71051da819f2400c0dbfd1801ed36c725a79b6a68bbefc6b6da53fa42",
+        "destinationPaths": [
+          "lectures/_extensions/Afonenko-Course-Tools/course-navigation",
+          "practice/_extensions/Afonenko-Course-Tools/course-navigation",
+          "tasks/_extensions/Afonenko-Course-Tools/course-navigation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-presentation",
+        "packageHash": "a4ff020811dba2ec537c0c576eee6b09de5cf514456a016a817a232c4fb56f94",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-presentation",
+          "handbook/_extensions/Afonenko-Course-Tools/course-presentation",
+          "lectures/_extensions/Afonenko-Course-Tools/course-presentation",
+          "practice/_extensions/Afonenko-Course-Tools/course-presentation",
+          "tasks/_extensions/Afonenko-Course-Tools/course-presentation",
+          "theory/_extensions/Afonenko-Course-Tools/course-presentation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-publish",
+        "ownerSha": "4ae217c6857bf9c3f08918a505000307293e0352",
+        "extensionId": "course-site",
+        "packageHash": "2bbd1fe5e56d53fa246aac571bd7015d0039b058cf89fe2419a9d7b2b6189f95",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-site"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-reference-catalog",
+        "ownerSha": "5868fa0bc4bf1927a3868e2b90409ec722075e32",
+        "extensionId": "reference-catalog",
+        "packageHash": "0386828747a3c7ecba27d766fdcae0b9cc11dbbce26388550771b124dc99df64",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/reference-catalog",
+          "handbook/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "lectures/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "practice/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "tasks/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "theory/_extensions/Afonenko-Course-Tools/reference-catalog"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-download",
+        "ownerSha": "1c84e7d566f808252ae23d706eaa068bf71f3f90",
+        "extensionId": "project-download",
+        "packageHash": "c5474831e0b9f65b7eab3b8cdf9a4eb9f91db951f1f8d8bfac7f2a0c916c5b35",
+        "destinationPaths": [
+          "tasks/_extensions/Afonenko-Course-Tools/project-download"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course-prairielearn",
+        "ownerSha": "294199f342a3d55382eff759e7f650f55ccdcda0",
+        "extensionId": "course-prairielearn",
+        "packageHash": "e4aa9cba8f1604201b1c6a1c96f2c8e96eb6861ec04afdcdf1c55e75b129f3ee",
+        "destinationPaths": [
+          "tasks/_extensions/Afonenko-Course-Tools/course-prairielearn"
+        ]
+      }
+    ],
+    "manifestSha256": "e7e86f70e3a0af3274c96a027d3dd969cb1bbdffd5b3766cd05ab9bd5082137b",
+    "artifacts": {
+      "run.json": {
+        "sha256": "cd70803f58e63529ad7dfddb20517fd3ed3f69ba1e8435a09f22d9bf5637663b",
+        "bytes": 1463
+      },
+      "manifest.json": {
+        "sha256": "e7e86f70e3a0af3274c96a027d3dd969cb1bbdffd5b3766cd05ab9bd5082137b",
+        "bytes": 11481
+      }
+    }
+  },
+  {
+    "runId": "c1f0f238-6a92-4eb7-86b1-14e70e161aee",
+    "scenario": "java-pl-export",
+    "mode": "summary",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "packages": [
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-core",
+        "packageHash": "0b1ebe3e6319f76de627429d4984ec4c4901a0ed9141bad30d4faa5e8df399f8",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-core",
+          "handbook/_extensions/Afonenko-Course-Tools/course-core",
+          "lectures/_extensions/Afonenko-Course-Tools/course-core",
+          "practice/_extensions/Afonenko-Course-Tools/course-core",
+          "tasks/_extensions/Afonenko-Course-Tools/course-core",
+          "theory/_extensions/Afonenko-Course-Tools/course-core"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-navigation",
+        "packageHash": "87be78b71051da819f2400c0dbfd1801ed36c725a79b6a68bbefc6b6da53fa42",
+        "destinationPaths": [
+          "lectures/_extensions/Afonenko-Course-Tools/course-navigation",
+          "practice/_extensions/Afonenko-Course-Tools/course-navigation",
+          "tasks/_extensions/Afonenko-Course-Tools/course-navigation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-presentation",
+        "packageHash": "a4ff020811dba2ec537c0c576eee6b09de5cf514456a016a817a232c4fb56f94",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-presentation",
+          "handbook/_extensions/Afonenko-Course-Tools/course-presentation",
+          "lectures/_extensions/Afonenko-Course-Tools/course-presentation",
+          "practice/_extensions/Afonenko-Course-Tools/course-presentation",
+          "tasks/_extensions/Afonenko-Course-Tools/course-presentation",
+          "theory/_extensions/Afonenko-Course-Tools/course-presentation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-publish",
+        "ownerSha": "4ae217c6857bf9c3f08918a505000307293e0352",
+        "extensionId": "course-site",
+        "packageHash": "2bbd1fe5e56d53fa246aac571bd7015d0039b058cf89fe2419a9d7b2b6189f95",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-site"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-reference-catalog",
+        "ownerSha": "5868fa0bc4bf1927a3868e2b90409ec722075e32",
+        "extensionId": "reference-catalog",
+        "packageHash": "0386828747a3c7ecba27d766fdcae0b9cc11dbbce26388550771b124dc99df64",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/reference-catalog",
+          "handbook/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "lectures/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "practice/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "tasks/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "theory/_extensions/Afonenko-Course-Tools/reference-catalog"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-download",
+        "ownerSha": "1c84e7d566f808252ae23d706eaa068bf71f3f90",
+        "extensionId": "project-download",
+        "packageHash": "c5474831e0b9f65b7eab3b8cdf9a4eb9f91db951f1f8d8bfac7f2a0c916c5b35",
+        "destinationPaths": [
+          "tasks/_extensions/Afonenko-Course-Tools/project-download"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course-prairielearn",
+        "ownerSha": "294199f342a3d55382eff759e7f650f55ccdcda0",
+        "extensionId": "course-prairielearn",
+        "packageHash": "e4aa9cba8f1604201b1c6a1c96f2c8e96eb6861ec04afdcdf1c55e75b129f3ee",
+        "destinationPaths": [
+          "tasks/_extensions/Afonenko-Course-Tools/course-prairielearn"
+        ]
+      }
+    ],
+    "manifestSha256": "44af84c73cca19c595c18fb68279fff3b0084d9c50f1b396c4381bcff97249d9",
+    "artifacts": {
+      "run.json": {
+        "sha256": "58049dca084d51dc15d59b11c02c2129970ce4ee61bfe9610bc5b0116a29577c",
+        "bytes": 2513
+      },
+      "manifest.json": {
+        "sha256": "44af84c73cca19c595c18fb68279fff3b0084d9c50f1b396c4381bcff97249d9",
+        "bytes": 11481
+      },
+      "coverage.json": {
+        "sha256": "87b63bd1245c76586ae8ed0458bde889e3a505751b6c6a229418fe7821785fcb",
+        "bytes": 45966
+      },
+      "wall.trace.json": {
+        "sha256": "a400182b27c4085df8c9755b8d900e45d85acafb7616f0569ba622fe3c6bbf04",
+        "bytes": 3392202
+      },
+      "lua-cpu.trace.json": {
+        "sha256": "d17e41c5b3267b879b089ca387a41ca170b3603ca12c8d258a3ac4d1ba929796",
+        "bytes": 34749166
+      },
+      "causal.json": {
+        "sha256": "2cebc70dda17f500fb77fe599a2fad6ad8e9ecdec13f14e6795d5079dc1838e7",
+        "bytes": 32532416
+      }
+    }
+  },
+  {
+    "runId": "d3a2b960-d52d-441c-a182-0045ffa97c0d",
+    "scenario": "java-ts-publication",
+    "mode": "trace",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "packages": [
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-core",
+        "packageHash": "0b1ebe3e6319f76de627429d4984ec4c4901a0ed9141bad30d4faa5e8df399f8",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-412df43756247ccb/candidate/_extensions/Afonenko-Course-Tools/course-core",
+          "$FUNCTIONAL_WORKSPACE/prepared-412df43756247ccb/candidate/handbook/_extensions/Afonenko-Course-Tools/course-core",
+          "$FUNCTIONAL_WORKSPACE/prepared-412df43756247ccb/candidate/lectures/_extensions/Afonenko-Course-Tools/course-core",
+          "_extensions/Afonenko-Course-Tools/course-core",
+          "$FUNCTIONAL_WORKSPACE/prepared-412df43756247ccb/candidate/tasks/_extensions/Afonenko-Course-Tools/course-core",
+          "$FUNCTIONAL_WORKSPACE/prepared-412df43756247ccb/candidate/theory/_extensions/Afonenko-Course-Tools/course-core"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-navigation",
+        "packageHash": "87be78b71051da819f2400c0dbfd1801ed36c725a79b6a68bbefc6b6da53fa42",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-412df43756247ccb/candidate/lectures/_extensions/Afonenko-Course-Tools/course-navigation",
+          "_extensions/Afonenko-Course-Tools/course-navigation",
+          "$FUNCTIONAL_WORKSPACE/prepared-412df43756247ccb/candidate/tasks/_extensions/Afonenko-Course-Tools/course-navigation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-presentation",
+        "packageHash": "a4ff020811dba2ec537c0c576eee6b09de5cf514456a016a817a232c4fb56f94",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-412df43756247ccb/candidate/_extensions/Afonenko-Course-Tools/course-presentation",
+          "$FUNCTIONAL_WORKSPACE/prepared-412df43756247ccb/candidate/handbook/_extensions/Afonenko-Course-Tools/course-presentation",
+          "$FUNCTIONAL_WORKSPACE/prepared-412df43756247ccb/candidate/lectures/_extensions/Afonenko-Course-Tools/course-presentation",
+          "_extensions/Afonenko-Course-Tools/course-presentation",
+          "$FUNCTIONAL_WORKSPACE/prepared-412df43756247ccb/candidate/tasks/_extensions/Afonenko-Course-Tools/course-presentation",
+          "$FUNCTIONAL_WORKSPACE/prepared-412df43756247ccb/candidate/theory/_extensions/Afonenko-Course-Tools/course-presentation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-publish",
+        "ownerSha": "4ae217c6857bf9c3f08918a505000307293e0352",
+        "extensionId": "course-site",
+        "packageHash": "2bbd1fe5e56d53fa246aac571bd7015d0039b058cf89fe2419a9d7b2b6189f95",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-412df43756247ccb/candidate/_extensions/Afonenko-Course-Tools/course-site"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-reference-catalog",
+        "ownerSha": "5868fa0bc4bf1927a3868e2b90409ec722075e32",
+        "extensionId": "reference-catalog",
+        "packageHash": "0386828747a3c7ecba27d766fdcae0b9cc11dbbce26388550771b124dc99df64",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-412df43756247ccb/candidate/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "$FUNCTIONAL_WORKSPACE/prepared-412df43756247ccb/candidate/handbook/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "$FUNCTIONAL_WORKSPACE/prepared-412df43756247ccb/candidate/lectures/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "_extensions/Afonenko-Course-Tools/reference-catalog",
+          "$FUNCTIONAL_WORKSPACE/prepared-412df43756247ccb/candidate/tasks/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "$FUNCTIONAL_WORKSPACE/prepared-412df43756247ccb/candidate/theory/_extensions/Afonenko-Course-Tools/reference-catalog"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-download",
+        "ownerSha": "1c84e7d566f808252ae23d706eaa068bf71f3f90",
+        "extensionId": "project-download",
+        "packageHash": "c5474831e0b9f65b7eab3b8cdf9a4eb9f91db951f1f8d8bfac7f2a0c916c5b35",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-412df43756247ccb/candidate/tasks/_extensions/Afonenko-Course-Tools/project-download"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course-prairielearn",
+        "ownerSha": "294199f342a3d55382eff759e7f650f55ccdcda0",
+        "extensionId": "course-prairielearn",
+        "packageHash": "e4aa9cba8f1604201b1c6a1c96f2c8e96eb6861ec04afdcdf1c55e75b129f3ee",
+        "destinationPaths": [
+          "$FUNCTIONAL_WORKSPACE/prepared-412df43756247ccb/candidate/tasks/_extensions/Afonenko-Course-Tools/course-prairielearn"
+        ]
+      }
+    ],
+    "manifestSha256": "58dacf95a360e0026530f45d84703fc7602575bd0679f98bab6452a77e46c07c",
+    "artifacts": {
+      "run.json": {
+        "sha256": "07f92f1518bb15cac913d4f029a260d80935f36efa65abfa1b0f10ba6de5187d",
+        "bytes": 2572
+      },
+      "manifest.json": {
+        "sha256": "58dacf95a360e0026530f45d84703fc7602575bd0679f98bab6452a77e46c07c",
+        "bytes": 11481
+      },
+      "coverage.json": {
+        "sha256": "e558bee71b5f762c07f01de7e91dc34dfda6bb22cdcac115e8347d6456a597b0",
+        "bytes": 51395
+      },
+      "wall.trace.json": {
+        "sha256": "da4ba66e83218a69c45f4746319b130e79286a7293e58bd9168385fcc4413fce",
+        "bytes": 36776
+      },
+      "lua-cpu.trace.json": {
+        "sha256": "01eaf41561eb48362c0cda39abd216064825ea0fe044df0c6dcb7a9a34345952",
+        "bytes": 493499
+      },
+      "causal.json": {
+        "sha256": "7c82c8b2e15b93ae820984bbba1ec07bd99d605576ccc2ad98237339687b8d62",
+        "bytes": 454338
+      }
+    }
+  },
+  {
+    "runId": "fc39fb8c-ef79-44f9-8971-115c5b402ee4",
+    "scenario": "java-repeat-student",
+    "mode": "off",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "packages": [
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-core",
+        "packageHash": "0b1ebe3e6319f76de627429d4984ec4c4901a0ed9141bad30d4faa5e8df399f8",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-core",
+          "handbook/_extensions/Afonenko-Course-Tools/course-core",
+          "lectures/_extensions/Afonenko-Course-Tools/course-core",
+          "practice/_extensions/Afonenko-Course-Tools/course-core",
+          "tasks/_extensions/Afonenko-Course-Tools/course-core",
+          "theory/_extensions/Afonenko-Course-Tools/course-core"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-navigation",
+        "packageHash": "87be78b71051da819f2400c0dbfd1801ed36c725a79b6a68bbefc6b6da53fa42",
+        "destinationPaths": [
+          "lectures/_extensions/Afonenko-Course-Tools/course-navigation",
+          "practice/_extensions/Afonenko-Course-Tools/course-navigation",
+          "tasks/_extensions/Afonenko-Course-Tools/course-navigation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "ownerSha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
+        "extensionId": "course-presentation",
+        "packageHash": "a4ff020811dba2ec537c0c576eee6b09de5cf514456a016a817a232c4fb56f94",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-presentation",
+          "handbook/_extensions/Afonenko-Course-Tools/course-presentation",
+          "lectures/_extensions/Afonenko-Course-Tools/course-presentation",
+          "practice/_extensions/Afonenko-Course-Tools/course-presentation",
+          "tasks/_extensions/Afonenko-Course-Tools/course-presentation",
+          "theory/_extensions/Afonenko-Course-Tools/course-presentation"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-publish",
+        "ownerSha": "4ae217c6857bf9c3f08918a505000307293e0352",
+        "extensionId": "course-site",
+        "packageHash": "2bbd1fe5e56d53fa246aac571bd7015d0039b058cf89fe2419a9d7b2b6189f95",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/course-site"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-reference-catalog",
+        "ownerSha": "5868fa0bc4bf1927a3868e2b90409ec722075e32",
+        "extensionId": "reference-catalog",
+        "packageHash": "0386828747a3c7ecba27d766fdcae0b9cc11dbbce26388550771b124dc99df64",
+        "destinationPaths": [
+          "_extensions/Afonenko-Course-Tools/reference-catalog",
+          "handbook/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "lectures/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "practice/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "tasks/_extensions/Afonenko-Course-Tools/reference-catalog",
+          "theory/_extensions/Afonenko-Course-Tools/reference-catalog"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-download",
+        "ownerSha": "1c84e7d566f808252ae23d706eaa068bf71f3f90",
+        "extensionId": "project-download",
+        "packageHash": "c5474831e0b9f65b7eab3b8cdf9a4eb9f91db951f1f8d8bfac7f2a0c916c5b35",
+        "destinationPaths": [
+          "tasks/_extensions/Afonenko-Course-Tools/project-download"
+        ]
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course-prairielearn",
+        "ownerSha": "294199f342a3d55382eff759e7f650f55ccdcda0",
+        "extensionId": "course-prairielearn",
+        "packageHash": "e4aa9cba8f1604201b1c6a1c96f2c8e96eb6861ec04afdcdf1c55e75b129f3ee",
+        "destinationPaths": [
+          "tasks/_extensions/Afonenko-Course-Tools/course-prairielearn"
+        ]
+      }
+    ],
+    "manifestSha256": "d9d6ac5470b06a58e88050b8a8d1e8e286bea35c9c8d075abfd405979519f767",
+    "artifacts": {
+      "run.json": {
+        "sha256": "f25b0d69ad4dbd902dd7d433a53653eddb14e7a8623b3824cfea38c9c39badb9",
+        "bytes": 862
+      },
+      "manifest.json": {
+        "sha256": "d9d6ac5470b06a58e88050b8a8d1e8e286bea35c9c8d075abfd405979519f767",
+        "bytes": 11433
+      }
+    }
+  }
+]

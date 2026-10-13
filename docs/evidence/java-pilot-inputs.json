@@ -1,5 +1,5 @@
 {
-  "experimentId": "2ffddcf0-7c16-48a8-901a-e93051db476a",
+  "experimentId": "520f454c-bb6a-4f79-bd7b-4d781f7f4d04",
   "sources": [
     {
       "repository": "BSU-RFCT-Afonenko-Courses/Java",
@@ -8,16 +8,16 @@
       "sha": "a0d1bdb9d8343809560e3ce7f9a2141d4473ee3f",
       "baseSha": "a0d1bdb9d8343809560e3ce7f9a2141d4473ee3f",
       "fetchedAt": "2026-10-12T17:16:39.684356+00:00",
-      "checkoutPath": "$OWNERS/Java"
+      "checkoutPath": "$SOURCES/Java"
     },
     {
       "repository": "Afonenko-Course-Tools/quarto-course",
       "sourceKind": "local-candidate",
       "remoteRef": "feat/performance-20261012",
-      "sha": "82dd2c9c513e7e322f214777df439c9351da2244",
+      "sha": "5daaa4f17586b0d6802cc92517e4e8a8af02a42b",
       "baseSha": "9db360beec417b3798693026768262be2f7d3b18",
       "fetchedAt": "2026-10-12T17:16:43.493101+00:00",
-      "checkoutPath": "$OWNERS/quarto-course"
+      "checkoutPath": "$SOURCES/quarto-course"
     },
     {
       "repository": "Afonenko-Course-Tools/quarto-project-publish",
@@ -26,16 +26,16 @@
       "sha": "4ae217c6857bf9c3f08918a505000307293e0352",
       "baseSha": "53f3a6f96bc11d2d88d450c19f58027dfab624da",
       "fetchedAt": "2026-10-12T17:16:46.935972+00:00",
-      "checkoutPath": "$OWNERS/quarto-project-publish"
+      "checkoutPath": "$SOURCES/quarto-project-publish"
     },
     {
       "repository": "Afonenko-Course-Tools/quarto-reference-catalog",
       "sourceKind": "local-candidate",
       "remoteRef": "feat/performance-20261012",
-      "sha": "054e47e7aebd8929d9e944440de48affe8f703c9",
+      "sha": "5868fa0bc4bf1927a3868e2b90409ec722075e32",
       "baseSha": "fec4e1a3c62854ddbc5e1980c0b5f14d694c3be6",
       "fetchedAt": "2026-10-12T17:16:50.151184+00:00",
-      "checkoutPath": "$OWNERS/quarto-reference-catalog"
+      "checkoutPath": "$SOURCES/quarto-reference-catalog"
     },
     {
       "repository": "Afonenko-Course-Tools/quarto-project-download",
@@ -44,7 +44,7 @@
       "sha": "1c84e7d566f808252ae23d706eaa068bf71f3f90",
       "baseSha": "90c7a43f035bbed8ec439ed007283cff5dd2950e",
       "fetchedAt": "2026-10-12T17:16:53.362399+00:00",
-      "checkoutPath": "$OWNERS/quarto-project-download"
+      "checkoutPath": "$SOURCES/quarto-project-download"
     },
     {
       "repository": "Afonenko-Course-Tools/quarto-course-prairielearn",
@@ -53,7 +53,7 @@
       "sha": "294199f342a3d55382eff759e7f650f55ccdcda0",
       "baseSha": "d2831a6e0a2411ea9743bf950475f9e5819f49a9",
       "fetchedAt": "2026-10-12T17:16:56.754123+00:00",
-      "checkoutPath": "$OWNERS/quarto-course-prairielearn"
+      "checkoutPath": "$SOURCES/quarto-course-prairielearn"
     }
   ],
   "packages": [],
@@ -80,7 +80,7 @@
     },
     "pandoc": {
       "path": "$RUNTIME/pandoc",
-      "version": "pandoc 3.10\nFeatures: +server +lua\nScripting engine: Lua 5.4\nUser data directory: /home/tolya/.local/share/pandoc\nCopyright (C) 2006-2025 John MacFarlane. Web:  https://pandoc.org\nThis is free software; see the source for copying conditions. There is no\nwarranty, not even for merchantability or fitness for a particular purpose.",
+      "version": "pandoc 3.10\nFeatures: +server +lua\nScripting engine: Lua 5.4\nUser data directory: $PANDOC_USER_DATA\nCopyright (C) 2006-2025 John MacFarlane. Web:  https://pandoc.org\nThis is free software; see the source for copying conditions. There is no\nwarranty, not even for merchantability or fitness for a particular purpose.",
       "hash": "8fedc028b2314cd649b6cabf363c94a7c940aff352a1c20753ffb0875f083cac"
     },
     "hyperfine": {
