@@ -25,8 +25,19 @@ export async function prepareDiagnostic(
     dataDir: join(caps.filterAdapter ? share : caps.share, "pandoc/datadir"),
   });
   preparation.push(...setup.preparation);
-  const coverage: { complete: boolean; ts: unknown[]; luaModules: string[]; runtime: typeof caps } =
-    { complete: true, ts: [], luaModules: [], runtime: caps };
+  const registry = new URL("../../docs/operation-registry.json", import.meta.url).pathname;
+  const coverage = {
+    complete: true,
+    ts: [] as unknown[],
+    luaModules: [] as string[],
+    runtime: caps,
+    requestedExtensions: scenario.scope.extensions,
+    scopeKind: scenario.mode === "trace" ? "selected-functions-and-semantic" : "semantic-registry",
+    manualRegistry: {
+      hash: await hashFile(registry),
+      operations: JSON.parse(await Deno.readTextFile(registry)),
+    },
+  };
   const bridgeUrl = pathToFileURL(setup.bridgePath).href;
   for (const module of scenario.scope.modules) {
     const path = join(prepared.root, module);

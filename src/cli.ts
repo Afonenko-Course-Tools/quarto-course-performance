@@ -149,9 +149,19 @@ async function main(): Promise<number> {
       runtimeRegistry,
     });
     if (diagnostic) {
+      const normalized = await normalizeRun(result.outputDirectory);
+      const names = Object.values(normalized.executors).flatMap((e) =>
+        Object.keys(e.counters as object)
+      );
+      const observations = Object.fromEntries(
+        diagnostic.coverage.requestedExtensions.map((ext) => [
+          ext,
+          names.some((name) => name.startsWith(`calls.${ext}.`)) ? "observed" : "not-observed",
+        ]),
+      );
       await Deno.writeTextFile(
         join(result.outputDirectory, "coverage.json"),
-        JSON.stringify(diagnostic.coverage, null, 2) + "\n",
+        JSON.stringify({ ...diagnostic.coverage, observations }, null, 2) + "\n",
       );
     }
     await Deno.writeTextFile(
@@ -165,8 +175,14 @@ async function main(): Promise<number> {
     const manifest = await manifestFor("candidate"), runs: NormalizedRun[] = [];
     for await (const item of Deno.readDir(runRoot)) {
       if (item.isDirectory) {
-        const dir = join(runRoot, item.name),
+        const dir = join(runRoot, item.name);
+        let meta;
+        try {
           meta = JSON.parse(await Deno.readTextFile(join(dir, "run.json")));
+        } catch (e) {
+          if (e instanceof Deno.errors.NotFound) continue;
+          throw e;
+        }
         if (meta.mode !== "off") runs.push(await normalizeRun(dir));
       }
     }
@@ -178,7 +194,13 @@ async function main(): Promise<number> {
     console.log(`Отчёт: ${join(workspace, "report.md")}`);
     for await (const item of Deno.readDir(runRoot)) {
       if (!item.isDirectory) continue;
-      const meta = JSON.parse(await Deno.readTextFile(join(runRoot, item.name, "run.json")));
+      let meta;
+      try {
+        meta = JSON.parse(await Deno.readTextFile(join(runRoot, item.name, "run.json")));
+      } catch (e) {
+        if (e instanceof Deno.errors.NotFound) return 4;
+        throw e;
+      }
       if (meta.buildExitCode !== 0) return 3;
     }
     return runs.some((r) => !r.dataValid) ? 4 : 0;

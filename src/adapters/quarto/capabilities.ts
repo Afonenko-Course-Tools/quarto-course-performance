@@ -1,8 +1,15 @@
+import { cleanEnvironment } from "../../runner/environment.ts";
 import { join } from "node:path";
 import { hashFile } from "../../sources/snapshot.ts";
 export async function probeQuarto(runtimePath: string) {
   const run = async (cmd: string, args: string[]) => {
-    const out = await new Deno.Command(cmd, { args, stdout: "piped", stderr: "piped" }).output();
+    const out = await new Deno.Command(cmd, {
+      args,
+      env: cleanEnvironment(Deno.env.toObject()),
+      clearEnv: true,
+      stdout: "piped",
+      stderr: "piped",
+    }).output();
     if (!out.success) throw new Error(new TextDecoder().decode(out.stderr));
     return new TextDecoder().decode(out.stdout).trim();
   };

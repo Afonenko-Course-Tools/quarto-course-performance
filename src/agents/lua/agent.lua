@@ -33,7 +33,7 @@ return function(config)
   local clock_provider=pandoc.system.cputime and 'pandoc.system.cputime' or 'os.clock'
   local stacks = setmetatable({}, {__mode='k'})
   local main_thread = coroutine.running()
-  local sequence, serial, dropped = 0, 0, 0
+  local sequence, serial, dropped, aborted = 0, 0, 0, 0
   local hooks, manually_wrapped = {}, setmetatable({}, {__mode='k'})
   local function_symbols, symbol_ordinals, symbols = setmetatable({}, {__mode='k'}), {}, {}
   arrays[symbols]=true
@@ -70,6 +70,7 @@ return function(config)
   local function finish(id,status,pop)
     local spec=active[id]; if not spec then return end
     active[id]=nil
+    if status=='aborted' then aborted=aborted+1 end
     safe_emit{event='end',kind=spec.kind,span_id=id,operation_id=spec.id,origin=spec.origin or 'manual',clock_domain='process_cpu',timestamp_us=clock(),status=status}
     if pop~=false then local current=stack(); if current[#current]==id then current[#current]=nil end end
   end
@@ -105,7 +106,7 @@ return function(config)
   local function flush()
     local failures=rawget(_G,'__course_performance_failures_v1') or {}
     arrays[failures]=true
-    local incomplete=0;for _ in pairs(active) do incomplete=incomplete+1 end
+    local incomplete=aborted;for _ in pairs(active) do incomplete=incomplete+1 end
     local summary={schema_version=1,experiment_id=config.experimentId,run_id=config.runId,process_id=config.processId,executor_id=executor_id,clock_domain='process_cpu',clock_provider=clock_provider,precision_us="provider-dependent",counters=counters,dropped_events=dropped,incomplete_spans=incomplete,errors=errors,data_valid=dropped==0 and incomplete==0 and #errors==0 and #failures==0}
     summary.abi_failures=failures;summary.symbols=symbols
     local ok,err=pcall(function()

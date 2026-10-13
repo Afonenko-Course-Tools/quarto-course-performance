@@ -47,7 +47,7 @@ export async function freezeVariants(inputs: FreezeInputs, workspace: string, qu
         ...source,
         checkoutPath,
         sha,
-        ...(variant === "upstream" ? {} : {
+        ...(variant === "upstream" || sha === source.sha ? {} : {
           sourceKind: "local-candidate" as const,
           baseSha: source.sha,
           remoteRef: await git(["-C", checkoutPath, "rev-parse", "--abbrev-ref", "HEAD"]),

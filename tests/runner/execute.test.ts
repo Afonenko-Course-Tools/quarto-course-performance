@@ -107,3 +107,9 @@ Deno.test("Hyperfine 2 records raw resource metrics and literal argv without exe
     await Deno.remove(root, { recursive: true });
   }
 });
+Deno.test("off clears an inherited diagnostic Quarto share override", () => {
+  assert.deepEqual(
+    cleanEnvironment({ QUARTO_SHARE_PATH: "old-diagnostic-share", FUNCTIONAL: "keep" }),
+    { FUNCTIONAL: "keep" },
+  );
+});

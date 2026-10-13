@@ -58,6 +58,12 @@ Deno.test("report separates clock totals, does not claim self time, and retains 
     );
     assert((await Deno.readTextFile(join(root, "report.md"))).includes("23"));
     assert.deepEqual(JSON.parse(await Deno.readTextFile(join(root, "coverage.json"))), []);
+    assert.deepEqual(
+      JSON.parse(await Deno.readTextFile(join(root, "runs/r/causal.json"))).spans.map((
+        s: { clock_domain: string },
+      ) => s.clock_domain),
+      ["monotonic_process", "process_cpu"],
+    );
   } finally {
     await Deno.remove(root, { recursive: true });
   }

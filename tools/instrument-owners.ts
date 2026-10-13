@@ -51,6 +51,13 @@ for (const root of Deno.args) {
             ts.isFunctionDeclaration(node) && node.name && node.body &&
             node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
           ) {
+            // Scalar HTML helpers выполняются для каждого узла; не являются semantic границей.
+            if (
+              id === "reference-catalog" &&
+              (rel === "infrastructure/html.ts" &&
+                  !["parseHtml", "replace"].includes(node.name.text) ||
+                rel === "infrastructure/search.ts" && node.name.text !== "updateSearch")
+            ) continue;
             const name = node.name.text,
               async = node.modifiers.some((m) => m.kind === ts.SyntaxKind.AsyncKeyword),
               kind = basename(path) === "process.ts"

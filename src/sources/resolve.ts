@@ -5,6 +5,19 @@ export async function git(args: string[]): Promise<string> {
   if (!out.success) throw new Error(new TextDecoder().decode(out.stderr));
   return new TextDecoder().decode(out.stdout).trim();
 }
+export function selectRemoteRef(output: string, request: SourceRequest) {
+  const lines = output.trim().split("\n");
+  const remoteRef = request.refPolicy === "remote-default-head"
+    ? lines.find((x) => /^ref: refs\/\S+\s+HEAD$/.test(x))?.split(/\s+/)[1]
+    : request.ref;
+  if (!remoteRef) throw new Error("Удалённый ref отсутствует");
+  const rows = lines.filter((x) => /^[0-9a-f]{40}\s/.test(x)).map((x) => x.split(/\s+/));
+  const target = request.refPolicy === "remote-default-head" ? "HEAD" : remoteRef;
+  const peeled = rows.filter((x) => x[1] === target + "^{}");
+  const matches = peeled.length ? peeled : rows.filter((x) => x[1] === target);
+  if (matches.length !== 1) throw new Error("Удалённый ref не найден или неоднозначен");
+  return { sha: matches[0][0], remoteRef };
+}
 export async function resolveSources(
   requests: SourceRequest[],
   workspace: string,
@@ -41,13 +54,9 @@ export async function resolveSources(
       "--symref",
       url,
       request.refPolicy === "remote-default-head" ? "HEAD" : request.ref!,
+      ...(request.refPolicy === "explicit-remote-ref" ? [request.ref! + "^{}"] : []),
     ]);
-    const lines = refs.split("\n");
-    const remoteRef = request.refPolicy === "remote-default-head"
-      ? lines.find((x) => x.startsWith("ref: "))?.split(/\s+/)[1]
-      : request.ref;
-    const sha = lines.find((x) => /^[0-9a-f]{40}\s/.test(x))?.split(/\s+/)[0];
-    if (!sha || !remoteRef) throw new Error("Удалённый ref не найден или неоднозначен");
+    const { sha, remoteRef } = selectRemoteRef(refs, request);
     const checkoutPath = join(workspace, request.repository.replace("/", "--"));
     await git(["clone", "--no-checkout", url, checkoutPath]);
     await git(["-C", checkoutPath, "checkout", "--detach", sha]);

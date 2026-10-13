@@ -84,7 +84,11 @@ export async function writeExperimentReport(
     data_valid: run.dataValid,
     events: run.events.length,
     quality: run.quality,
-    operations: operationTotals(run),
+    operations: operationTotals(run).map((o) => ({
+      ...o,
+      quality: run.dataValid ? "observed-exact" : "partial",
+      completion_scope: "recorded-end-events",
+    })),
     counters: Object.values(run.executors).map((e) => ({
       process_id: e.process_id,
       executor_id: e.executor_id,
@@ -113,6 +117,27 @@ export async function writeExperimentReport(
     const trace = traces(run);
     await Deno.writeTextFile(join(path, "wall.trace.json"), JSON.stringify(trace.wall));
     await Deno.writeTextFile(join(path, "lua-cpu.trace.json"), JSON.stringify(trace.luaCpu));
+    const processes = await jsonFiles(join(path, "processes"), ".json");
+    await Deno.writeTextFile(
+      join(path, "causal.json"),
+      JSON.stringify(
+        {
+          run_id: run.runId,
+          data_valid: run.dataValid,
+          processes,
+          spans: run.events.filter((e) => e.event === "begin").map((e) => ({
+            span_id: e.span_id,
+            parent_span_id: e.parent_span_id ?? null,
+            process_id: e.process_id,
+            executor_id: e.executor_id,
+            operation_id: e.operation_id,
+            clock_domain: e.clock_domain,
+          })),
+        },
+        null,
+        2,
+      ) + "\n",
+    );
   }
   const lines = [
     "# Отчёт Performance",
@@ -181,7 +206,7 @@ export async function writeExperimentReport(
           ),
           "",
         ]),
-        `Raw: [events](runs/${r.runId}/events/), [wall trace](runs/${r.runId}/wall.trace.json), [Lua CPU trace](runs/${r.runId}/lua-cpu.trace.json).`,
+        `Raw: [events](runs/${r.runId}/events/), [wall trace](runs/${r.runId}/wall.trace.json), [Lua CPU trace](runs/${r.runId}/lua-cpu.trace.json), [causal graph](runs/${r.runId}/causal.json).`,
         "",
       ],
     ),

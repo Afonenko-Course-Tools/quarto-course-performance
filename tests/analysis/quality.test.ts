@@ -150,3 +150,35 @@ Deno.test("summary identity, counters and clock metadata are validated even with
     }
   }
 });
+Deno.test("aborted native processes and missing Lua filter summaries invalidate a run", async () => {
+  const root = await input([span("begin", 1), span("end", 2)]);
+  try {
+    await Deno.mkdir(join(root, "processes"));
+    await Deno.writeTextFile(
+      join(root, "processes/pandoc.json"),
+      JSON.stringify({
+        process_id: "lua-child",
+        kind: "pandoc",
+        argv: ["--lua-filter", "main.lua"],
+        signal: "SIGKILL",
+        exit_code: 137,
+      }),
+    );
+    const run = await normalizeRun(root);
+    assert.equal(run.dataValid, false);
+    assert(run.quality.errors.some((e) => e.includes("SIGKILL")));
+    assert(run.quality.errors.some((e) => e.includes("Lua child")));
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+Deno.test("an explicitly aborted span is incomplete even when a closing row exists", async () => {
+  const root = await input([span("begin", 1), { ...span("end", 2), status: "aborted" }]);
+  try {
+    const r = await normalizeRun(root);
+    assert.equal(r.dataValid, false);
+    assert.equal(r.quality.incompleteSpans, 1);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

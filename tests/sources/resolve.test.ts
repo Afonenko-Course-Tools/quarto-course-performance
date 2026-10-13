@@ -78,3 +78,30 @@ Deno.test("frozen manifest reused without resolving a newer remote tip", async (
     await Deno.remove(root, { recursive: true });
   }
 });
+
+Deno.test("explicit annotated tag resolves to the peeled commit; unrelated refs never become baseline", async () => {
+  const { selectRemoteRef } = await import("../../src/sources/resolve.ts");
+  const tag = "a".repeat(40), commit = "b".repeat(40);
+  assert.deepEqual(
+    selectRemoteRef(`${tag}\trefs/tags/v2\n${commit}\trefs/tags/v2^{}\n`, {
+      repository: "org/Java",
+      refPolicy: "explicit-remote-ref",
+      ref: "refs/tags/v2",
+    }),
+    { sha: commit, remoteRef: "refs/tags/v2" },
+  );
+  assert.throws(() =>
+    selectRemoteRef(`${commit}\trefs/heads/other`, {
+      repository: "org/Java",
+      refPolicy: "explicit-remote-ref",
+      ref: "refs/heads/chosen",
+    })
+  );
+  assert.deepEqual(
+    selectRemoteRef(`ref: refs/heads/main\tHEAD\n${commit}\tHEAD`, {
+      repository: "org/Java",
+      refPolicy: "remote-default-head",
+    }),
+    { sha: commit, remoteRef: "refs/heads/main" },
+  );
+});

@@ -117,7 +117,10 @@ export async function normalizeRun(directory: string): Promise<NormalizedRun> {
       else open.delete(e.span_id!);
     }
   }
-  quality.incompleteSpans = Math.max(open.size, quality.incompleteSpans);
+  quality.incompleteSpans = Math.max(
+    open.size + events.filter((e) => e.event === "end" && e.status === "aborted").length,
+    quality.incompleteSpans,
+  );
   const done = new Set<string>();
   for (const id of parents.keys()) {
     const visited = new Set<string>();
@@ -140,10 +143,7 @@ export async function normalizeRun(directory: string): Promise<NormalizedRun> {
       );
     }
     if (e.parent_span_id && !seen.has(e.parent_span_id)) {
-      const executor = executors[`${e.process_id}/${e.executor_id}`];
-      if (executor?.parent_link !== "confirmed") {
-        quality.errors.push(`Неподтверждённый parent ${e.parent_span_id}`);
-      }
+      quality.errors.push(`Неподтверждённый parent ${e.parent_span_id}`);
     }
   }
   try {
@@ -166,6 +166,19 @@ export async function normalizeRun(directory: string): Promise<NormalizedRun> {
     for await (const entry of Deno.readDir(join(directory, "processes"))) {
       if (!entry.isFile || !entry.name.endsWith(".json")) continue;
       const process = JSON.parse(await Deno.readTextFile(join(directory, "processes", entry.name)));
+      if (process.signal) {
+        quality.errors.push(`Процесс прерван: ${process.process_id} ${process.signal}`);
+      }
+      if (
+        process.kind === "pandoc" && process.argv.some((a: string) =>
+          a === "--lua-filter" || a.startsWith("--lua-filter=")
+        ) &&
+        !Object.values(executors).some((e) =>
+          e.process_id === process.process_id && e.clock_domain === "process_cpu"
+        )
+      ) {
+        quality.errors.push(`Отсутствует Lua child summary: ${process.process_id}`);
+      }
       if (process.kind === "deno" && process.argv[0] === "run") {
         if (!executors[`${process.process_id}/ts`]) {
           quality.errors.push(`Отсутствует child summary: ${process.process_id}`);
