@@ -78,6 +78,7 @@ export async function executeScenario(
     });
   }
   const resourcesPath = join(outputDirectory, "resources.txt");
+  const statusPath = join(outputDirectory, "tool-status.json");
   let useTime = false;
   try {
     useTime = (await Deno.stat("/usr/bin/time")).isFile &&
@@ -106,7 +107,22 @@ export async function executeScenario(
       [scenario.executable, ...argv].map(quote).join(" "),
     ]
     : useTime
-    ? ["-f", "%U %S %M", "-o", resolve(resourcesPath), "--", scenario.executable, ...argv]
+    ? [
+      "-f",
+      "%U %S %M",
+      "-o",
+      resolve(resourcesPath),
+      "--",
+      Deno.execPath(),
+      "run",
+      "--no-config",
+      "--no-lock",
+      "-A",
+      new URL("./resource-child.ts", import.meta.url).pathname,
+      resolve(statusPath),
+      scenario.executable,
+      ...argv,
+    ]
     : argv;
   const start = performance.now();
   const out = await new Deno.Command(executable, {
@@ -118,7 +134,9 @@ export async function executeScenario(
     stdout: "piped",
     stderr: "piped",
   }).output();
-  let wallSeconds = (performance.now() - start) / 1000, buildExitCode = out.code;
+  let wallSeconds = (performance.now() - start) / 1000,
+    buildExitCode = out.code,
+    signal = out.signal;
   await Deno.writeFile(join(outputDirectory, "stdout.log"), out.stdout);
   await Deno.writeFile(join(outputDirectory, "stderr.log"), out.stderr);
   let resources: {
@@ -148,6 +166,16 @@ export async function executeScenario(
         : null,
     };
   } else if (useTime) {
+    const status = JSON.parse(await Deno.readTextFile(statusPath));
+    if (
+      !Number.isInteger(status.code) || !Number.isFinite(status.toolWallSeconds) ||
+      (status.signal !== null && typeof status.signal !== "string")
+    ) {
+      throw new Error("Невалидный native child status");
+    }
+    buildExitCode = status.code;
+    signal = status.signal;
+    wallSeconds = status.toolWallSeconds;
     const line = (await Deno.readTextFile(resourcesPath)).trim().split("\n").at(-1)!;
     const [user, system, rss] = line.split(" ").map(Number);
     if ([user, system, rss].every(Number.isFinite)) {
@@ -167,7 +195,7 @@ export async function executeScenario(
     outputDirectory,
     preparation: mode === "off" ? [] : options.preparation ?? [],
     wallSeconds,
-    signal: out.signal,
+    signal,
   };
   await Deno.writeTextFile(
     join(outputDirectory, "run.json"),
@@ -183,6 +211,12 @@ export async function executeScenario(
         courseProfile: scenario.courseProfile,
         experimentId: prepared.manifest.experimentId,
         resources,
+        signalAvailability: options.useHyperfine ? "unavailable" : "observed",
+        resourceScope: options.useHyperfine
+          ? "native-hyperfine-command"
+          : useTime
+          ? "tool-and-resource-supervisor"
+          : "unavailable",
       },
       null,
       2,

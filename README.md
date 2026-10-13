@@ -73,6 +73,8 @@ Benchmark сравнивает `clean-control`/`candidate`; `--left upstream` з
 
 CLI: 0 — команда выполнена, 2 — configuration/preparation error, 3 — исходная сборка завершилась неуспешно, 4 — invalid diagnostic data, 5 — overhead не подтверждён. Оригинальный build exit code и signal остаются в `run.json`.
 
+В отдельных runs GNU time измеряет CPU/RSS инструмента вместе с внешним помощником сохранения native child status (`resourceScope` указан явно); wall относится к запуску самого инструмента. Помощник нужен для различения сигнала и числового exit code независимо от версии GNU time. В Hyperfine benchmark запускается непосредственно обычная команда без этого помощника; исходный signal в его JSON недоступен (`signalAvailability: unavailable`), exit code сохраняется.
+
 Отчёт содержит `manifest.json`, `builds.json`, `summary.json`, `coverage.json`, `quality.json`, `benchmarks.json` и Markdown. Для каждого diagnostic run — отдельные `wall.trace.json` и `lua-cpu.trace.json`; их можно загрузить в Perfetto. Raw processes, profiles, events, stdout/stderr, preparation receipts и установленные копии остаются рядом с run. Невалидные/прерванные измерения сохраняются и не превращаются в PASS.
 
 ## Как читать данные
