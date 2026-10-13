@@ -1,5 +1,9 @@
 import { join, relative } from "node:path";
 import { files, hashFile } from "../sources/snapshot.ts";
+function orderedDistinct(group: string, attrs: string[]): string {
+  if (new Set(attrs.map((a) => a.slice(0, a.indexOf("=")))).size !== attrs.length) return group;
+  return attrs.sort().join(" ") + (group.endsWith(" ") ? " " : "");
+}
 // Allowlist 1: Pandoc меняет порядок этих трёх QRC атрибутов между независимыми runs.
 export function normalizeOutput(path: string, contents: string): string {
   if (!path.endsWith(".html")) return contents;
@@ -10,15 +14,18 @@ export function normalizeOutput(path: string, contents: string): string {
         return chunk.replace(
           /(?:target="[^"]*"\s*|data-statement-visibility="[^"]*"\s*){2}/g,
           (group) =>
-            [...group.matchAll(/(?:target|data-statement-visibility)="[^"]*"/g)].map((m) => m[0])
-              .sort().join(" ") + (group.endsWith(" ") ? " " : ""),
+            orderedDistinct(
+              group,
+              [...group.matchAll(/(?:target|data-statement-visibility)="[^"]*"/g)].map((m) => m[0]),
+            ),
         );
       }
       if (!/^<a\b/i.test(chunk)) return chunk;
       return chunk.replace(/(?:data-qrc-(?:ref|custom|style)="[^"]*"\s*){2,}/g, (group) => {
-        const attrs = [...group.matchAll(/data-qrc-(?:ref|custom|style)="[^"]*"/g)].map((m) => m[0])
-          .sort();
-        return attrs.join(" ") + (group.endsWith(" ") ? " " : "");
+        const attrs = [...group.matchAll(/data-qrc-(?:ref|custom|style)="[^"]*"/g)].map((m) =>
+          m[0]
+        );
+        return orderedDistinct(group, attrs);
       });
     },
   );

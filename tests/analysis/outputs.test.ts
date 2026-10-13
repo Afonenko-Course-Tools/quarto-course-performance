@@ -42,3 +42,15 @@ Deno.test("exercise target/visibility order is technical but values are signific
     normalizeOutput("a.html", b.replace("open", "restricted")),
   );
 });
+
+Deno.test("duplicate attribute order stays significant because HTML uses the first value", () => {
+  for (
+    const [a, b] of [
+      ['<a data-qrc-ref="a" data-qrc-ref="b">x</a>', '<a data-qrc-ref="b" data-qrc-ref="a">x</a>'],
+      [
+        '<div id="exr-a" target="a" target="b">x</div>',
+        '<div id="exr-a" target="b" target="a">x</div>',
+      ],
+    ]
+  ) assert.notEqual(normalizeOutput("a.html", a), normalizeOutput("a.html", b));
+});

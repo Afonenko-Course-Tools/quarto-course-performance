@@ -1,0 +1,57 @@
+{
+  "scenario": "java-full-student",
+  "left": "clean-control",
+  "right": "candidate",
+  "pairs": [
+    {
+      "order": "AB",
+      "controlWall": 442.104352017,
+      "candidateWall": 444.358460542,
+      "controlRunId": "352b6dfe-2adf-48ba-878e-f938a88cd179",
+      "candidateRunId": "58b5ecc8-115d-4c5c-a360-653078efbb46"
+    },
+    {
+      "order": "BA",
+      "controlWall": 452.025618423,
+      "candidateWall": 452.173355175,
+      "controlRunId": "4d70156a-65d2-489a-a8a6-9bbfe4bac282",
+      "candidateRunId": "8685a0bf-0387-43ff-9ce9-d67a4805b3a7"
+    },
+    {
+      "order": "AB",
+      "controlWall": 461.590490274,
+      "candidateWall": 464.656047337,
+      "controlRunId": "417db9f9-d997-44fb-860d-bd5d865a8f0c",
+      "candidateRunId": "f2fed2cd-403a-4bd0-8f2f-aaba1fc3d724"
+    },
+    {
+      "order": "BA",
+      "controlWall": 449.915961379,
+      "candidateWall": 465.780364556,
+      "controlRunId": "3d993ce2-629e-465f-9cc3-613377d52d7a",
+      "candidateRunId": "11adc707-8e2c-477a-939c-d1c3c71c848f"
+    },
+    {
+      "order": "AB",
+      "controlWall": 454.567696291,
+      "candidateWall": 458.979062609,
+      "controlRunId": "6164af5d-804d-47cd-86fc-9cee5f323330",
+      "candidateRunId": "b37d2b95-fdac-49d0-a33e-0f8f50197688"
+    }
+  ],
+  "warmups": [
+    "56f5f8c4-4a19-431c-a59b-a53c69c85816",
+    "062dd81f-1af0-4d10-a880-3d4fd2f64134"
+  ],
+  "seed": 42,
+  "complete": true,
+  "comparison": {
+    "medianRatio": 1.0066412916374865,
+    "interval95": [
+      1.0003268326970391,
+      1.0352608143271365
+    ],
+    "status": "INCONCLUSIVE",
+    "pairs": 5
+  }
+}

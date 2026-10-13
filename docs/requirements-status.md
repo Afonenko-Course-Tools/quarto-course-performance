@@ -19,7 +19,7 @@
 | R-13 evidence | Manifests, raw journals/profiles/receipts, summary/coverage/quality, causal map и traces | реализовано; финальный experiment report ожидает |
 | R-14 качество | Dropped/incomplete/errors/ABI/protocol/signals invalid; раннее переполнение сохранено, не принято | fixtures и валидные полные summary |
 | R-15 проект и owner PR | Новый приватный Performance и пять owner draft PR; Java diagnostic pilot и native owner checks | шесть PR созданы; итоговая acceptance продолжается |
-| R-16 overhead ≤1% | Парные ratios, bootstrap 95%, 10 000 resamples seed42, threshold1.01 | AST10/TS10 INCONCLUSIVE; full5 и short30 ожидают |
+| R-16 overhead ≤1% | Парные ratios, bootstrap 95%, 10 000 resamples seed42, threshold1.01 | AST30/TS30 и full5 каждого профиля INCONCLUSIVE |
 | R-17 русский язык | README, отчёты, пояснения и шесть PR описаны по-русски | проверено |
 | R-18 Linux local | x86-64, Quarto1.11.5/Deno2.7.14/Pandoc3.10, установленные инструменты вне интервала | native pilot и CI |
 
