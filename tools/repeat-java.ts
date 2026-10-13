@@ -50,6 +50,7 @@ const result = {
   experimentId: manifest.experimentId,
   cachePolicy: scenario.cachePolicy,
   preparedRoot: prepared.root,
+  snapshotRoot: snapshot,
   firstRunId: first.runId,
   secondRunId: second.runId,
   comparisons,

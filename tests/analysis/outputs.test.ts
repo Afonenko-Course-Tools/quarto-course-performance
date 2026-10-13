@@ -1,5 +1,5 @@
 import { strict as assert } from "node:assert";
-import { normalizeOutput } from "../../src/analysis/outputs.ts";
+import { compareOutputs, normalizeOutput } from "../../src/analysis/outputs.ts";
 Deno.test("output comparison retains teaching text, solutions, target links and unrelated timestamps", () => {
   const before = '<p>Задача</p><a href="a.html#target">Ответ 4</a>';
   for (
@@ -15,12 +15,43 @@ Deno.test("output comparison retains teaching text, solutions, target links and 
   );
 });
 
-Deno.test("only unordered QRC metadata attributes are canonicalized, script strings stay literal", () => {
+Deno.test("output comparison applies an explicit owner adapter only to HTML, with declared roots", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const left = root + "/left", right = root + "/right";
+    await Deno.mkdir(left);
+    await Deno.mkdir(right);
+    await Deno.writeTextFile(left + "/a.html", "<p>/left/a.qmd</p>");
+    await Deno.writeTextFile(right + "/a.html", "<p>/right/a.qmd</p>");
+    assert.equal((await compareOutputs(left, right)).equivalent, false);
+    const calls: string[] = [];
+    const adapted = await compareOutputs(left, right, {
+      leftSourceRoot: "/left",
+      rightSourceRoot: "/right",
+      normalizeHtml: (html, sourceRoot) => {
+        calls.push(sourceRoot!);
+        return html.replace(sourceRoot!, "$ROOT");
+      },
+    });
+    assert.equal(adapted.equivalent, true);
+    assert.deepEqual(calls, ["/left", "/right"]);
+    await Deno.writeTextFile(left + "/data.json", '{"root":"/left"}');
+    await Deno.writeTextFile(right + "/data.json", '{"root":"/right"}');
+    assert.equal(
+      (await compareOutputs(left, right, { normalizeHtml: () => "same" })).equivalent,
+      false,
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("QRC metadata order stays literal without an explicit owner adapter", () => {
   const a =
     '<a data-qrc-ref="x:id" data-qrc-custom="false" data-qrc-style="default" href="x.html#id">Текст</a>';
   const b =
     '<a data-qrc-custom="false" data-qrc-style="default" data-qrc-ref="x:id" href="x.html#id">Текст</a>';
-  assert.equal(normalizeOutput("index.html", a), normalizeOutput("index.html", b));
+  assert.notEqual(normalizeOutput("index.html", a), normalizeOutput("index.html", b));
   assert.notEqual(
     normalizeOutput("index.html", a),
     normalizeOutput("index.html", b.replace("x:id", "x:other")),
@@ -53,4 +84,39 @@ Deno.test("duplicate attribute order stays significant because HTML uses the fir
       ],
     ]
   ) assert.notEqual(normalizeOutput("a.html", a), normalizeOutput("a.html", b));
+});
+
+Deno.test("historical Core exercise metadata order is canonicalized", () => {
+  const pairs = [
+    [
+      '<div id="exr-a" class="theorem exercise" data-course-difficulty="2" target="manual" data-course-time="10" data-statement-visibility="open">',
+      '<div id="exr-a" class="theorem exercise" data-course-time="10" data-statement-visibility="open" target="manual" data-course-difficulty="2">',
+    ],
+  ];
+  for (const [a, b] of pairs) {
+    assert.equal(normalizeOutput("a.html", a), normalizeOutput("a.html", b));
+    assert.notEqual(
+      normalizeOutput("a.html", a),
+      normalizeOutput("a.html", b.replace('="', '="changed-')),
+    );
+    for (const prefix of ["<script>", "<style>", "<!--"]) {
+      const suffix = prefix === "<!--" ? "-->" : prefix.replace("<", "</");
+      assert.notEqual(
+        normalizeOutput("a.html", prefix + a + suffix),
+        normalizeOutput("a.html", prefix + b + suffix),
+      );
+    }
+  }
+  const a = '<div class="other" data-qrc-title="a" data-qrc-id="b">';
+  const b = '<div class="other" data-qrc-id="b" data-qrc-title="a">';
+  assert.notEqual(normalizeOutput("a.html", a), normalizeOutput("a.html", b));
+  const dup =
+    '<div class="qrc-probe" data-qrc-id="first" data-qrc-style="default" data-qrc-id="second">';
+  assert.notEqual(
+    normalizeOutput("a.html", dup),
+    normalizeOutput(
+      "a.html",
+      dup.replace("first", "TEMP").replace("second", "first").replace("TEMP", "second"),
+    ),
+  );
 });

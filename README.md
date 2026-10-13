@@ -85,7 +85,7 @@ CLI: 0 — команда выполнена, 2 — configuration/preparation er
 - `coverage.complete` относится только к выбранному scope. Unsupported TS generators/constructors/accessors/decorators/direct eval, локальные/aliased manual rebindings и inline manual callbacks перечислены в skipped; strict scope отказывает перед запуском. Исключение ручной разметки из auto trace поддержано для module-level function declarations. Summary регистрирует semantic операции, а не все функции. Compiler API загружается только для преобразования выбранного TS trace scope. TS symbol mapping содержит исходные ranges; универсальная sourcemap реконструкция transpiled CPU строк не реализована. Lua same-line функции имеют отдельную runtime identity; ordinal первого наблюдения не обещает стабильности между runs.
 - Lua-корутины наследуют span создателя и сохраняют отдельные стеки. `coroutine.wrap` сохраняет нативную функцию и результаты; доступ к её thread identity проверен в Pandoc/Lua 5.4. Tail caller сохраняется как логический родитель до завершения callee, включая ошибку. Остановка trace снимает hooks с зарегистрированных корутин и отмечает незавершённые функции как aborted.
 - Lua sampling backend недоступен; обычный Pandoc debug hook обеспечивает выбранную call trace. Агент не устанавливает конфликтующие hooks. SIGTERM/INT дают best-effort flush; SIGKILL не гарантирует записи. Потери буфера и незавершённые spans делают данные invalid.
-- Значимые outputs сравниваются строго; allowlist нормализует только два выявленных набора HTML attribute order. Учебный текст, ответы, ссылки и значения атрибутов остаются строгими. ZIP сравнивается по именам и распакованным bytes.
+- Значимые outputs сравниваются строго. QRC задаёт порядок своих metadata у владельца; при сравнении исторических outputs применяется его же `canonicalizeMetadata` из закреплённого Git blob с SHA/hash receipt. Performance самостоятельно нормализует только наблюдавшийся порядок атрибутов упражнений Core. Учебный текст, ответы, ссылки и значения атрибутов остаются строгими. ZIP сравнивается по именам и распакованным bytes.
 
 ## Развитие и владельцы
 
@@ -99,12 +99,14 @@ deno run -A tools/sync-bridge.ts --check /absolute/quarto-course /absolute/quart
 
 ## Проверка outputs и повторного render
 
-После benchmark и diagnostic builds:
+После функциональных и diagnostic builds:
 
 ```sh
 deno run -A tools/repeat-java.ts /absolute/experiment-workspace
 deno run -A tools/validate-java.ts /absolute/experiment-workspace /absolute/upstream-workspace
 ```
+
+Дополнительно `tools/recheck-repeat.ts WORKSPACE SNAPSHOT_ROOT [NORMALIZER_MANIFEST]` повторно сравнивает сохранённые outputs, не выполняя сборки и не переписывая исходный результат. `tools/validate-java.ts WORKSPACE UPSTREAM_WORKSPACE [NORMALIZER_MANIFEST] [CONTROL_WORKSPACE]` допускает контроль из другого эксперимента только с теми же immutable source SHAs.
 
 Первая команда выполняет два реальных student render одной disposable copy без очистки outputs и сравнивает результат. Вторая сравнивает upstream/control/candidate/summary полных профилей, выбранные off/trace/cpu и PL export. Upstream из предыдущего эксперимента допускается только при совпадении immutable source SHAs. Внутренние profiles/events проверяются также внутри ZIP. Эти функциональные проверки не заменяют парный overhead benchmark.
 

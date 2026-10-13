@@ -1,36 +1,62 @@
 import { join, relative } from "node:path";
 import { files, hashFile } from "../sources/snapshot.ts";
-function orderedDistinct(group: string, attrs: string[]): string {
-  if (new Set(attrs.map((a) => a.slice(0, a.indexOf("=")))).size !== attrs.length) return group;
-  return attrs.sort().join(" ") + (group.endsWith(" ") ? " " : "");
-}
-// Allowlist 1: Pandoc меняет порядок этих трёх QRC атрибутов между независимыми runs.
+
+// Исторические атрибуты упражнений Core: значения и остальные bytes сохраняются.
+// Нормализация QRC предоставляется владельцем через explicit normalizeHtml adapter.
 export function normalizeOutput(path: string, contents: string): string {
   if (!path.endsWith(".html")) return contents;
   return contents.replace(
-    /<script\b[\s\S]*?<\/script\s*>|<style\b[\s\S]*?<\/style\s*>|<!--[\s\S]*?-->|<(?:a|div)\b[^>]*>/gi,
+    /<script\b[\s\S]*?<\/script\s*>|<style\b[\s\S]*?<\/style\s*>|<!--[\s\S]*?-->|<(?:a|div)\b(?:"[^"]*"|'[^']*'|[^'">])*>/gi,
     (chunk) => {
-      if (/^<div\b/i.test(chunk) && /\bid="exr-[^"]*"/.test(chunk)) {
-        return chunk.replace(
-          /(?:target="[^"]*"\s*|data-statement-visibility="[^"]*"\s*){2}/g,
-          (group) =>
-            orderedDistinct(
-              group,
-              [...group.matchAll(/(?:target|data-statement-visibility)="[^"]*"/g)].map((m) => m[0]),
-            ),
-        );
+      const prefix = chunk.match(/^<(a|div)\b/i);
+      if (!prefix) return chunk;
+      const start = prefix[0].length;
+      const body = chunk.slice(start, -1);
+      const attrs = [...body.matchAll(/([^\s=/>]+)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?/g)];
+      // Не переписывать malformed HTML и duplicate attrs (их первый value значим).
+      if (body.replace(/([^\s=/>]+)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?/g, "").trim()) {
+        return chunk;
       }
-      if (!/^<a\b/i.test(chunk)) return chunk;
-      return chunk.replace(/(?:data-qrc-(?:ref|custom|style)="[^"]*"\s*){2,}/g, (group) => {
-        const attrs = [...group.matchAll(/data-qrc-(?:ref|custom|style)="[^"]*"/g)].map((m) =>
-          m[0]
+      const names = attrs.map((a) => a[1].toLowerCase());
+      if (new Set(names).size !== names.length) return chunk;
+      const value = (name: string) => {
+        const attr = attrs.find((a) => a[1].toLowerCase() === name);
+        return attr?.[0].match(/=\s*(?:"([^"]*)"|'([^']*)'|([^\s]+))$/)?.slice(1).find((v) =>
+          v !== undefined
         );
-        return orderedDistinct(group, attrs);
-      });
+      };
+
+      const allowed = (value("id") ?? "").startsWith("exr-") && prefix[1].toLowerCase() === "div"
+        ? [
+          "target",
+          "data-statement-visibility",
+          "data-course-difficulty",
+          "data-course-time",
+          "data-course-role",
+        ]
+        : [];
+      const selected = attrs.filter((a) => allowed.includes(a[1].toLowerCase()));
+      const ordered = [...selected].sort((a, b) => a[1].localeCompare(b[1]));
+      let result = chunk.slice(0, start), cursor = 0, index = 0;
+      for (const attr of selected) {
+        const next = ordered[index++];
+        let text = next[0];
+        result += body.slice(cursor, attr.index) + text;
+        cursor = attr.index! + attr[0].length;
+      }
+      return result + body.slice(cursor) + ">";
     },
   );
 }
-export async function compareOutputs(left: string, right: string) {
+export async function compareOutputs(
+  left: string,
+  right: string,
+  roots: {
+    leftSourceRoot?: string;
+    rightSourceRoot?: string;
+    normalizeHtml?: (contents: string, sourceRoot?: string) => string;
+  } = {},
+) {
   const a = new Map((await files(left)).map((p) => [relative(left, p), p])),
     b = new Map((await files(right)).map((p) => [relative(right, p), p]));
   const differences: string[] = [];
@@ -70,8 +96,18 @@ export async function compareOutputs(left: string, right: string) {
     } else if (await hashFile(a.get(name)!) !== await hashFile(b.get(name)!)) {
       if (
         !name.endsWith(".html") ||
-        normalizeOutput(name, await Deno.readTextFile(a.get(name)!)) !==
-          normalizeOutput(name, await Deno.readTextFile(b.get(name)!))
+        normalizeOutput(
+            name,
+            roots.normalizeHtml
+              ? roots.normalizeHtml(await Deno.readTextFile(a.get(name)!), roots.leftSourceRoot)
+              : await Deno.readTextFile(a.get(name)!),
+          ) !==
+          normalizeOutput(
+            name,
+            roots.normalizeHtml
+              ? roots.normalizeHtml(await Deno.readTextFile(b.get(name)!), roots.rightSourceRoot)
+              : await Deno.readTextFile(b.get(name)!),
+          )
       ) differences.push(`${name}: bytes различаются`);
     }
   }

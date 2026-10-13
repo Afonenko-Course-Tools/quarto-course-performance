@@ -1,5 +1,6 @@
 // Строгое сравнение сохранившихся outputs; запускать после завершения benchmark/diagnostics.
 import { dirname, join, resolve } from "node:path";
+import { loadOwnerNormalizer } from "./owner-normalizer.ts";
 import { validateConfig } from "../src/config/validate.ts";
 import { compareOutputs } from "../src/analysis/outputs.ts";
 import { files } from "../src/sources/snapshot.ts";
@@ -7,6 +8,10 @@ const workspace = resolve(Deno.args[0]), upstreamWorkspace = resolve(Deno.args[1
 const config = validateConfig(
   JSON.parse(await Deno.readTextFile(new URL("../scenarios/java.json", import.meta.url))),
 );
+const normalizer = await loadOwnerNormalizer(
+  Deno.args[2] ?? join(workspace, "candidate.manifest.json"),
+);
+const canonicalizeMetadata = normalizer.normalizeHtml;
 type Build = {
   runId: string;
   scenario: string;
@@ -74,7 +79,11 @@ async function compareBuilds(a: Build, b: Build, label: string) {
     const hasA = await exists(left), hasB = await exists(right);
     if (!hasA && !hasB) continue;
     const result = hasA && hasB
-      ? await compareOutputs(left, right)
+      ? await compareOutputs(left, right, {
+        leftSourceRoot: root(a),
+        rightSourceRoot: root(b),
+        normalizeHtml: canonicalizeMetadata,
+      })
       : { equivalent: false, differences: ["Output directory отсутствует в одном варианте"] };
     checks.push({ path, ...result });
     equivalent &&= result.equivalent;
@@ -106,7 +115,12 @@ async function compareBuilds(a: Build, b: Build, label: string) {
 for (const profile of ["student", "full"]) {
   const id = "java-full-" + profile;
   const upstream = await findRun(upstreamWorkspace, id, "upstream", "off");
-  const control = await findRun(workspace, id, "clean-control", "off");
+  const control = await findRun(
+    Deno.args[3] ? resolve(Deno.args[3]) : workspace,
+    id,
+    "clean-control",
+    "off",
+  );
   const candidate = await findRun(workspace, id, "candidate", "off");
   const summary = await findRun(workspace, id, "candidate", "summary");
   const frozen = JSON.parse(await Deno.readTextFile(join(workspace, "upstream.manifest.json")));
@@ -116,6 +130,16 @@ for (const profile of ["student", "full"]) {
         s.repository === source.repository && s.sha === source.sha
       )
     ) throw new Error("Upstream из другого source set");
+  }
+  const frozenControl = JSON.parse(
+    await Deno.readTextFile(join(workspace, "clean-control.manifest.json")),
+  );
+  for (const source of frozenControl.sources) {
+    if (
+      !control.manifest.sources.some((s) =>
+        s.repository === source.repository && s.sha === source.sha
+      )
+    ) throw new Error("Control из другого source set");
   }
   await compareBuilds(upstream, control, id + ":upstream-control");
   await compareBuilds(control, candidate, id + ":control-candidate");
@@ -138,7 +162,9 @@ const result = {
   comparisons,
   leaks,
   equivalent: equivalent && !leaks.length,
-  normalization: "src/analysis/outputs.ts allowlist 1+2",
+  ownerNormalizer: normalizer.receipt,
+  normalization:
+    "QRC owner metadata.ts (candidate SHA) + historical Core exercise attribute order; values/content/ZIP bytes strict",
   upstreamProvenance: "previous experiment, identical immutable upstream source set",
 };
 await Deno.writeTextFile(
