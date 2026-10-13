@@ -8,7 +8,7 @@
 
 - Полные student/full summary: build exit 0, данные валидны, по 405 summaries без dropped events и incomplete spans. Установлены семь пакетов; наблюдались операции шести, `course-navigation` — `not-observed` в этом scope.
 - Выбранные TS и Lua trace, TS V8 CPU profile, отдельный PL export в off/summary: build exit 0, данные валидны. Runtime registry закреплён на PrairieLearn Platform v2.0.0 (`b971a61a2386fbf4ae7fcfc9394d307359bc7889`). Проверка не запускает grading или публикацию.
-- Performance: 53 tests, typecheck и fmt проходят. Native fixtures проверяют off identity, values/this/ошибки, async siblings, Lua nil returns, корутины, tail calls, signal/exit, clocks, manifests, outputs, launchers и качество данных. Дополнительные Lua regression fixtures сначала воспроизвели потерю parent/error, после исправления проходят.
+- Performance: 54 tests, typecheck и fmt проходят. Native fixtures проверяют off identity, values/this/ошибки, async siblings, Lua nil returns, корутины, tail calls, signal/exit, clocks, manifests, outputs, launchers и качество данных. Дополнительные Lua regression fixtures сначала воспроизвели потерю parent/error, после исправления проходят.
 - Owner checks: Core native и browser; QRC native, HTTP и browser; Publisher native; Download install/native; PrairieLearn 49 unit, native и Java demo прошли. Publisher resources fixture проверен с его CI-pinned Core v4; интеграционный Java использует актуальный Core v6. Это разные contract checks.
 - ABI audit: одинаковый ABI 1 в семи packages, 224 зарегистрированные операции; внутренние agents/launchers отсутствуют в распространяемых packages.
 - Synthetic Core scaling 1/2/4 exercises: full walks 27/27/27, fragment walks 93/120/174; off и summary outputs эквивалентны. Наблюдение не доказывает избыточность обходов.
@@ -44,4 +44,6 @@ Hyperfine 2.0.0; warmup каждого варианта исключён, зат
 - [quarto-project-download](https://github.com/Afonenko-Course-Tools/quarto-project-download/pull/9) — OPEN draft.
 - [quarto-course-prairielearn](https://github.com/Afonenko-Course-Tools/quarto-course-prairielearn/pull/17) — OPEN draft.
 
-Performance, Core, QRC, Download и PrairieLearn GitHub checks прошли; Publisher check ещё выполняется. Первая Performance CI выявила отличие native signal status между версиями GNU time. Runner теперь сохраняет status исходного инструмента отдельным внешним помощником; Hyperfine benchmark не использует помощник. Повторная CI прошла (53 tests).
+Performance, Core, QRC, Download и PrairieLearn GitHub checks прошли; Publisher check ещё выполняется. Первая Performance CI выявила отличие native signal status GNU time между локальной машиной и GitHub runner. Runner теперь сохраняет status исходного инструмента отдельным внешним помощником; Hyperfine benchmark не использует помощник. Повторная CI прошла; итоговый локальный набор после уточнения summary содержит 54 tests.
+
+При самопроверке дополнительно отключена поузловая запись filter handlers в summary/cpu; document phases и shortcode boundaries сохраняются. Первые protocol-valid summaries с более широкой ручной записью сохранены как предыдущая версия backend. Финальные summary будут повторены с явной observationPolicy в coverage.

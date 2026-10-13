@@ -179,3 +179,19 @@ agent.stop_trace();agent.flush();return {}`,
   assert.equal(all.filter((e) => e.event === "end" && e.status === "error").length, 2);
   assert.equal((result as { data_valid: boolean }).data_valid, true);
 });
+
+Deno.test("Lua summary skips per-node handlers but keeps document phases and shortcode operations", async () => {
+  const { result } = await fixture(`
+local agent=dofile(${
+    JSON.stringify(project + "src/agents/lua/agent.lua")
+  }){experimentId='e',runId='r',processId='p',executorId='lua',outputDirectory=os.getenv('COURSE_PERF_OUTPUT_DIR'),mode='summary'}
+local fn=function(x)return x end
+assert(agent.metrics.wrap_sync({id='owner.filter.handler.Str',kind='function'},fn)==fn)
+agent.metrics.wrap_sync({id='owner.filter.handler.Pandoc',kind='phase'},fn)(1)
+agent.metrics.wrap_sync({id='course-navigation.shortcodes.handler.nav',kind='function'},fn)(2)
+agent.flush();return {}`);
+  const counters = (result as { counters: Record<string, number> }).counters;
+  assert.equal(counters["calls.owner.filter.handler.Str"], undefined);
+  assert.equal(counters["calls.owner.filter.handler.Pandoc"], 1);
+  assert.equal(counters["calls.course-navigation.shortcodes.handler.nav"], 1);
+});

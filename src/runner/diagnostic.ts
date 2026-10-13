@@ -32,6 +32,11 @@ export async function prepareDiagnostic(
     runtime: caps,
     requestedExtensions: scenario.scope.extensions,
     scopeKind: scenario.mode === "trace" ? "selected-functions-and-semantic" : "semantic-registry",
+    observationPolicy: {
+      perNodeHandlers: scenario.mode === "trace" ? "enabled" : "not-requested",
+      documentPhases: "enabled",
+      shortcodeBoundaries: "enabled",
+    },
     manualRegistry: {
       hash: await hashFile(registry),
       operations: JSON.parse(await Deno.readTextFile(registry)),

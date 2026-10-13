@@ -78,6 +78,10 @@ return function(config)
     if pop~=false then local current=stack(); if current[#current]==id then current[#current]=nil end end
   end
   local function wrap(spec,fn)
+    -- В summary/cpu сохраняются document phases и shortcode boundaries,
+    -- но поузловые filter handlers наблюдаются только при явном trace.
+    if config.mode~='trace' and spec.kind=='function' and spec.id:find('.handler.',1,true)
+      and not spec.id:find('.shortcodes.handler.',1,true) then return fn end
     manually_wrapped[fn]=true
     local wrapped=function(...)
       local observed,id=pcall(begin,spec)
