@@ -111,3 +111,9 @@ deno run -A tools/validate-java.ts /absolute/experiment-workspace /absolute/upst
 Первая команда выполняет два реальных student render одной disposable copy без очистки outputs и сравнивает результат. Вторая сравнивает upstream/control/candidate/summary полных профилей, выбранные off/trace/cpu и PL export. Upstream из предыдущего эксперимента допускается только при совпадении immutable source SHAs. Внутренние profiles/events проверяются также внутри ZIP. Эти функциональные проверки не заменяют парный overhead benchmark.
 
 [Отчёт Java](docs/java-pilot-report.md) и [матрица требований](docs/requirements-status.md) фиксируют текущие результаты, ограничения и ссылки на связанные PR.
+
+## Подготовка выпуска 1.0.0
+
+Это первый versioned выпуск runner с фасадами ABI1. До публикации тега
+`v1.0.0` используйте точный candidate SHA; схемы и методика принадлежат тому же
+ref. Функциональная проверка нового курса не подтверждает overhead `≤1%`.
