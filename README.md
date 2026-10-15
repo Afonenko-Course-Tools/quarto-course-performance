@@ -57,6 +57,14 @@ deno task perf run --workspace .workspace/java --scenario java-pl-export --mode 
 
 Все фактически установленные копии `_extensions` находятся и заменяются в disposable Java copy. Receipts фиксируют owner SHA, package hash и destination paths; symlinks в package/course input запрещены. Изменённый checkout или runtime hash прерывает подготовку. Копирование и очистка output находятся вне измеряемого интервала. Каждый диагностический запуск получает snapshot backend и copy Quarto share/data-dir со своими хешами.
 
+Подготовленные файлы сохраняют исходные mode, mtime и доступный atime: Quarto
+использует mtime входного документа для `sitemap.xml/lastmod`. Парные режимы
+должны копироваться из одного неизменного дерева с теми же временами файлов;
+одинаковый Git SHA сам по себе не фиксирует filesystem timestamps. Времена
+каталогов не используются как source-document lastmod и не входят в эту гарантию.
+При недоступном atime применяется mtime; недоступный mtime не придумывается.
+Исторические outputs с разными временами не исправляются нормализацией sitemap.
+
 `java-repeat-student` повторно использует outputs внутри benchmark series; функциональную проверку двух запусков одной copy выполняет `tools/repeat-java.ts`; остальные render сценарии очищают только перечисленные `cleanPaths`. Env старых и новых profiler очищается, функциональные env и course profile сохраняются. PL экспорт использует закреплённый внешний registry и пишет локальную поставку в `{run_output}`. `{course_root}`, `{run_output}`, `{runtime_registry}` заменяются внутри argv, без shell evaluation.
 
 ## Парные измерения и отчёт

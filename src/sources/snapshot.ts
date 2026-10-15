@@ -52,10 +52,12 @@ export async function copyTree(
   await Deno.mkdir(destination, { recursive: true });
   for (const path of await files(source, options)) {
     const target = join(destination, relative(source, path));
+    const info = await Deno.stat(path);
     await Deno.mkdir(join(target, ".."), { recursive: true });
     await Deno.copyFile(path, target);
-    const mode = (await Deno.stat(path)).mode;
-    if (mode !== null) await Deno.chmod(target, mode & 0o777);
+    if (info.mode !== null) await Deno.chmod(target, info.mode & 0o777);
+    // Quarto использует input mtime в sitemap; время новой копии меняет output.
+    if (info.mtime !== null) await Deno.utime(target, info.atime ?? info.mtime, info.mtime);
   }
 }
 export async function contained(root: string, path: string): Promise<void> {
