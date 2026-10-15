@@ -1,0 +1,42 @@
+{
+  "experimentId": "520f454c-bb6a-4f79-bd7b-4d781f7f4d04",
+  "cachePolicy": "repeat-render",
+  "preparedRoot": "$FUNCTIONAL_WORKSPACE/repeat-dd5a15ab246fd425/candidate",
+  "snapshotRoot": "$FUNCTIONAL_WORKSPACE/repeat-outputs-9c1e319714e94879",
+  "firstRunId": "fc39fb8c-ef79-44f9-8971-115c5b402ee4",
+  "secondRunId": "2e1b53a3-dc89-4932-a72e-5671385b490a",
+  "comparisons": [
+    {
+      "path": "_site-student",
+      "equivalent": true,
+      "differences": []
+    },
+    {
+      "path": "theory/_output/student",
+      "equivalent": true,
+      "differences": []
+    },
+    {
+      "path": "tasks/_output/student",
+      "equivalent": true,
+      "differences": []
+    },
+    {
+      "path": "lectures/_output/student",
+      "equivalent": true,
+      "differences": []
+    },
+    {
+      "path": "practice/_output/student",
+      "equivalent": true,
+      "differences": []
+    },
+    {
+      "path": "handbook/_output/student",
+      "equivalent": true,
+      "differences": []
+    }
+  ],
+  "equivalent": true,
+  "performanceAcceptance": "not-a-paired-benchmark"
+}

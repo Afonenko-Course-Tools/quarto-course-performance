@@ -1,0 +1,55 @@
+{
+  "experimentId": "2ffddcf0-7c16-48a8-901a-e93051db476a",
+  "cachePolicy": "repeat-render",
+  "preparedRoot": "$BENCHMARK_WORKSPACE/repeat-c24bdf06d17dbba3/candidate",
+  "firstRunId": "8cab313f-a3ce-4054-acbd-777109fd6144",
+  "secondRunId": "7b6ec92d-8378-48c7-99bf-bb21a0b2702c",
+  "comparisons": [
+    {
+      "path": "_site-student",
+      "equivalent": true,
+      "differences": []
+    },
+    {
+      "path": "theory/_output/student",
+      "equivalent": true,
+      "differences": []
+    },
+    {
+      "path": "tasks/_output/student",
+      "equivalent": true,
+      "differences": []
+    },
+    {
+      "path": "lectures/_output/student",
+      "equivalent": true,
+      "differences": []
+    },
+    {
+      "path": "practice/_output/student",
+      "equivalent": true,
+      "differences": []
+    },
+    {
+      "path": "handbook/_output/student",
+      "equivalent": true,
+      "differences": []
+    }
+  ],
+  "equivalent": true,
+  "performanceAcceptance": "not-a-paired-benchmark",
+  "snapshotRoot": "$BENCHMARK_WORKSPACE/repeat-outputs-db51a40afe6e919d",
+  "recheck": {
+    "ownerNormalizer": {
+      "manifest": "$FUNCTIONAL_WORKSPACE/candidate.manifest.json",
+      "repository": "Afonenko-Course-Tools/quarto-reference-catalog",
+      "sha": "5868fa0bc4bf1927a3868e2b90409ec722075e32",
+      "path": "_extensions/reference-catalog/infrastructure/metadata.ts",
+      "sha256": "665d3aeff99a3fc9ac723c2d30c679aeef50b34414947cd7a9ee0e45f424f0f1"
+    },
+    "originalResult": "$BENCHMARK_WORKSPACE/repeat-validation.json",
+    "originalResultSha256": "57641d79685dc2d482b80d558b5b57614a0d52f5b0713af728dce5552d3332a2",
+    "normalizerSha256": "3abea9681e285836294c2e4e9a526787d3e3d5f537e781b6c1c2df4c534c4a75",
+    "policy": "QRC owner metadata.ts + historical Core exercise attribute order; values, content and ZIP entries strict"
+  }
+}

@@ -1,0 +1,232 @@
+{
+  "scenario": "java-ast-document",
+  "left": "clean-control",
+  "right": "candidate",
+  "pairs": [
+    {
+      "order": "AB",
+      "controlWall": 13.345756141,
+      "candidateWall": 13.613119743,
+      "controlRunId": "8883fdd0-a0f0-4bf2-86a9-f8eeafa48990",
+      "candidateRunId": "0407f0fd-f0a9-43a4-982f-1600dea3039d"
+    },
+    {
+      "order": "BA",
+      "controlWall": 13.34796614,
+      "candidateWall": 13.244354021,
+      "controlRunId": "2b29ef36-d4b7-446d-9f06-ce565db88678",
+      "candidateRunId": "2304c75c-a2f5-4881-b231-f1dc25df6c8d"
+    },
+    {
+      "order": "AB",
+      "controlWall": 13.595711969,
+      "candidateWall": 13.533835151,
+      "controlRunId": "fa8437b2-d91a-4841-8406-dbecaf630863",
+      "candidateRunId": "6469a5cc-73cd-4ff9-827f-0f6c59335fe0"
+    },
+    {
+      "order": "BA",
+      "controlWall": 14.361425103,
+      "candidateWall": 13.63407579,
+      "controlRunId": "8856387e-0b2b-410f-ad44-0038c4ce6cab",
+      "candidateRunId": "b05faf1d-c19d-4779-96c6-efc608853850"
+    },
+    {
+      "order": "AB",
+      "controlWall": 14.714633879,
+      "candidateWall": 13.803172444,
+      "controlRunId": "b6189ffb-acd2-45d2-8a58-b92b4c683ea2",
+      "candidateRunId": "575281a4-8691-41d6-a2cb-17898e45f291"
+    },
+    {
+      "order": "BA",
+      "controlWall": 14.710447221,
+      "candidateWall": 15.218498292,
+      "controlRunId": "f0596515-5279-419c-95c7-d56983288f9d",
+      "candidateRunId": "88c0e6c9-26db-4b41-ab0c-b7a1af020093"
+    },
+    {
+      "order": "AB",
+      "controlWall": 14.731046583,
+      "candidateWall": 14.163869337,
+      "controlRunId": "87b2b51f-9292-4e94-afd1-a203626eeddc",
+      "candidateRunId": "56c5a5b8-5390-47ba-989e-65018aeb197d"
+    },
+    {
+      "order": "BA",
+      "controlWall": 13.992744837,
+      "candidateWall": 14.236539778,
+      "controlRunId": "a145c1b1-836f-4df2-a834-befbc7da64e7",
+      "candidateRunId": "0196c479-a11a-4d37-9c06-a064d1d45a13"
+    },
+    {
+      "order": "AB",
+      "controlWall": 14.774727414000001,
+      "candidateWall": 15.294872063,
+      "controlRunId": "b445cc23-93c8-4ca9-a37c-99504e81bc7e",
+      "candidateRunId": "2ab95499-8000-4c2c-89a5-43f341873354"
+    },
+    {
+      "order": "BA",
+      "controlWall": 14.15238294,
+      "candidateWall": 14.229244924,
+      "controlRunId": "dbd3b030-0684-4f03-9f1c-13e54ac6249a",
+      "candidateRunId": "0ba4114e-a31f-4170-8271-e31c8071d91e"
+    },
+    {
+      "order": "AB",
+      "controlWall": 15.294669174,
+      "candidateWall": 15.267734537,
+      "controlRunId": "df4b8524-bbd9-47b6-8ba1-a22c3a39193a",
+      "candidateRunId": "3dac5c71-baf5-49f3-b5e7-dd1c0d1a9972"
+    },
+    {
+      "order": "BA",
+      "controlWall": 14.300660426,
+      "candidateWall": 17.397721986,
+      "controlRunId": "082d97ca-f086-4417-8bdd-377179957ea1",
+      "candidateRunId": "b391f49f-afe2-4a34-a3df-6b4581f9e690"
+    },
+    {
+      "order": "AB",
+      "controlWall": 14.217915746,
+      "candidateWall": 14.122956899,
+      "controlRunId": "0c81896e-bc46-48b6-b2a9-50f3e78a1e61",
+      "candidateRunId": "0521d2bb-fa1f-44db-9019-8a023d88b605"
+    },
+    {
+      "order": "BA",
+      "controlWall": 14.199714362,
+      "candidateWall": 14.461987456,
+      "controlRunId": "aeac93ed-5b58-4196-884c-807e0986d97a",
+      "candidateRunId": "2caa19f2-16c8-43f9-9380-f24b61fde20d"
+    },
+    {
+      "order": "AB",
+      "controlWall": 13.966543233,
+      "candidateWall": 13.527222718,
+      "controlRunId": "3cd63d17-acfd-4511-a9d0-dd5755dcb302",
+      "candidateRunId": "b33237eb-0d83-448a-a9bd-ddbc48a037f9"
+    },
+    {
+      "order": "BA",
+      "controlWall": 13.668938402,
+      "candidateWall": 13.623925469,
+      "controlRunId": "4fc54793-727c-4cb3-9ea9-2480d047da03",
+      "candidateRunId": "1620d834-cd76-4084-b4e5-5de2d0ffe4ab"
+    },
+    {
+      "order": "AB",
+      "controlWall": 13.414793044,
+      "candidateWall": 15.392520839,
+      "controlRunId": "4357fe07-4be0-4da2-9779-7afefcf06026",
+      "candidateRunId": "3454a38a-0e02-458b-a550-ee1dc7bd6473"
+    },
+    {
+      "order": "BA",
+      "controlWall": 14.119713598,
+      "candidateWall": 14.827681616,
+      "controlRunId": "f4b5242b-9767-4dd4-869e-6d3c57602e03",
+      "candidateRunId": "762e3da4-077b-461b-9738-7e4c8cf16acf"
+    },
+    {
+      "order": "AB",
+      "controlWall": 13.900920195,
+      "candidateWall": 15.034589115,
+      "controlRunId": "adb6141d-922e-4255-9cd8-c31bcfe5ec25",
+      "candidateRunId": "e88022bf-79f5-42fd-a2a0-823254ce2c7f"
+    },
+    {
+      "order": "BA",
+      "controlWall": 13.838295854,
+      "candidateWall": 14.207963588,
+      "controlRunId": "a4e7b963-f93b-4ccd-a06e-bad135294a74",
+      "candidateRunId": "38148d26-f111-48e1-99c9-597745f98325"
+    },
+    {
+      "order": "AB",
+      "controlWall": 14.264193241,
+      "candidateWall": 14.177837408,
+      "controlRunId": "d4638bf2-4410-46a9-bf64-f47529240419",
+      "candidateRunId": "8ccaf825-da1e-499b-88ba-0b8976c3ea6d"
+    },
+    {
+      "order": "BA",
+      "controlWall": 14.156131391,
+      "candidateWall": 14.441309399,
+      "controlRunId": "578decc2-5668-45e4-9f77-f708b64d6425",
+      "candidateRunId": "5dd69ec4-ae75-43c6-b4c9-af868954dc47"
+    },
+    {
+      "order": "AB",
+      "controlWall": 14.863435468,
+      "candidateWall": 15.289963559,
+      "controlRunId": "6e66882c-5498-419c-a306-2a1052516062",
+      "candidateRunId": "7bf27286-c570-4c56-b926-9445ef86492b"
+    },
+    {
+      "order": "BA",
+      "controlWall": 14.419943109,
+      "candidateWall": 14.985639939,
+      "controlRunId": "b6cf5cb2-cc9f-400b-9a35-115d586ee93d",
+      "candidateRunId": "f5d8fcd7-c821-4f31-8202-2998a4087f9b"
+    },
+    {
+      "order": "AB",
+      "controlWall": 14.677812716,
+      "candidateWall": 14.533275593,
+      "controlRunId": "2a601e23-bff2-4aca-8dea-fe622add1c1b",
+      "candidateRunId": "023203f9-921d-421d-afbe-3cf18369836c"
+    },
+    {
+      "order": "BA",
+      "controlWall": 14.362926434,
+      "candidateWall": 14.480420766,
+      "controlRunId": "dd1bca42-a7d7-4831-aad9-55da0dd7eefb",
+      "candidateRunId": "92fb344f-13c1-4bd9-99b7-9a94be3cd92e"
+    },
+    {
+      "order": "AB",
+      "controlWall": 15.18633842,
+      "candidateWall": 15.199895783,
+      "controlRunId": "7166c593-f6fb-42ef-bc21-9971a20f8be6",
+      "candidateRunId": "8aeeb8d4-6054-486f-a77f-e58f2bb9cf1b"
+    },
+    {
+      "order": "BA",
+      "controlWall": 14.886601933,
+      "candidateWall": 14.947177166,
+      "controlRunId": "66e5dfeb-a3e2-43f4-a33a-d304e76331bd",
+      "candidateRunId": "9688374f-dae9-4018-9278-5ed76811214b"
+    },
+    {
+      "order": "AB",
+      "controlWall": 14.945016519,
+      "candidateWall": 14.863183656,
+      "controlRunId": "b447d373-0734-44c4-b23c-15f2a0423e6a",
+      "candidateRunId": "f02e8c9d-96c7-4432-b05a-b8509f44fa39"
+    },
+    {
+      "order": "BA",
+      "controlWall": 14.725269278,
+      "candidateWall": 15.129276315,
+      "controlRunId": "31e236b8-6597-4f8e-9ba9-f8ceeaf87037",
+      "candidateRunId": "9a8b5cdd-12a9-402c-a730-e9b86ef5701f"
+    }
+  ],
+  "warmups": [
+    "8440b441-b433-43ff-ad0f-79c54fce3ec0",
+    "5b671631-91fb-46bb-92e5-94f4f622844c"
+  ],
+  "seed": 42,
+  "complete": true,
+  "comparison": {
+    "medianRatio": 1.0068057085876534,
+    "interval95": [
+      0.9960778585702055,
+      1.0234292896467987
+    ],
+    "status": "INCONCLUSIVE",
+    "pairs": 30
+  }
+}

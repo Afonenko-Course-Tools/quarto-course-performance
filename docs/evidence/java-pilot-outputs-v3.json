@@ -1,0 +1,285 @@
+{
+  "comparisons": [
+    {
+      "label": "java-full-student:upstream-control",
+      "leftRunId": "9c9b219d-522b-42ba-93f4-c5f03af1beb9",
+      "rightRunId": "6164af5d-804d-47cd-86fc-9cee5f323330",
+      "checks": [
+        {
+          "path": "_site-student",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "theory/_output/student",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "tasks/_output/student",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "lectures/_output/student",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "practice/_output/student",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "handbook/_output/student",
+          "equivalent": true,
+          "differences": []
+        }
+      ]
+    },
+    {
+      "label": "java-full-student:control-candidate",
+      "leftRunId": "6164af5d-804d-47cd-86fc-9cee5f323330",
+      "rightRunId": "b37d2b95-fdac-49d0-a33e-0f8f50197688",
+      "checks": [
+        {
+          "path": "_site-student",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "theory/_output/student",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "tasks/_output/student",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "lectures/_output/student",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "practice/_output/student",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "handbook/_output/student",
+          "equivalent": true,
+          "differences": []
+        }
+      ]
+    },
+    {
+      "label": "java-full-student:off-summary",
+      "leftRunId": "b37d2b95-fdac-49d0-a33e-0f8f50197688",
+      "rightRunId": "a2d96086-aa64-4780-94a6-5cbe33dddb27",
+      "checks": [
+        {
+          "path": "_site-student",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "theory/_output/student",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "tasks/_output/student",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "lectures/_output/student",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "practice/_output/student",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "handbook/_output/student",
+          "equivalent": true,
+          "differences": []
+        }
+      ]
+    },
+    {
+      "label": "java-full-full:upstream-control",
+      "leftRunId": "a7dedab2-ca56-486f-86c7-c1f78f8bc497",
+      "rightRunId": "fe62e6e0-1959-45d7-82ac-7126c51dd09b",
+      "checks": [
+        {
+          "path": "_site-full",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "theory/_output/full",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "tasks/_output/full",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "lectures/_output/full",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "practice/_output/full",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "handbook/_output/full",
+          "equivalent": true,
+          "differences": []
+        }
+      ]
+    },
+    {
+      "label": "java-full-full:control-candidate",
+      "leftRunId": "fe62e6e0-1959-45d7-82ac-7126c51dd09b",
+      "rightRunId": "1f1c364a-2c55-4f12-b171-1f72947fabc8",
+      "checks": [
+        {
+          "path": "_site-full",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "theory/_output/full",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "tasks/_output/full",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "lectures/_output/full",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "practice/_output/full",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "handbook/_output/full",
+          "equivalent": true,
+          "differences": []
+        }
+      ]
+    },
+    {
+      "label": "java-full-full:off-summary",
+      "leftRunId": "1f1c364a-2c55-4f12-b171-1f72947fabc8",
+      "rightRunId": "c34ed166-3816-427c-a655-21a65c190bd2",
+      "checks": [
+        {
+          "path": "_site-full",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "theory/_output/full",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "tasks/_output/full",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "lectures/_output/full",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "practice/_output/full",
+          "equivalent": true,
+          "differences": []
+        },
+        {
+          "path": "handbook/_output/full",
+          "equivalent": true,
+          "differences": []
+        }
+      ]
+    },
+    {
+      "label": "java-ast-document:off-trace",
+      "leftRunId": "9a8b5cdd-12a9-402c-a730-e9b86ef5701f",
+      "rightRunId": "d446a514-7245-490f-93e8-1d90df8dd826",
+      "checks": [
+        {
+          "path": "tasks/_output/student",
+          "equivalent": true,
+          "differences": []
+        }
+      ]
+    },
+    {
+      "label": "java-ts-publication:off-trace",
+      "leftRunId": "d14c9ac1-e3d7-416e-9f02-c2f7e03770af",
+      "rightRunId": "29f38820-af62-4118-803f-872c705a4d37",
+      "checks": [
+        {
+          "path": "practice/_output/student",
+          "equivalent": true,
+          "differences": []
+        }
+      ]
+    },
+    {
+      "label": "java-pl-export:off-summary",
+      "leftRunId": "2af1e5f7-1c6c-42e2-a29b-4b942ffbef75",
+      "rightRunId": "0b36ca8a-5101-4f08-9d19-07bb9f315718",
+      "checks": [
+        {
+          "path": "pl-native",
+          "equivalent": true,
+          "differences": []
+        }
+      ]
+    },
+    {
+      "label": "java-ts-publication:off-cpu",
+      "leftRunId": "d14c9ac1-e3d7-416e-9f02-c2f7e03770af",
+      "rightRunId": "f98f2554-70e1-4304-92fa-b9326bb234af",
+      "checks": [
+        {
+          "path": "practice/_output/student",
+          "equivalent": true,
+          "differences": []
+        }
+      ]
+    }
+  ],
+  "leaks": [],
+  "equivalent": true,
+  "ownerNormalizer": {
+    "manifest": "$FUNCTIONAL_WORKSPACE/candidate.manifest.json",
+    "repository": "Afonenko-Course-Tools/quarto-reference-catalog",
+    "sha": "5868fa0bc4bf1927a3868e2b90409ec722075e32",
+    "path": "_extensions/reference-catalog/infrastructure/metadata.ts",
+    "sha256": "665d3aeff99a3fc9ac723c2d30c679aeef50b34414947cd7a9ee0e45f424f0f1"
+  },
+  "normalization": "QRC owner metadata.ts (candidate SHA) + historical Core exercise attribute order; values/content/ZIP bytes strict",
+  "upstreamProvenance": "previous experiment, identical immutable upstream source set"
+}

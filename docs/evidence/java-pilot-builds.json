@@ -1,0 +1,119 @@
+[
+  {
+    "runId": "0468a3a1-a4a9-4cd3-a3a8-0744f6dcbb62",
+    "scenario": "java-full-full",
+    "mode": "summary",
+    "variant": "candidate",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "wallSeconds": 457.054125425
+  },
+  {
+    "runId": "0c000e83-a5a8-42d1-9c5c-c59ca59d18c7",
+    "scenario": "java-ts-publication",
+    "mode": "cpu",
+    "variant": "candidate",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "wallSeconds": 5.729996343
+  },
+  {
+    "runId": "2990c474-1b56-4823-983a-19f1c5bebfd1",
+    "scenario": "java-ast-document",
+    "mode": "trace",
+    "variant": "candidate",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "wallSeconds": 38.300992361999995
+  },
+  {
+    "runId": "2e1b53a3-dc89-4932-a72e-5671385b490a",
+    "scenario": "java-repeat-student",
+    "mode": "off",
+    "variant": "candidate",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "wallSeconds": 445.143211849
+  },
+  {
+    "runId": "72c6506f-edd0-4815-a263-f25554690b32",
+    "scenario": "java-full-student",
+    "mode": "summary",
+    "variant": "candidate",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "wallSeconds": 506.394115841
+  },
+  {
+    "runId": "80f98f08-9f96-417e-868e-6a68c88153ae",
+    "scenario": "java-full-full",
+    "mode": "off",
+    "variant": "candidate",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "wallSeconds": 437.14129452500003
+  },
+  {
+    "runId": "816b5c51-bae3-4e12-83d3-ac8073c4135b",
+    "scenario": "java-full-student",
+    "mode": "off",
+    "variant": "candidate",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "wallSeconds": 477.091387193
+  },
+  {
+    "runId": "87c2ff51-0974-4629-bc49-3b532b3a27a7",
+    "scenario": "java-ts-publication",
+    "mode": "off",
+    "variant": "candidate",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "wallSeconds": 3.8511271480000002
+  },
+  {
+    "runId": "8c1fd356-2217-4186-a796-8aa2024492be",
+    "scenario": "java-ast-document",
+    "mode": "off",
+    "variant": "candidate",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "wallSeconds": 16.072747991
+  },
+  {
+    "runId": "a87fe79e-87cd-4d99-8d06-d2f568e7ec89",
+    "scenario": "java-pl-export",
+    "mode": "off",
+    "variant": "candidate",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "wallSeconds": 92.53102648100001
+  },
+  {
+    "runId": "c1f0f238-6a92-4eb7-86b1-14e70e161aee",
+    "scenario": "java-pl-export",
+    "mode": "summary",
+    "variant": "candidate",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "wallSeconds": 108.41596860599999
+  },
+  {
+    "runId": "d3a2b960-d52d-441c-a182-0045ffa97c0d",
+    "scenario": "java-ts-publication",
+    "mode": "trace",
+    "variant": "candidate",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "wallSeconds": 8.940767027
+  },
+  {
+    "runId": "fc39fb8c-ef79-44f9-8971-115c5b402ee4",
+    "scenario": "java-repeat-student",
+    "mode": "off",
+    "variant": "candidate",
+    "buildExitCode": 0,
+    "dataValid": true,
+    "wallSeconds": 422.35834280100005
+  }
+]
