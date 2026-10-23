@@ -1,0 +1,1982 @@
+{
+  "schema_version": 2,
+  "kind": "general-use-input-audit",
+  "observedAt": "2026-10-23T19:49:16.797490+00:00",
+  "purpose": "Исходные факты задачи 1; итоговая подготовленная матрица Java закрепляется отдельно после задачи 8. Это не приёмка новой диагностики.",
+  "planningAudit": {
+    "performance": "409afa12dddee5cf20528efef24e7e0639fffcc7",
+    "core": "aebf6f4580c0bd5e9468498e840221619fc69e5f",
+    "prairielearn": "69924dbda56ed55fb556f2e0932565eafbdb6448",
+    "javaPull16": "7a5a2d5e700261868827465add54970f0dfd025e"
+  },
+  "implementationBase": "6b2f125f8da15fdfd57bb8ffa5935a8e9374a443",
+  "sources": [
+    {
+      "repository": "Afonenko-Course-Tools/quarto-course-performance",
+      "defaultBranch": "main",
+      "head": "409afa12dddee5cf20528efef24e7e0639fffcc7",
+      "latestRelease": {
+        "name": "v1.0.0",
+        "sha": "409afa12dddee5cf20528efef24e7e0639fffcc7",
+        "publishedAt": "2026-10-15T10:24:16Z",
+        "url": "https://github.com/Afonenko-Course-Tools/quarto-course-performance/releases/tag/v1.0.0"
+      },
+      "headDescriptors": [],
+      "releaseDescriptors": [],
+      "applicableContracts": {
+        "ref": "409afa12dddee5cf20528efef24e7e0639fffcc7",
+        "documents": [
+          {
+            "path": "bridge/bridge.ts",
+            "sha256": "484167bff5d39d223644b15c7b534b8c47b701d1153c1b164d4a5825288f7a08",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-course-performance/blob/409afa12dddee5cf20528efef24e7e0639fffcc7/bridge/bridge.ts"
+          },
+          {
+            "path": "bridge/bridge.lua",
+            "sha256": "da299fcf97c9eaa3cce85e16fa00416cf556c8707121af74a7e72e7863a60bb2",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-course-performance/blob/409afa12dddee5cf20528efef24e7e0639fffcc7/bridge/bridge.lua"
+          }
+        ]
+      }
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-course",
+      "defaultBranch": "main",
+      "head": "dcc038919aedff74a4ef468df68107bbfc2d0fc8",
+      "latestRelease": {
+        "name": "v8.2.2",
+        "sha": "7c9388cb4d982caf66657ea8f96c09243d64a147",
+        "publishedAt": "2026-10-23T13:40:14Z",
+        "url": "https://github.com/Afonenko-Course-Tools/quarto-course/releases/tag/v8.2.2"
+      },
+      "headDescriptors": [
+        {
+          "path": "_extensions/course-core/_extension.yml",
+          "sha256": "c989a2c2d343cef2fda30ba96db6a2b9a23c0351a941ef75750c0bd8dcdaed0d",
+          "url": "https://github.com/Afonenko-Course-Tools/quarto-course/blob/dcc038919aedff74a4ef468df68107bbfc2d0fc8/_extensions/course-core/_extension.yml",
+          "version": "8.2.2"
+        },
+        {
+          "path": "_extensions/course-navigation/_extension.yml",
+          "sha256": "2a3d202a30f4373aad8d553a5b02b367a06e4e24e9a8fb7c7c3cecb6874f3731",
+          "url": "https://github.com/Afonenko-Course-Tools/quarto-course/blob/dcc038919aedff74a4ef468df68107bbfc2d0fc8/_extensions/course-navigation/_extension.yml",
+          "version": "8.2.2"
+        },
+        {
+          "path": "_extensions/course-presentation/_extension.yml",
+          "sha256": "175be599f42025c511a9c4ec49cc607e58a6d3f75881ed92b1a25a09e56cc578",
+          "url": "https://github.com/Afonenko-Course-Tools/quarto-course/blob/dcc038919aedff74a4ef468df68107bbfc2d0fc8/_extensions/course-presentation/_extension.yml",
+          "version": "8.2.2"
+        }
+      ],
+      "releaseDescriptors": [
+        {
+          "path": "_extensions/course-core/_extension.yml",
+          "sha256": "c989a2c2d343cef2fda30ba96db6a2b9a23c0351a941ef75750c0bd8dcdaed0d",
+          "url": "https://github.com/Afonenko-Course-Tools/quarto-course/blob/7c9388cb4d982caf66657ea8f96c09243d64a147/_extensions/course-core/_extension.yml",
+          "version": "8.2.2"
+        },
+        {
+          "path": "_extensions/course-navigation/_extension.yml",
+          "sha256": "2a3d202a30f4373aad8d553a5b02b367a06e4e24e9a8fb7c7c3cecb6874f3731",
+          "url": "https://github.com/Afonenko-Course-Tools/quarto-course/blob/7c9388cb4d982caf66657ea8f96c09243d64a147/_extensions/course-navigation/_extension.yml",
+          "version": "8.2.2"
+        },
+        {
+          "path": "_extensions/course-presentation/_extension.yml",
+          "sha256": "175be599f42025c511a9c4ec49cc607e58a6d3f75881ed92b1a25a09e56cc578",
+          "url": "https://github.com/Afonenko-Course-Tools/quarto-course/blob/7c9388cb4d982caf66657ea8f96c09243d64a147/_extensions/course-presentation/_extension.yml",
+          "version": "8.2.2"
+        }
+      ],
+      "applicableContracts": {
+        "ref": "7c9388cb4d982caf66657ea8f96c09243d64a147",
+        "documents": [
+          {
+            "path": "spec/index.md",
+            "sha256": "31d952612100851cd207a0bd6098fe237888b95392b1c1277c74ada62a447ba8",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-course/blob/7c9388cb4d982caf66657ea8f96c09243d64a147/spec/index.md"
+          },
+          {
+            "path": "spec/plugin-architecture.md",
+            "sha256": "93d62cfa25c035ddf14d22de1a97ddc696c18e573ab99722f9d9bf6876f740c0",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-course/blob/7c9388cb4d982caf66657ea8f96c09243d64a147/spec/plugin-architecture.md"
+          },
+          {
+            "path": "docs/native-run.md",
+            "sha256": "561df7bc83e026d48d0cead60953529a894ad5acd177be769122cc1c00bf12df",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-course/blob/7c9388cb4d982caf66657ea8f96c09243d64a147/docs/native-run.md"
+          },
+          {
+            "path": "docs/project-checks.md",
+            "sha256": "30931bec282984935262caae720e0d517a8b7ae314f7700202779a80f2e9fa84",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-course/blob/7c9388cb4d982caf66657ea8f96c09243d64a147/docs/project-checks.md"
+          },
+          {
+            "path": "docs/body-export.md",
+            "sha256": "7948649b33b1cc6712889b2f9b04bb90a1bbf848ebd6db6612044d9e0638ec09",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-course/blob/7c9388cb4d982caf66657ea8f96c09243d64a147/docs/body-export.md"
+          },
+          {
+            "path": "docs/diagnostics.md",
+            "sha256": "2278566c03ca1087c7f7d3edf0c226a726b28349c30556995b791bc7d1c8106a",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-course/blob/7c9388cb4d982caf66657ea8f96c09243d64a147/docs/diagnostics.md"
+          }
+        ]
+      }
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-course-prairielearn",
+      "defaultBranch": "main",
+      "head": "adf2e494cf445beb24bd0aa79c07c0eee0a44edc",
+      "latestRelease": {
+        "name": "v8.2.1",
+        "sha": "b1aa5373d62da1e3fc1aaa5f0c21cb21aad903c8",
+        "publishedAt": "2026-10-23T13:46:57Z",
+        "url": "https://github.com/Afonenko-Course-Tools/quarto-course-prairielearn/releases/tag/v8.2.1"
+      },
+      "headDescriptors": [
+        {
+          "path": "_extensions/course-prairielearn/_extension.yml",
+          "sha256": "40787d734442170a652f39fa4856e5231583430dd23554a670e8306b357d27f5",
+          "url": "https://github.com/Afonenko-Course-Tools/quarto-course-prairielearn/blob/adf2e494cf445beb24bd0aa79c07c0eee0a44edc/_extensions/course-prairielearn/_extension.yml",
+          "version": "8.2.1"
+        }
+      ],
+      "releaseDescriptors": [
+        {
+          "path": "_extensions/course-prairielearn/_extension.yml",
+          "sha256": "40787d734442170a652f39fa4856e5231583430dd23554a670e8306b357d27f5",
+          "url": "https://github.com/Afonenko-Course-Tools/quarto-course-prairielearn/blob/b1aa5373d62da1e3fc1aaa5f0c21cb21aad903c8/_extensions/course-prairielearn/_extension.yml",
+          "version": "8.2.1"
+        }
+      ],
+      "applicableContracts": {
+        "ref": "b1aa5373d62da1e3fc1aaa5f0c21cb21aad903c8",
+        "documents": [
+          {
+            "path": "spec/index.md",
+            "sha256": "b4d4d483f1e6ee8e3be603baf21b028d1a84fe2f29e766a0d665c5bef471899b",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-course-prairielearn/blob/b1aa5373d62da1e3fc1aaa5f0c21cb21aad903c8/spec/index.md"
+          },
+          {
+            "path": "docs/authoring.md",
+            "sha256": "6c29c800d8f0590198ec0d4cc385144c6ba50a26497aee751883be6ee29aef03",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-course-prairielearn/blob/b1aa5373d62da1e3fc1aaa5f0c21cb21aad903c8/docs/authoring.md"
+          },
+          {
+            "path": "docs/diagnostics.md",
+            "sha256": "790f0f4c978fcbfbc7295a7bb2909af1d77e53083074e8e1bdc5429113d3f3e7",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-course-prairielearn/blob/b1aa5373d62da1e3fc1aaa5f0c21cb21aad903c8/docs/diagnostics.md"
+          }
+        ]
+      }
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-project-publish",
+      "defaultBranch": "main",
+      "head": "6cc2561eda3b5982a3ef6fb18560be82f0df8d37",
+      "latestRelease": {
+        "name": "v5.1.3",
+        "sha": "425f042d5a5e07e57a28bb40b3c46a5ebdd17460",
+        "publishedAt": "2026-10-23T18:20:39Z",
+        "url": "https://github.com/Afonenko-Course-Tools/quarto-project-publish/releases/tag/v5.1.3"
+      },
+      "headDescriptors": [
+        {
+          "path": "_extensions/course-site/_extension.yml",
+          "sha256": "c69e32d7124455f5d19ca2dcaf8adb9eeed7cf70cb04756932d13131ced03787",
+          "url": "https://github.com/Afonenko-Course-Tools/quarto-project-publish/blob/6cc2561eda3b5982a3ef6fb18560be82f0df8d37/_extensions/course-site/_extension.yml",
+          "version": "5.1.3"
+        }
+      ],
+      "releaseDescriptors": [
+        {
+          "path": "_extensions/course-site/_extension.yml",
+          "sha256": "c69e32d7124455f5d19ca2dcaf8adb9eeed7cf70cb04756932d13131ced03787",
+          "url": "https://github.com/Afonenko-Course-Tools/quarto-project-publish/blob/425f042d5a5e07e57a28bb40b3c46a5ebdd17460/_extensions/course-site/_extension.yml",
+          "version": "5.1.3"
+        }
+      ],
+      "applicableContracts": {
+        "ref": "425f042d5a5e07e57a28bb40b3c46a5ebdd17460",
+        "documents": [
+          {
+            "path": "spec/index.md",
+            "sha256": "523de8fa27f7270d84de8666c87f4eb72830279728895fe9da3e43555380ddee",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-project-publish/blob/425f042d5a5e07e57a28bb40b3c46a5ebdd17460/spec/index.md"
+          },
+          {
+            "path": "docs/diagnostics.md",
+            "sha256": "75a7e4aae61834c98a0c2a8c8f43d412ca97abf00c5a883b79b655fc67c52ca4",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-project-publish/blob/425f042d5a5e07e57a28bb40b3c46a5ebdd17460/docs/diagnostics.md"
+          }
+        ]
+      }
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-reference-catalog",
+      "defaultBranch": "main",
+      "head": "3df2110e9f525f03f3ecb4926b5d55718e955c4c",
+      "latestRelease": {
+        "name": "v3.1.0",
+        "sha": "3df2110e9f525f03f3ecb4926b5d55718e955c4c",
+        "publishedAt": "2026-10-15T10:29:14Z",
+        "url": "https://github.com/Afonenko-Course-Tools/quarto-reference-catalog/releases/tag/v3.1.0"
+      },
+      "headDescriptors": [
+        {
+          "path": "_extensions/reference-catalog/_extension.yml",
+          "sha256": "d5a6711d4d1016c30c178562d48d37fba34eb5cc0dc762a6f431db84537f2799",
+          "url": "https://github.com/Afonenko-Course-Tools/quarto-reference-catalog/blob/3df2110e9f525f03f3ecb4926b5d55718e955c4c/_extensions/reference-catalog/_extension.yml",
+          "version": "3.1.0"
+        }
+      ],
+      "releaseDescriptors": [
+        {
+          "path": "_extensions/reference-catalog/_extension.yml",
+          "sha256": "d5a6711d4d1016c30c178562d48d37fba34eb5cc0dc762a6f431db84537f2799",
+          "url": "https://github.com/Afonenko-Course-Tools/quarto-reference-catalog/blob/3df2110e9f525f03f3ecb4926b5d55718e955c4c/_extensions/reference-catalog/_extension.yml",
+          "version": "3.1.0"
+        }
+      ],
+      "applicableContracts": {
+        "ref": "3df2110e9f525f03f3ecb4926b5d55718e955c4c",
+        "documents": [
+          {
+            "path": "spec/index.md",
+            "sha256": "625dafdebefe1bf8f818e608ab09b748f2a770b7bdc26ffff2ae1cf371e2d83f",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-reference-catalog/blob/3df2110e9f525f03f3ecb4926b5d55718e955c4c/spec/index.md"
+          },
+          {
+            "path": "docs/diagnostics.md",
+            "sha256": "a93dec71c7240a7f3a8c3ca70579b8f39c33c56b1b100b11d9336469beb43373",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-reference-catalog/blob/3df2110e9f525f03f3ecb4926b5d55718e955c4c/docs/diagnostics.md"
+          }
+        ]
+      }
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-project-download",
+      "defaultBranch": "main",
+      "head": "db62eacb6d671c8e3d358dc7c8e7bbb18ac266c9",
+      "latestRelease": {
+        "name": "v3.2.1",
+        "sha": "498b1d89c159548c0eb1d706438178be16ddb082",
+        "publishedAt": "2026-10-23T17:29:21Z",
+        "url": "https://github.com/Afonenko-Course-Tools/quarto-project-download/releases/tag/v3.2.1"
+      },
+      "headDescriptors": [
+        {
+          "path": "_extensions/project-download/_extension.yml",
+          "sha256": "28dd62f8f44bea432afe67edbd3d5b38ff775cb634d36f45a6e22d15d130f28f",
+          "url": "https://github.com/Afonenko-Course-Tools/quarto-project-download/blob/db62eacb6d671c8e3d358dc7c8e7bbb18ac266c9/_extensions/project-download/_extension.yml",
+          "version": "3.2.1"
+        }
+      ],
+      "releaseDescriptors": [
+        {
+          "path": "_extensions/project-download/_extension.yml",
+          "sha256": "28dd62f8f44bea432afe67edbd3d5b38ff775cb634d36f45a6e22d15d130f28f",
+          "url": "https://github.com/Afonenko-Course-Tools/quarto-project-download/blob/498b1d89c159548c0eb1d706438178be16ddb082/_extensions/project-download/_extension.yml",
+          "version": "3.2.1"
+        }
+      ],
+      "applicableContracts": {
+        "ref": "498b1d89c159548c0eb1d706438178be16ddb082",
+        "documents": [
+          {
+            "path": "spec/index.md",
+            "sha256": "3acdc554332c1ae311f0bd4c008a67684674ba53ef0d9f16693956e3e3c8e54b",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-project-download/blob/498b1d89c159548c0eb1d706438178be16ddb082/spec/index.md"
+          },
+          {
+            "path": "docs/diagnostics.md",
+            "sha256": "808328b3f2524946c7d1d4c303aefb2bd0de6762f4aca23a8b67e09a6479155f",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-project-download/blob/498b1d89c159548c0eb1d706438178be16ddb082/docs/diagnostics.md"
+          }
+        ]
+      }
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-course-print",
+      "defaultBranch": "main",
+      "head": "2cf2af1516b606d51170a83567fd7f9191648357",
+      "latestRelease": {
+        "name": "v0.3.0",
+        "sha": "00c51f7342da376e85027a925dd9f1207783f924",
+        "publishedAt": "2026-10-08T03:25:05Z",
+        "url": "https://github.com/Afonenko-Course-Tools/quarto-course-print/releases/tag/v0.3.0"
+      },
+      "headDescriptors": [
+        {
+          "path": "_extensions/course-print/_extension.yml",
+          "sha256": "4f2f9aea36262a2d50537aa7efa49e9e9199ba1063d50c6881f253f4db967ce7",
+          "url": "https://github.com/Afonenko-Course-Tools/quarto-course-print/blob/2cf2af1516b606d51170a83567fd7f9191648357/_extensions/course-print/_extension.yml",
+          "version": "0.3.0"
+        }
+      ],
+      "releaseDescriptors": [
+        {
+          "path": "_extensions/course-print/_extension.yml",
+          "sha256": "4f2f9aea36262a2d50537aa7efa49e9e9199ba1063d50c6881f253f4db967ce7",
+          "url": "https://github.com/Afonenko-Course-Tools/quarto-course-print/blob/00c51f7342da376e85027a925dd9f1207783f924/_extensions/course-print/_extension.yml",
+          "version": "0.3.0"
+        }
+      ],
+      "applicableContracts": {
+        "ref": "00c51f7342da376e85027a925dd9f1207783f924",
+        "documents": [
+          {
+            "path": "spec/index.md",
+            "sha256": "ea2480d19f8eef6b83fce1e28b1021b62e989e837004aba8a6c0936de526580e",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-course-print/blob/00c51f7342da376e85027a925dd9f1207783f924/spec/index.md"
+          },
+          {
+            "path": "docs/diagnostics.md",
+            "sha256": "b4b519a94470b3974f6ba1ea91cee84faa750dc4d0cfa25296a25e5a15d5c853",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-course-print/blob/00c51f7342da376e85027a925dd9f1207783f924/docs/diagnostics.md"
+          }
+        ]
+      }
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-course-moodle",
+      "defaultBranch": "main",
+      "head": "c3310a64252f8e3a6eb6927eeee4e375b329e23d",
+      "latestRelease": {
+        "name": "v0.3.0",
+        "sha": "60ce53d0d52a93e66ca545f2a6cd96f97f09d1e6",
+        "publishedAt": "2026-10-08T03:25:09Z",
+        "url": "https://github.com/Afonenko-Course-Tools/quarto-course-moodle/releases/tag/v0.3.0"
+      },
+      "headDescriptors": [
+        {
+          "path": "_extensions/course-moodle/_extension.yml",
+          "sha256": "7b6abf1b3b8776ff74c6b70fafaf0b1df7c54b76fc0642f700db65683933afd0",
+          "url": "https://github.com/Afonenko-Course-Tools/quarto-course-moodle/blob/c3310a64252f8e3a6eb6927eeee4e375b329e23d/_extensions/course-moodle/_extension.yml",
+          "version": "0.3.0"
+        }
+      ],
+      "releaseDescriptors": [
+        {
+          "path": "_extensions/course-moodle/_extension.yml",
+          "sha256": "7b6abf1b3b8776ff74c6b70fafaf0b1df7c54b76fc0642f700db65683933afd0",
+          "url": "https://github.com/Afonenko-Course-Tools/quarto-course-moodle/blob/60ce53d0d52a93e66ca545f2a6cd96f97f09d1e6/_extensions/course-moodle/_extension.yml",
+          "version": "0.3.0"
+        }
+      ],
+      "applicableContracts": {
+        "ref": "60ce53d0d52a93e66ca545f2a6cd96f97f09d1e6",
+        "documents": [
+          {
+            "path": "spec/index.md",
+            "sha256": "ecdcce8438847a0b22700ca38f9a591794075588957e20bc41e87e70fa633cb6",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-course-moodle/blob/60ce53d0d52a93e66ca545f2a6cd96f97f09d1e6/spec/index.md"
+          },
+          {
+            "path": "docs/diagnostics.md",
+            "sha256": "b3509e46f7a09f8c9f5641d944764ca16377d109d2b1b936b5e740989b3e9c13",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-course-moodle/blob/60ce53d0d52a93e66ca545f2a6cd96f97f09d1e6/docs/diagnostics.md"
+          }
+        ]
+      }
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-course-cloud",
+      "defaultBranch": "main",
+      "head": "bb05ff5c48e230e3c4b78811bfc77cea58fa69eb",
+      "latestRelease": {
+        "name": "v3.0.0",
+        "sha": "552612450b093b0cff2e33187a1cb5b9234c050a",
+        "publishedAt": "2026-10-08T03:26:09Z",
+        "url": "https://github.com/Afonenko-Course-Tools/quarto-course-cloud/releases/tag/v3.0.0"
+      },
+      "headDescriptors": [
+        {
+          "path": "_extensions/course-cloud/_extension.yml",
+          "sha256": "bd59185b4df457334fa6c31cef6509a9ef557a4f99764beaed2b11df6f7462d8",
+          "url": "https://github.com/Afonenko-Course-Tools/quarto-course-cloud/blob/bb05ff5c48e230e3c4b78811bfc77cea58fa69eb/_extensions/course-cloud/_extension.yml",
+          "version": "3.0.0"
+        }
+      ],
+      "releaseDescriptors": [
+        {
+          "path": "_extensions/course-cloud/_extension.yml",
+          "sha256": "bd59185b4df457334fa6c31cef6509a9ef557a4f99764beaed2b11df6f7462d8",
+          "url": "https://github.com/Afonenko-Course-Tools/quarto-course-cloud/blob/552612450b093b0cff2e33187a1cb5b9234c050a/_extensions/course-cloud/_extension.yml",
+          "version": "3.0.0"
+        }
+      ],
+      "applicableContracts": {
+        "ref": "552612450b093b0cff2e33187a1cb5b9234c050a",
+        "documents": [
+          {
+            "path": "spec/index.md",
+            "sha256": "297de4d3409a81371d51f06e454fdcd4c805e6fcb5e0e224cbb3d3219ebe27d5",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-course-cloud/blob/552612450b093b0cff2e33187a1cb5b9234c050a/spec/index.md"
+          },
+          {
+            "path": "docs/diagnostics.md",
+            "sha256": "cb6091699cf8f8f47df1dc53be4ff09f224a01a6d14878e707274235b3dbe75f",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-course-cloud/blob/552612450b093b0cff2e33187a1cb5b9234c050a/docs/diagnostics.md"
+          }
+        ]
+      }
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-template-course",
+      "defaultBranch": "main",
+      "head": "14f2aa17ff58b759f4531ad9cd3f8359c7cdc696",
+      "latestRelease": {
+        "name": "v2.0.0",
+        "sha": "14f2aa17ff58b759f4531ad9cd3f8359c7cdc696",
+        "publishedAt": "2026-10-15T10:50:27Z",
+        "url": "https://github.com/Afonenko-Course-Tools/quarto-template-course/releases/tag/v2.0.0"
+      },
+      "headDescriptors": [],
+      "releaseDescriptors": [],
+      "applicableContracts": {
+        "ref": "14f2aa17ff58b759f4531ad9cd3f8359c7cdc696",
+        "documents": [
+          {
+            "path": "spec/index.md",
+            "sha256": "af193e368f280122730cf15577c7613a97420bec75ea59630aca6c5b81fd2617",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-template-course/blob/14f2aa17ff58b759f4531ad9cd3f8359c7cdc696/spec/index.md"
+          },
+          {
+            "path": "spec/site.md",
+            "sha256": "1715c94caf7dfe3f619286b16e4f8c67b971c9f4cf0a3ac2dc6e50023e9902d5",
+            "url": "https://github.com/Afonenko-Course-Tools/quarto-template-course/blob/14f2aa17ff58b759f4531ad9cd3f8359c7cdc696/spec/site.md"
+          }
+        ]
+      }
+    }
+  ],
+  "java": {
+    "repository": "BSU-RFCT-Afonenko-Courses/Java",
+    "defaultBranch": "master",
+    "sha": "db5db4963da8675fdd14cd99764e255fc4a8088e",
+    "pull16": {
+      "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/pull/16",
+      "state": "closed",
+      "merged": true,
+      "mergedAt": "2026-10-18T10:45:35Z",
+      "head": "f231f11af6dee2181bdcbbd00ea58d9c876591da",
+      "mergeCommit": "50c12ae7cdec1ee1c677150e2e4b7649758e369c"
+    },
+    "ancestry": {
+      "planningHead": {
+        "sha": "7a5a2d5e700261868827465add54970f0dfd025e",
+        "ancestorOfCurrentDefault": true
+      },
+      "mergedHead": {
+        "sha": "f231f11af6dee2181bdcbbd00ea58d9c876591da",
+        "ancestorOfCurrentDefault": true
+      },
+      "mergeCommit": {
+        "sha": "50c12ae7cdec1ee1c677150e2e4b7649758e369c",
+        "ancestorOfCurrentDefault": true
+      }
+    },
+    "provenanceFiles": [
+      {
+        "path": "providers.json",
+        "sha256": "370a8b7a34da8378b3752810c7c9c05656c24aa751b6c21e1525d73854c311bf",
+        "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/providers.json"
+      },
+      {
+        "path": "installed-packages.json",
+        "sha256": "8d00b96ce4d7c8ae839c46007b5d9bb3584ffdbb7b56b9c9586693bfc0f02161",
+        "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/installed-packages.json"
+      },
+      {
+        "path": "UPSTREAM.md",
+        "sha256": "909e1b5d6e3a416c9e34afca4d2be2bfe45e3f0dc5f434c72ff57d3c2b010494",
+        "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/UPSTREAM.md"
+      },
+      {
+        "path": "docs/local-extension-patches.json",
+        "sha256": "278a730fa3552e8b4f08ab898ce2ca6ebea90353961571034fc2adb889a880b0",
+        "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/docs/local-extension-patches.json"
+      },
+      {
+        "path": "tools/materialize-providers.py",
+        "sha256": "220a6707608780e798fac63e867ce20682eb9a0ed3f4d8d6c920e41e485429a1",
+        "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/tools/materialize-providers.py"
+      },
+      {
+        "path": "CI/check-production-pins.py",
+        "sha256": "b70c8e884a7729a871d90928a6f38bc068ef450873514dac72ed9eda955405ff",
+        "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/CI/check-production-pins.py"
+      },
+      {
+        "path": "docs/provider-history/local16-carry-verification.json",
+        "sha256": "22703c7f278968508919580b52ca1b9a0a64775ca8f511a76bb08b6373e646ba",
+        "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/docs/provider-history/local16-carry-verification.json"
+      },
+      {
+        "path": "docs/provider-history/local-extension-patches-before-release-20261018.json",
+        "sha256": "62a8dbb6a51718e73f08e87005c1c88263e56224697f9835bc799c2b5607a88f",
+        "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/docs/provider-history/local-extension-patches-before-release-20261018.json"
+      }
+    ],
+    "installedPackages": [
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "commit": "e93bc3aa5c5f747e647d42ed6c0f65c127920184",
+        "tag": "v7.3.0",
+        "version": "7.3.0",
+        "provider": "core",
+        "scopes": [
+          ".",
+          "theory",
+          "tasks",
+          "lectures",
+          "practice",
+          "handbook"
+        ],
+        "extensionTree": "cf458e09af6d3806b66a620c12c3c2778f0a8cb0",
+        "extensionId": "course-core",
+        "fileManifestSha256": "73096644857df635a99e083284f8ad307155a15a5f6cb30f0b38c2aa90ca1c1c",
+        "filesCheckedAgainstOwner": 55,
+        "mismatchedOwnerFiles": [],
+        "installedDescriptors": [
+          {
+            "path": "_extensions/Afonenko-Course-Tools/course-core/_extension.yml",
+            "sha256": "3a8bdb33acac79bd481cccdf0c03a2ada8b2d92df4405f862546ae8bf6e44a91",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/_extensions/Afonenko-Course-Tools/course-core/_extension.yml",
+            "version": "7.3.0"
+          },
+          {
+            "path": "theory/_extensions/Afonenko-Course-Tools/course-core/_extension.yml",
+            "sha256": "3a8bdb33acac79bd481cccdf0c03a2ada8b2d92df4405f862546ae8bf6e44a91",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/theory/_extensions/Afonenko-Course-Tools/course-core/_extension.yml",
+            "version": "7.3.0"
+          },
+          {
+            "path": "tasks/_extensions/Afonenko-Course-Tools/course-core/_extension.yml",
+            "sha256": "3a8bdb33acac79bd481cccdf0c03a2ada8b2d92df4405f862546ae8bf6e44a91",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/tasks/_extensions/Afonenko-Course-Tools/course-core/_extension.yml",
+            "version": "7.3.0"
+          },
+          {
+            "path": "lectures/_extensions/Afonenko-Course-Tools/course-core/_extension.yml",
+            "sha256": "3a8bdb33acac79bd481cccdf0c03a2ada8b2d92df4405f862546ae8bf6e44a91",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/lectures/_extensions/Afonenko-Course-Tools/course-core/_extension.yml",
+            "version": "7.3.0"
+          },
+          {
+            "path": "practice/_extensions/Afonenko-Course-Tools/course-core/_extension.yml",
+            "sha256": "3a8bdb33acac79bd481cccdf0c03a2ada8b2d92df4405f862546ae8bf6e44a91",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/practice/_extensions/Afonenko-Course-Tools/course-core/_extension.yml",
+            "version": "7.3.0"
+          },
+          {
+            "path": "handbook/_extensions/Afonenko-Course-Tools/course-core/_extension.yml",
+            "sha256": "3a8bdb33acac79bd481cccdf0c03a2ada8b2d92df4405f862546ae8bf6e44a91",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/handbook/_extensions/Afonenko-Course-Tools/course-core/_extension.yml",
+            "version": "7.3.0"
+          }
+        ],
+        "scopedFilesCheckedAgainstManifest": 330,
+        "mismatchedInstalledFiles": [],
+        "extraInstalledFiles": []
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "commit": "e93bc3aa5c5f747e647d42ed6c0f65c127920184",
+        "tag": "v7.3.0",
+        "version": "7.3.0",
+        "provider": "core",
+        "scopes": [
+          ".",
+          "theory",
+          "tasks",
+          "lectures",
+          "practice",
+          "handbook"
+        ],
+        "extensionTree": "a4ab75bbecb8a5aa8cc33f702edbf2a9a678260b",
+        "extensionId": "course-presentation",
+        "fileManifestSha256": "03d0b1a070a9dcad44a95d4489a49180316fa1282d41e78377d23ed6cff8b1be",
+        "filesCheckedAgainstOwner": 13,
+        "mismatchedOwnerFiles": [],
+        "installedDescriptors": [
+          {
+            "path": "_extensions/Afonenko-Course-Tools/course-presentation/_extension.yml",
+            "sha256": "6fcb65089e9b85a166c8dcc2a619449d2547a03271dcaef9dba884e380d5c17d",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/_extensions/Afonenko-Course-Tools/course-presentation/_extension.yml",
+            "version": "7.3.0"
+          },
+          {
+            "path": "theory/_extensions/Afonenko-Course-Tools/course-presentation/_extension.yml",
+            "sha256": "6fcb65089e9b85a166c8dcc2a619449d2547a03271dcaef9dba884e380d5c17d",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/theory/_extensions/Afonenko-Course-Tools/course-presentation/_extension.yml",
+            "version": "7.3.0"
+          },
+          {
+            "path": "tasks/_extensions/Afonenko-Course-Tools/course-presentation/_extension.yml",
+            "sha256": "6fcb65089e9b85a166c8dcc2a619449d2547a03271dcaef9dba884e380d5c17d",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/tasks/_extensions/Afonenko-Course-Tools/course-presentation/_extension.yml",
+            "version": "7.3.0"
+          },
+          {
+            "path": "lectures/_extensions/Afonenko-Course-Tools/course-presentation/_extension.yml",
+            "sha256": "6fcb65089e9b85a166c8dcc2a619449d2547a03271dcaef9dba884e380d5c17d",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/lectures/_extensions/Afonenko-Course-Tools/course-presentation/_extension.yml",
+            "version": "7.3.0"
+          },
+          {
+            "path": "practice/_extensions/Afonenko-Course-Tools/course-presentation/_extension.yml",
+            "sha256": "6fcb65089e9b85a166c8dcc2a619449d2547a03271dcaef9dba884e380d5c17d",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/practice/_extensions/Afonenko-Course-Tools/course-presentation/_extension.yml",
+            "version": "7.3.0"
+          },
+          {
+            "path": "handbook/_extensions/Afonenko-Course-Tools/course-presentation/_extension.yml",
+            "sha256": "6fcb65089e9b85a166c8dcc2a619449d2547a03271dcaef9dba884e380d5c17d",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/handbook/_extensions/Afonenko-Course-Tools/course-presentation/_extension.yml",
+            "version": "7.3.0"
+          }
+        ],
+        "scopedFilesCheckedAgainstManifest": 78,
+        "mismatchedInstalledFiles": [],
+        "extraInstalledFiles": []
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "commit": "e93bc3aa5c5f747e647d42ed6c0f65c127920184",
+        "tag": "v7.3.0",
+        "version": "7.3.0",
+        "provider": "core",
+        "scopes": [
+          "lectures",
+          "practice",
+          "tasks"
+        ],
+        "extensionTree": "d46efea4af09f1756ae75f2464cacaf842177324",
+        "extensionId": "course-navigation",
+        "fileManifestSha256": "1ad913b47a5c22de378601b97eb7b405a7a28558007de5f9d743b4f38cb84b2f",
+        "filesCheckedAgainstOwner": 12,
+        "mismatchedOwnerFiles": [],
+        "installedDescriptors": [
+          {
+            "path": "lectures/_extensions/Afonenko-Course-Tools/course-navigation/_extension.yml",
+            "sha256": "59e304146b074bdbd1827be0e16c1aa2824d2f5bb7ba1872322345cbb204e2e1",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/lectures/_extensions/Afonenko-Course-Tools/course-navigation/_extension.yml",
+            "version": "7.3.0"
+          },
+          {
+            "path": "practice/_extensions/Afonenko-Course-Tools/course-navigation/_extension.yml",
+            "sha256": "59e304146b074bdbd1827be0e16c1aa2824d2f5bb7ba1872322345cbb204e2e1",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/practice/_extensions/Afonenko-Course-Tools/course-navigation/_extension.yml",
+            "version": "7.3.0"
+          },
+          {
+            "path": "tasks/_extensions/Afonenko-Course-Tools/course-navigation/_extension.yml",
+            "sha256": "59e304146b074bdbd1827be0e16c1aa2824d2f5bb7ba1872322345cbb204e2e1",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/tasks/_extensions/Afonenko-Course-Tools/course-navigation/_extension.yml",
+            "version": "7.3.0"
+          }
+        ],
+        "scopedFilesCheckedAgainstManifest": 36,
+        "mismatchedInstalledFiles": [],
+        "extraInstalledFiles": []
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-publish",
+        "commit": "4a1d7d19f5a232d8ff91ea91a02097e0acf7d9c0",
+        "tag": "v5.1.1",
+        "version": "5.1.1",
+        "provider": "site",
+        "scopes": [
+          "."
+        ],
+        "extensionTree": "720ec35f2eceafd0e1df3881fc8b2e6d9e59b55c",
+        "extensionId": "course-site",
+        "fileManifestSha256": "d57cef7cb326a22b35679832082610f47754516b9331f52a21bcaf6a68862edd",
+        "filesCheckedAgainstOwner": 13,
+        "mismatchedOwnerFiles": [],
+        "installedDescriptors": [
+          {
+            "path": "_extensions/Afonenko-Course-Tools/course-site/_extension.yml",
+            "sha256": "f9e8ea2930fa669a55019a55a3560be54f2d64c5019f6b1c6c8336a11e0a12d6",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/_extensions/Afonenko-Course-Tools/course-site/_extension.yml",
+            "version": "5.1.1"
+          }
+        ],
+        "scopedFilesCheckedAgainstManifest": 13,
+        "mismatchedInstalledFiles": [],
+        "extraInstalledFiles": []
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-reference-catalog",
+        "commit": "3df2110e9f525f03f3ecb4926b5d55718e955c4c",
+        "tag": "v3.1.0",
+        "version": "3.1.0",
+        "provider": "qrc",
+        "scopes": [
+          ".",
+          "theory",
+          "tasks",
+          "lectures",
+          "practice",
+          "handbook"
+        ],
+        "extensionTree": "71693a23bac40fc7f90567861f6eb3b467d23d57",
+        "extensionId": "reference-catalog",
+        "fileManifestSha256": "14469f2d6ffaaba711b0093904930443c63dd3cae1271912e27627c43f1c4ad5",
+        "filesCheckedAgainstOwner": 91,
+        "mismatchedOwnerFiles": [],
+        "installedDescriptors": [
+          {
+            "path": "_extensions/Afonenko-Course-Tools/reference-catalog/_extension.yml",
+            "sha256": "d5a6711d4d1016c30c178562d48d37fba34eb5cc0dc762a6f431db84537f2799",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/_extensions/Afonenko-Course-Tools/reference-catalog/_extension.yml",
+            "version": "3.1.0"
+          },
+          {
+            "path": "theory/_extensions/Afonenko-Course-Tools/reference-catalog/_extension.yml",
+            "sha256": "d5a6711d4d1016c30c178562d48d37fba34eb5cc0dc762a6f431db84537f2799",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/theory/_extensions/Afonenko-Course-Tools/reference-catalog/_extension.yml",
+            "version": "3.1.0"
+          },
+          {
+            "path": "tasks/_extensions/Afonenko-Course-Tools/reference-catalog/_extension.yml",
+            "sha256": "d5a6711d4d1016c30c178562d48d37fba34eb5cc0dc762a6f431db84537f2799",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/tasks/_extensions/Afonenko-Course-Tools/reference-catalog/_extension.yml",
+            "version": "3.1.0"
+          },
+          {
+            "path": "lectures/_extensions/Afonenko-Course-Tools/reference-catalog/_extension.yml",
+            "sha256": "d5a6711d4d1016c30c178562d48d37fba34eb5cc0dc762a6f431db84537f2799",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/lectures/_extensions/Afonenko-Course-Tools/reference-catalog/_extension.yml",
+            "version": "3.1.0"
+          },
+          {
+            "path": "practice/_extensions/Afonenko-Course-Tools/reference-catalog/_extension.yml",
+            "sha256": "d5a6711d4d1016c30c178562d48d37fba34eb5cc0dc762a6f431db84537f2799",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/practice/_extensions/Afonenko-Course-Tools/reference-catalog/_extension.yml",
+            "version": "3.1.0"
+          },
+          {
+            "path": "handbook/_extensions/Afonenko-Course-Tools/reference-catalog/_extension.yml",
+            "sha256": "d5a6711d4d1016c30c178562d48d37fba34eb5cc0dc762a6f431db84537f2799",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/handbook/_extensions/Afonenko-Course-Tools/reference-catalog/_extension.yml",
+            "version": "3.1.0"
+          }
+        ],
+        "scopedFilesCheckedAgainstManifest": 546,
+        "mismatchedInstalledFiles": [],
+        "extraInstalledFiles": []
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course-prairielearn",
+        "commit": "aac4ef06d70b3692fc4dcaa79ad9c525dc1bc461",
+        "tag": "v7.1.1",
+        "version": "7.1.1",
+        "provider": "prairielearn",
+        "scopes": [
+          "tasks"
+        ],
+        "extensionTree": "c28ea6c3d409876d96d4f7fd8cd11c2519a8a36b",
+        "extensionId": "course-prairielearn",
+        "fileManifestSha256": "bb5686561f3c2d8e24899cb14587a06988dde37c87eec57bc7b261dc59ffcf3d",
+        "filesCheckedAgainstOwner": 35,
+        "mismatchedOwnerFiles": [],
+        "installedDescriptors": [
+          {
+            "path": "tasks/_extensions/Afonenko-Course-Tools/course-prairielearn/_extension.yml",
+            "sha256": "f94f06449417cd9339b0a1aaf61baa3949cb28b6f85302cac688168a068a6768",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/tasks/_extensions/Afonenko-Course-Tools/course-prairielearn/_extension.yml",
+            "version": "7.1.1"
+          }
+        ],
+        "scopedFilesCheckedAgainstManifest": 35,
+        "mismatchedInstalledFiles": [],
+        "extraInstalledFiles": []
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-project-download",
+        "commit": "73797d3807e2433d33751d538746e1e9d82d6d57",
+        "tag": "v3.1.0",
+        "version": "3.1.0",
+        "provider": "download",
+        "scopes": [
+          "tasks"
+        ],
+        "extensionTree": "c9bc89dce178e54740b4417f2f621d8dcbe04aa7",
+        "extensionId": "project-download",
+        "fileManifestSha256": "7945c37bd7fee8f266ac3a8e3ba40af3b53993d5a21f006dba19016a5aaaba76",
+        "filesCheckedAgainstOwner": 14,
+        "mismatchedOwnerFiles": [],
+        "installedDescriptors": [
+          {
+            "path": "tasks/_extensions/Afonenko-Course-Tools/project-download/_extension.yml",
+            "sha256": "2af224df3238a90a09779ba2b1c860a222e2cc53d7e81d6677eb5c8c39089220",
+            "url": "https://github.com/BSU-RFCT-Afonenko-Courses/Java/blob/db5db4963da8675fdd14cd99764e255fc4a8088e/tasks/_extensions/Afonenko-Course-Tools/project-download/_extension.yml",
+            "version": "3.1.0"
+          }
+        ],
+        "scopedFilesCheckedAgainstManifest": 14,
+        "mismatchedInstalledFiles": [],
+        "extraInstalledFiles": []
+      }
+    ],
+    "activeLocalPatches": [],
+    "historicalCandidates": [
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course",
+        "candidateSha": "c8b2fe868cf805301fb6ebeba6587f8c96197369",
+        "baseSha": "04a6295569f5dcc0fc1b991dc076bafc050dbd49",
+        "javaRef": "7a5a2d5e700261868827465add54970f0dfd025e",
+        "patch": "tools/provider-patches/local-java-sources-20261016/core.patch",
+        "declaredPatchSha256": "2ff1bd07abf585f5276a2cebae246341caa13cf78ba4ddda77bcd1ca9776e321",
+        "actualPatchSha256": "2ff1bd07abf585f5276a2cebae246341caa13cf78ba4ddda77bcd1ca9776e321",
+        "firstRelease": "v7.2.0",
+        "installedRelease": "v7.3.0",
+        "files": [
+          {
+            "path": "_extensions/course-core/domain/model.ts",
+            "candidateSha256": "fcb2826f0fe546234797f30bd0261bcabf0d4abcf78fdcd874414067081c966c",
+            "releases": [
+              {
+                "tag": "v7.2.0",
+                "sha": "aebf6f4580c0bd5e9468498e840221619fc69e5f",
+                "candidateFileIdentical": true,
+                "sha256": "fcb2826f0fe546234797f30bd0261bcabf0d4abcf78fdcd874414067081c966c"
+              },
+              {
+                "tag": "v7.3.0",
+                "sha": "e93bc3aa5c5f747e647d42ed6c0f65c127920184",
+                "candidateFileIdentical": true,
+                "sha256": "fcb2826f0fe546234797f30bd0261bcabf0d4abcf78fdcd874414067081c966c"
+              },
+              {
+                "tag": "v8.2.2",
+                "sha": "7c9388cb4d982caf66657ea8f96c09243d64a147",
+                "candidateFileIdentical": false,
+                "sha256": "709f789ef089c5e69aa8ac653d455a039baf90414d24a7ca5b107fa3c9a1ce5c"
+              }
+            ]
+          },
+          {
+            "path": "_extensions/course-core/project-checks/collect.ts",
+            "candidateSha256": "7bbc5285d38eff909f46cc1037fcf3d2fc85cf58f2a773e1786786db48a5892b",
+            "releases": [
+              {
+                "tag": "v7.2.0",
+                "sha": "aebf6f4580c0bd5e9468498e840221619fc69e5f",
+                "candidateFileIdentical": true,
+                "sha256": "7bbc5285d38eff909f46cc1037fcf3d2fc85cf58f2a773e1786786db48a5892b"
+              },
+              {
+                "tag": "v7.3.0",
+                "sha": "e93bc3aa5c5f747e647d42ed6c0f65c127920184",
+                "candidateFileIdentical": true,
+                "sha256": "7bbc5285d38eff909f46cc1037fcf3d2fc85cf58f2a773e1786786db48a5892b"
+              },
+              {
+                "tag": "v8.2.2",
+                "sha": "7c9388cb4d982caf66657ea8f96c09243d64a147",
+                "candidateFileIdentical": false,
+                "sha256": "eae41fd97d0725e4d389707ae0564476a5b91facf9d7e6bb1c3f22d987ebeabe"
+              }
+            ]
+          },
+          {
+            "path": "_extensions/course-core/project-checks/manifest.cue",
+            "candidateSha256": "75e1626c73c8abe33cbab5b6255ce497c377eba07a9ddf79800caec86da91145",
+            "releases": [
+              {
+                "tag": "v7.2.0",
+                "sha": "aebf6f4580c0bd5e9468498e840221619fc69e5f",
+                "candidateFileIdentical": true,
+                "sha256": "75e1626c73c8abe33cbab5b6255ce497c377eba07a9ddf79800caec86da91145"
+              },
+              {
+                "tag": "v7.3.0",
+                "sha": "e93bc3aa5c5f747e647d42ed6c0f65c127920184",
+                "candidateFileIdentical": true,
+                "sha256": "75e1626c73c8abe33cbab5b6255ce497c377eba07a9ddf79800caec86da91145"
+              },
+              {
+                "tag": "v8.2.2",
+                "sha": "7c9388cb4d982caf66657ea8f96c09243d64a147",
+                "candidateFileIdentical": true,
+                "sha256": "75e1626c73c8abe33cbab5b6255ce497c377eba07a9ddf79800caec86da91145"
+              }
+            ]
+          },
+          {
+            "path": "_extensions/course-core/projects.lua",
+            "candidateSha256": "aa8cd408437378664a1c74bebac465ddff4953116098353806aac6df74cda217",
+            "releases": [
+              {
+                "tag": "v7.2.0",
+                "sha": "aebf6f4580c0bd5e9468498e840221619fc69e5f",
+                "candidateFileIdentical": true,
+                "sha256": "aa8cd408437378664a1c74bebac465ddff4953116098353806aac6df74cda217"
+              },
+              {
+                "tag": "v7.3.0",
+                "sha": "e93bc3aa5c5f747e647d42ed6c0f65c127920184",
+                "candidateFileIdentical": true,
+                "sha256": "aa8cd408437378664a1c74bebac465ddff4953116098353806aac6df74cda217"
+              },
+              {
+                "tag": "v8.2.2",
+                "sha": "7c9388cb4d982caf66657ea8f96c09243d64a147",
+                "candidateFileIdentical": false,
+                "sha256": "99594c86f538765d189f34673ffc2937f5461f47bb7cd82a84dbccb720e6d8a7"
+              }
+            ]
+          },
+          {
+            "path": "_extensions/course-core/spec/core.cue",
+            "candidateSha256": "792c46dc8dc011fc0a9a7b2d6dafa8cdafcae730969712a21dad0c57e09940d6",
+            "releases": [
+              {
+                "tag": "v7.2.0",
+                "sha": "aebf6f4580c0bd5e9468498e840221619fc69e5f",
+                "candidateFileIdentical": true,
+                "sha256": "792c46dc8dc011fc0a9a7b2d6dafa8cdafcae730969712a21dad0c57e09940d6"
+              },
+              {
+                "tag": "v7.3.0",
+                "sha": "e93bc3aa5c5f747e647d42ed6c0f65c127920184",
+                "candidateFileIdentical": true,
+                "sha256": "792c46dc8dc011fc0a9a7b2d6dafa8cdafcae730969712a21dad0c57e09940d6"
+              },
+              {
+                "tag": "v8.2.2",
+                "sha": "7c9388cb4d982caf66657ea8f96c09243d64a147",
+                "candidateFileIdentical": false,
+                "sha256": "b2a4978ef6134cb3ebffe3c268a4d6981b242761ddb6c2b5b2e007a52d02d1be"
+              }
+            ]
+          },
+          {
+            "path": "_extensions/course-navigation/navigation/plugin.js",
+            "candidateSha256": "8af34a7784c645ef578b7d8c2e45ccca088465bb367c9bd34ebda5730f44b379",
+            "releases": [
+              {
+                "tag": "v7.2.0",
+                "sha": "aebf6f4580c0bd5e9468498e840221619fc69e5f",
+                "candidateFileIdentical": true,
+                "sha256": "8af34a7784c645ef578b7d8c2e45ccca088465bb367c9bd34ebda5730f44b379"
+              },
+              {
+                "tag": "v7.3.0",
+                "sha": "e93bc3aa5c5f747e647d42ed6c0f65c127920184",
+                "candidateFileIdentical": true,
+                "sha256": "8af34a7784c645ef578b7d8c2e45ccca088465bb367c9bd34ebda5730f44b379"
+              },
+              {
+                "tag": "v8.2.2",
+                "sha": "7c9388cb4d982caf66657ea8f96c09243d64a147",
+                "candidateFileIdentical": true,
+                "sha256": "8af34a7784c645ef578b7d8c2e45ccca088465bb367c9bd34ebda5730f44b379"
+              }
+            ]
+          },
+          {
+            "path": "_extensions/course-navigation/navigation/ui.js",
+            "candidateSha256": "a9ec7802204c55c390f701ebe7f234221aef847ac483ee79648fbfb3e8dad77d",
+            "releases": [
+              {
+                "tag": "v7.2.0",
+                "sha": "aebf6f4580c0bd5e9468498e840221619fc69e5f",
+                "candidateFileIdentical": true,
+                "sha256": "a9ec7802204c55c390f701ebe7f234221aef847ac483ee79648fbfb3e8dad77d"
+              },
+              {
+                "tag": "v7.3.0",
+                "sha": "e93bc3aa5c5f747e647d42ed6c0f65c127920184",
+                "candidateFileIdentical": true,
+                "sha256": "a9ec7802204c55c390f701ebe7f234221aef847ac483ee79648fbfb3e8dad77d"
+              },
+              {
+                "tag": "v8.2.2",
+                "sha": "7c9388cb4d982caf66657ea8f96c09243d64a147",
+                "candidateFileIdentical": true,
+                "sha256": "a9ec7802204c55c390f701ebe7f234221aef847ac483ee79648fbfb3e8dad77d"
+              }
+            ]
+          },
+          {
+            "path": "_extensions/course-presentation/disclosure.js",
+            "candidateSha256": "2e8c47fe31a7d8b3804cda9ff91212ed5781c0df2953cd5e4cc5921ec0498584",
+            "releases": [
+              {
+                "tag": "v7.2.0",
+                "sha": "aebf6f4580c0bd5e9468498e840221619fc69e5f",
+                "candidateFileIdentical": true,
+                "sha256": "2e8c47fe31a7d8b3804cda9ff91212ed5781c0df2953cd5e4cc5921ec0498584"
+              },
+              {
+                "tag": "v7.3.0",
+                "sha": "e93bc3aa5c5f747e647d42ed6c0f65c127920184",
+                "candidateFileIdentical": true,
+                "sha256": "2e8c47fe31a7d8b3804cda9ff91212ed5781c0df2953cd5e4cc5921ec0498584"
+              },
+              {
+                "tag": "v8.2.2",
+                "sha": "7c9388cb4d982caf66657ea8f96c09243d64a147",
+                "candidateFileIdentical": true,
+                "sha256": "2e8c47fe31a7d8b3804cda9ff91212ed5781c0df2953cd5e4cc5921ec0498584"
+              }
+            ]
+          },
+          {
+            "path": "_extensions/course-presentation/presentation.css",
+            "candidateSha256": "3161b045ae1222f8672d365881c66453401f4900cf183d238e2b4789a5131eb9",
+            "releases": [
+              {
+                "tag": "v7.2.0",
+                "sha": "aebf6f4580c0bd5e9468498e840221619fc69e5f",
+                "candidateFileIdentical": true,
+                "sha256": "3161b045ae1222f8672d365881c66453401f4900cf183d238e2b4789a5131eb9"
+              },
+              {
+                "tag": "v7.3.0",
+                "sha": "e93bc3aa5c5f747e647d42ed6c0f65c127920184",
+                "candidateFileIdentical": true,
+                "sha256": "3161b045ae1222f8672d365881c66453401f4900cf183d238e2b4789a5131eb9"
+              },
+              {
+                "tag": "v8.2.2",
+                "sha": "7c9388cb4d982caf66657ea8f96c09243d64a147",
+                "candidateFileIdentical": true,
+                "sha256": "3161b045ae1222f8672d365881c66453401f4900cf183d238e2b4789a5131eb9"
+              }
+            ]
+          }
+        ],
+        "transferRequired": false,
+        "conclusion": "Все затронутые файлы исходного candidate побайтно вошли в первый выпуск и в уже установленный выпуск Java. Повторно накладывать patch не требуется. Последующие 8.x содержат развитие этих файлов; одна история Git не подтверждает приёмку новой матрицы."
+      },
+      {
+        "repository": "Afonenko-Course-Tools/quarto-course-prairielearn",
+        "candidateSha": "1221c8c073d77d80d825ee906e9c244a75ff4a39",
+        "baseSha": "a13008aaf23e0616eac4b18f1dabbf77a77b56f3",
+        "javaRef": "7a5a2d5e700261868827465add54970f0dfd025e",
+        "patch": "tools/provider-patches/local-java-sources-20261016/prairielearn.patch",
+        "declaredPatchSha256": "68b23c9bc4b7358fe780e8489067ab436f9095f42eb84e587c6314139165a2f8",
+        "actualPatchSha256": "68b23c9bc4b7358fe780e8489067ab436f9095f42eb84e587c6314139165a2f8",
+        "firstRelease": "v7.1.0",
+        "installedRelease": "v7.1.1",
+        "files": [
+          {
+            "path": "_extensions/course-prairielearn/application/export-course.ts",
+            "candidateSha256": "d23a76e865a7e6073603bc0026fcb0d21b6c8273c5b51a4ec4dfe4e4d65fe2c5",
+            "releases": [
+              {
+                "tag": "v7.1.0",
+                "sha": "69924dbda56ed55fb556f2e0932565eafbdb6448",
+                "candidateFileIdentical": true,
+                "sha256": "d23a76e865a7e6073603bc0026fcb0d21b6c8273c5b51a4ec4dfe4e4d65fe2c5"
+              },
+              {
+                "tag": "v7.1.1",
+                "sha": "aac4ef06d70b3692fc4dcaa79ad9c525dc1bc461",
+                "candidateFileIdentical": true,
+                "sha256": "d23a76e865a7e6073603bc0026fcb0d21b6c8273c5b51a4ec4dfe4e4d65fe2c5"
+              },
+              {
+                "tag": "v8.2.1",
+                "sha": "b1aa5373d62da1e3fc1aaa5f0c21cb21aad903c8",
+                "candidateFileIdentical": false,
+                "sha256": "6ffaadf04f765868fc3cf3d3763b08b2e185661d1631a9946d13abc255c7333d"
+              }
+            ]
+          },
+          {
+            "path": "_extensions/course-prairielearn/application/export.ts",
+            "candidateSha256": "1b0a36edf41582763c8c6134305087bd22077b4c9c5b3ab62aba19bb368600ca",
+            "releases": [
+              {
+                "tag": "v7.1.0",
+                "sha": "69924dbda56ed55fb556f2e0932565eafbdb6448",
+                "candidateFileIdentical": true,
+                "sha256": "1b0a36edf41582763c8c6134305087bd22077b4c9c5b3ab62aba19bb368600ca"
+              },
+              {
+                "tag": "v7.1.1",
+                "sha": "aac4ef06d70b3692fc4dcaa79ad9c525dc1bc461",
+                "candidateFileIdentical": true,
+                "sha256": "1b0a36edf41582763c8c6134305087bd22077b4c9c5b3ab62aba19bb368600ca"
+              },
+              {
+                "tag": "v8.2.1",
+                "sha": "b1aa5373d62da1e3fc1aaa5f0c21cb21aad903c8",
+                "candidateFileIdentical": false,
+                "sha256": "255d877b9967b90543b03882b595f3d10e3a3b418b583e684198aaf38b053c26"
+              }
+            ]
+          },
+          {
+            "path": "_extensions/course-prairielearn/application/runtime-descriptor.ts",
+            "candidateSha256": "f72d97acf621431abca596ec4f77801736f1624a9d0bd5f7bbfb2071206918d6",
+            "releases": [
+              {
+                "tag": "v7.1.0",
+                "sha": "69924dbda56ed55fb556f2e0932565eafbdb6448",
+                "candidateFileIdentical": true,
+                "sha256": "f72d97acf621431abca596ec4f77801736f1624a9d0bd5f7bbfb2071206918d6"
+              },
+              {
+                "tag": "v7.1.1",
+                "sha": "aac4ef06d70b3692fc4dcaa79ad9c525dc1bc461",
+                "candidateFileIdentical": true,
+                "sha256": "f72d97acf621431abca596ec4f77801736f1624a9d0bd5f7bbfb2071206918d6"
+              },
+              {
+                "tag": "v8.2.1",
+                "sha": "b1aa5373d62da1e3fc1aaa5f0c21cb21aad903c8",
+                "candidateFileIdentical": false,
+                "sha256": "a7ecec067c45c35e475c40c1cef1c7e6fde25c179ba243fa8b857ab4531ddd12"
+              }
+            ]
+          },
+          {
+            "path": "_extensions/course-prairielearn/entrypoints/export.ts",
+            "candidateSha256": "f764bae7278f8efa0f90f01d5964d67fa315913c8cc1537092e8b6693352f257",
+            "releases": [
+              {
+                "tag": "v7.1.0",
+                "sha": "69924dbda56ed55fb556f2e0932565eafbdb6448",
+                "candidateFileIdentical": true,
+                "sha256": "f764bae7278f8efa0f90f01d5964d67fa315913c8cc1537092e8b6693352f257"
+              },
+              {
+                "tag": "v7.1.1",
+                "sha": "aac4ef06d70b3692fc4dcaa79ad9c525dc1bc461",
+                "candidateFileIdentical": true,
+                "sha256": "f764bae7278f8efa0f90f01d5964d67fa315913c8cc1537092e8b6693352f257"
+              },
+              {
+                "tag": "v8.2.1",
+                "sha": "b1aa5373d62da1e3fc1aaa5f0c21cb21aad903c8",
+                "candidateFileIdentical": true,
+                "sha256": "f764bae7278f8efa0f90f01d5964d67fa315913c8cc1537092e8b6693352f257"
+              }
+            ]
+          },
+          {
+            "path": "_extensions/course-prairielearn/validate-paths.ts",
+            "candidateSha256": "ab74043d9d76bb5ea0a0f357bd95bfeec54e45504c8c18bfc1227de6bbb57a7f",
+            "releases": [
+              {
+                "tag": "v7.1.0",
+                "sha": "69924dbda56ed55fb556f2e0932565eafbdb6448",
+                "candidateFileIdentical": true,
+                "sha256": "ab74043d9d76bb5ea0a0f357bd95bfeec54e45504c8c18bfc1227de6bbb57a7f"
+              },
+              {
+                "tag": "v7.1.1",
+                "sha": "aac4ef06d70b3692fc4dcaa79ad9c525dc1bc461",
+                "candidateFileIdentical": true,
+                "sha256": "ab74043d9d76bb5ea0a0f357bd95bfeec54e45504c8c18bfc1227de6bbb57a7f"
+              },
+              {
+                "tag": "v8.2.1",
+                "sha": "b1aa5373d62da1e3fc1aaa5f0c21cb21aad903c8",
+                "candidateFileIdentical": true,
+                "sha256": "ab74043d9d76bb5ea0a0f357bd95bfeec54e45504c8c18bfc1227de6bbb57a7f"
+              }
+            ]
+          },
+          {
+            "path": "_extensions/course-prairielearn/validate.lua",
+            "candidateSha256": "35c0e5235d8c16179617a2c73c191c54e8d649ae972cf6d06da3eece97bf3ef3",
+            "releases": [
+              {
+                "tag": "v7.1.0",
+                "sha": "69924dbda56ed55fb556f2e0932565eafbdb6448",
+                "candidateFileIdentical": true,
+                "sha256": "35c0e5235d8c16179617a2c73c191c54e8d649ae972cf6d06da3eece97bf3ef3"
+              },
+              {
+                "tag": "v7.1.1",
+                "sha": "aac4ef06d70b3692fc4dcaa79ad9c525dc1bc461",
+                "candidateFileIdentical": true,
+                "sha256": "35c0e5235d8c16179617a2c73c191c54e8d649ae972cf6d06da3eece97bf3ef3"
+              },
+              {
+                "tag": "v8.2.1",
+                "sha": "b1aa5373d62da1e3fc1aaa5f0c21cb21aad903c8",
+                "candidateFileIdentical": false,
+                "sha256": "7e44a41c3874cb19d1e451bad4325eeadaa37027147dac130f1af109aabd7452"
+              }
+            ]
+          }
+        ],
+        "transferRequired": false,
+        "conclusion": "Все затронутые файлы исходного candidate побайтно вошли в первый выпуск и в уже установленный выпуск Java. Повторно накладывать patch не требуется. Последующие 8.x содержат развитие этих файлов; одна история Git не подтверждает приёмку новой матрицы."
+      }
+    ],
+    "candidateFunctions": [
+      {
+        "owner": "quarto-course",
+        "functions": [
+          "Явные trusted/public API precheck Java",
+          "Ограниченные дополнительные Java sources в ZIP",
+          "Диагностика текущего проекта вместо книги",
+          "Переход к началу длинного HTML-раздела",
+          "Доступная кнопка native Reveal speaker view",
+          "Перенос длинных URL библиографии и прокрутка таблиц на узком экране"
+        ],
+        "firstRelease": "v7.2.0",
+        "transferRequired": false
+      },
+      {
+        "owner": "quarto-course-prairielearn",
+        "functions": [
+          "API precheck в native Java descriptor",
+          "Закрытая политика дополнительного ZIP Java sources",
+          "Необязательная загрузка без перезаписи основных/доверенных файлов",
+          "Диагностика выбранного проекта вместо книги"
+        ],
+        "firstRelease": "v7.1.0",
+        "transferRequired": false
+      }
+    ],
+    "remainingCandidateTransfers": [],
+    "pending": "Нужные изменения мостов и подготовленная Java на согласованных полных пакетах выполняются задачей 8; текущие latest tags сами по себе не задают совместимую матрицу."
+  },
+  "preservedWorkingTrees": {
+    "observedAt": "2026-10-23T19:53:33.692148+00:00",
+    "algorithm": "SHA-256(json compact UTF-8 sorted rows [relative POSIX path, octal mode, kind, SHA-256(bytes), tracked|untracked]); missing rows [path,missing]. Symlinks hash link target UTF-8; Git binary diffs сохранены отдельно. Tracked включены полностью, untracked только неигнорируемые inputs; исключены служебные компоненты и untracked >32 MiB.",
+    "excludedUntrackedComponents": [
+      ".cache",
+      ".git",
+      ".quarto",
+      ".superpowers",
+      "_book",
+      "_site",
+      "build",
+      "dist",
+      "evidence",
+      "local-tmp",
+      "node_modules",
+      "output",
+      "outputs",
+      "results"
+    ],
+    "detailsPath": "/home/tolya/course-tools/local-tmp/worktrees/perf-20261023/performance/.superpowers/sdd/2026-10-17-general-use-implementation/task-1-evidence/user-trees.json",
+    "detailsSha256": "1a6165ee4e83f623e213aa56812b521476f3d7663a58347168d738f9841c1df9",
+    "worktrees": [
+      {
+        "path": "/home/tolya/.codex/worktrees/0735/Java",
+        "head": "eb1badca7d9879e2c3fe1e7a9fdb27c99a57e844",
+        "branch": null,
+        "inputTreeSha256": "20325129d695f24280a678f9fce8fa48892b835ebe3080bbf0a5e578fc7385df",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "f31691ec8ade-worktree.patch",
+          "f31691ec8ade-index.patch"
+        ],
+        "inputCount": 1340,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/.codex/worktrees/3012/Java",
+        "head": "92069a7b540b96e9fde19e7531b5273c495da744",
+        "branch": "codex/java-course-pilot",
+        "inputTreeSha256": "b67f5cd7058a86420e9b8c40f00ddb08403a09a8619b0e280469daa221d16676",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "33b9af956dc1-worktree.patch",
+          "33b9af956dc1-index.patch"
+        ],
+        "inputCount": 1400,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/.codex/worktrees/4fad/Java",
+        "head": "b85a19ac49220864fbab40a1c0d01286ddffda54",
+        "branch": "codex/java-course-full-revision-20261015",
+        "inputTreeSha256": "b86fd6b4827fd473974842e5d2472064448aa3e3cb45ebcabff1d002c5df8a4d",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "ce3e8dcb1496-worktree.patch",
+          "ce3e8dcb1496-index.patch"
+        ],
+        "inputCount": 1498,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/.codex/worktrees/9666/Java",
+        "head": "eb1badca7d9879e2c3fe1e7a9fdb27c99a57e844",
+        "branch": null,
+        "inputTreeSha256": "20325129d695f24280a678f9fce8fa48892b835ebe3080bbf0a5e578fc7385df",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "f11fc1141466-worktree.patch",
+          "f11fc1141466-index.patch"
+        ],
+        "inputCount": 1340,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/.codex/worktrees/9e03/Java",
+        "head": "89d802dbd5e79a2a4860442d493d690454f1491a",
+        "branch": "codex/java-lecture6-collections-20261019",
+        "inputTreeSha256": "e8768d29ab64a8575c1b47e420de83a96126c5479de889fc340978646257cb02",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "a792fef83ae1-worktree.patch",
+          "a792fef83ae1-index.patch"
+        ],
+        "inputCount": 3764,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/.codex/worktrees/daca/Java",
+        "head": "eb1badca7d9879e2c3fe1e7a9fdb27c99a57e844",
+        "branch": null,
+        "inputTreeSha256": "20325129d695f24280a678f9fce8fa48892b835ebe3080bbf0a5e578fc7385df",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "a61be5b4c1e0-worktree.patch",
+          "a61be5b4c1e0-index.patch"
+        ],
+        "inputCount": 1340,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/.codex/worktrees/task-publication-methodology/Java",
+        "head": "fe6d59cd3a96cb6b4f9ace020db1f61c19b56b4d",
+        "branch": "codex/task-publication-methodology-20261020",
+        "inputTreeSha256": "74f780bba3413415ad5b8bd1dbf4658aaefa613219051ee5245163ee2c04f7ea",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "e1dba7096fc6-worktree.patch",
+          "e1dba7096fc6-index.patch"
+        ],
+        "inputCount": 3767,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/Java",
+        "head": "a395c6d252c9a9a56b233690ea9271f74c4d6f04",
+        "branch": "master",
+        "inputTreeSha256": "e8768d29ab64a8575c1b47e420de83a96126c5479de889fc340978646257cb02",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "510774f39ec2-worktree.patch",
+          "510774f39ec2-index.patch"
+        ],
+        "inputCount": 3764,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/JavaBooks/java-editorial-tooling-core-20261016",
+        "head": "5d0a5f339a10d7505ded9af8e46ce2d7c9c82dad",
+        "branch": "codex/java-project-labels-20261016",
+        "inputTreeSha256": "b12827ee97914a91545888e6c49e7bd1994876030562668c631ad75f9a195d1d",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "39940c05b245-worktree.patch",
+          "39940c05b245-index.patch"
+        ],
+        "inputCount": 307,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/JavaBooks/java-editorial-tooling-prairielearn-20261016",
+        "head": "f6a1cb8bfb705e649fbd13bb4fd8f7b8b49578c3",
+        "branch": "codex/java-project-labels-20261016",
+        "inputTreeSha256": "a53a83a148c22c42def76ef7c631fa5e00eb94def72e5b693b725e584110ce85",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "e89834f491e2-worktree.patch",
+          "e89834f491e2-index.patch"
+        ],
+        "inputCount": 68,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/JavaBooks/java-lectures-1-2-5-editorial-worktree-2026-10-15",
+        "head": "68ee3551599c5e4955defdcc60ae216e06d00645",
+        "branch": "codex/java-editorial-lectures-1-2-5-local-20261015",
+        "inputTreeSha256": "88ced89d7db4b5b22596afc007a6e90bc908e6fa44130eef6794b87f1be27973",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "ae92a5083847-worktree.patch",
+          "ae92a5083847-index.patch"
+        ],
+        "inputCount": 1503,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/local-tmp/owner-repos/Java",
+        "head": "3aebd0da122f3d40ce922a2911772e799a7dc915",
+        "branch": "master",
+        "inputTreeSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "worktreePatchSha256": "11bff6a111754f7943f8c6dcd526db33a9da63d12429f4113c6d6ae3f3e5fec7",
+        "indexPatchSha256": "11bff6a111754f7943f8c6dcd526db33a9da63d12429f4113c6d6ae3f3e5fec7",
+        "patchFiles": [
+          "48a0e8a1c596-worktree.patch",
+          "48a0e8a1c596-index.patch"
+        ],
+        "inputCount": 0,
+        "excludedCount": 0,
+        "dirty": true,
+        "statusEntries": 1338,
+        "statusSha256": "69b1c63bcdd9af2af1bf6700ccbe93a920422dbaa43e2c9ee614ae3b13fe6e45"
+      },
+      {
+        "path": "/home/tolya/course-tools/local-tmp/worktrees/technical-20261010/java-pr7",
+        "head": "960af5aa94ab5bf381395366987ffb1c676f983a",
+        "branch": null,
+        "inputTreeSha256": "b7c26d6588c38b0c9ba3c809c72463dbd75c6f4694867b389e92e4b622c1237d",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "f0a999849b6f-worktree.patch",
+          "f0a999849b6f-index.patch"
+        ],
+        "inputCount": 1454,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/local-tmp/worktrees/technical-20261010/policy-Java",
+        "head": "84a37178e16ed3c0eb57ca215865dc56398209a8",
+        "branch": "feat/russian-policy-20261010",
+        "inputTreeSha256": "6bc52a067d7e267f43919ecc2738ec15896c188c6c18935376eda35003b15170",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "dff7b89b6af6-worktree.patch",
+          "dff7b89b6af6-index.patch"
+        ],
+        "inputCount": 1456,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/local-tmp/worktrees/technical-20261010/policy-Java-default",
+        "head": "255ff0d3efe572bf5a82b969610587fbcb111450",
+        "branch": "feat/russian-policy-default-20261010",
+        "inputTreeSha256": "20325129d695f24280a678f9fce8fa48892b835ebe3080bbf0a5e578fc7385df",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "e15cbc6e3ced-worktree.patch",
+          "e15cbc6e3ced-index.patch"
+        ],
+        "inputCount": 1340,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/quarto-course",
+        "head": "a6225d0cf3f12ed9ee6cf1ed38a5837d77141ee2",
+        "branch": "main",
+        "inputTreeSha256": "aebe554bc1b0fc67978269379d27c38d97a4a8a86e648572237b2bbb95be34d1",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "332ce45659e3-worktree.patch",
+          "332ce45659e3-index.patch"
+        ],
+        "inputCount": 307,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/quarto-course-body-baseline",
+        "head": "9690514a6c92dfde377d2be551ca861022387506",
+        "branch": null,
+        "inputTreeSha256": "8b61aae33a64292b0b6d42ad8605633d656e7e2d33c142ad2b9a29e32d3d89ff",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "d865817da525-worktree.patch",
+          "d865817da525-index.patch"
+        ],
+        "inputCount": 222,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/quarto-course-budget",
+        "head": "5ea107e3338f2cb90dc3c7cf47884875d2fe384f",
+        "branch": null,
+        "inputTreeSha256": "e9943c72687e4c39a2b882897c6ad7e33e04e798b9faba2f7f2eb0d08b373be6",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "653fc5981c92-worktree.patch",
+          "653fc5981c92-index.patch"
+        ],
+        "inputCount": 280,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/quarto-course-cloud",
+        "head": "4b1ac644017f72575210e6b2ff2aa10be83e3aa8",
+        "branch": "main",
+        "inputTreeSha256": "f40ded45c3726c8baf1077b4ea7daedf8750d656d4d29021624be73f65b34f41",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "a7385283acad-worktree.patch",
+          "a7385283acad-index.patch"
+        ],
+        "inputCount": 39,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/quarto-course-moodle",
+        "head": "03abf4a78649ec95726260a02473d4c0bc6fff3d",
+        "branch": "main",
+        "inputTreeSha256": "3fc11707a14b169f2705cdbd6891ab7ca74a5ba0111ddf530b1d55c6b87d8648",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "20fd8734ba2c-worktree.patch",
+          "20fd8734ba2c-index.patch"
+        ],
+        "inputCount": 72,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/quarto-course-performance",
+        "head": "23371dae215111f40810e637e6ef176cf32f2a53",
+        "branch": "docs/general-use-and-arch",
+        "inputTreeSha256": "492914a1b9f34ced72d258620d7ef3eec9256e7d1ccbf1f9574a499cb81f2171",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "45108f1384b7-worktree.patch",
+          "45108f1384b7-index.patch"
+        ],
+        "inputCount": 106,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/quarto-course-prairielearn",
+        "head": "ed929da573c7f1a24af1ca57ddc56b1734114c78",
+        "branch": "main",
+        "inputTreeSha256": "2422d2ac0ce5cb19b8354f72428723e97251d428f1900a66978e408e2b23af6f",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "905c356f6ee7-worktree.patch",
+          "905c356f6ee7-index.patch"
+        ],
+        "inputCount": 68,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/quarto-course-print",
+        "head": "25b8c6950c7d23e43e8240bfceb88c6ddfe6a34d",
+        "branch": "main",
+        "inputTreeSha256": "fc7b962516e842eed4b71d2d2f4e04ab3d57d82e955a78e7ae1d5e26bf745f34",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "a7208793e974-worktree.patch",
+          "a7208793e974-index.patch"
+        ],
+        "inputCount": 82,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/quarto-course-writer-compatibility",
+        "head": "fe576c4eb1d77191b89216ae2e6bbdaef50b28a2",
+        "branch": null,
+        "inputTreeSha256": "3aa07e5cc328ff7ea1faca1c773a6eb9307615d4c1771db2f0834a9025d2abfd",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "c2e22700b576-worktree.patch",
+          "c2e22700b576-index.patch"
+        ],
+        "inputCount": 282,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/quarto-course-writer-fix",
+        "head": "480f4ef7ed98daef198a417207ca8b516094ac8f",
+        "branch": null,
+        "inputTreeSha256": "bde7b9380a2c1e116d0a703ab54650573eca5503d949fc108600cf979f4d4d66",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "b55579653b0d-worktree.patch",
+          "b55579653b0d-index.patch"
+        ],
+        "inputCount": 282,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/quarto-project-download",
+        "head": "40b7017a59e3aa0f902e2616c6e2483e05ab4692",
+        "branch": "main",
+        "inputTreeSha256": "14c7d3cd2c75c3618937082718b42f0be4f1476856586381397db5060bd4e6c0",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "9d0c633c4745-worktree.patch",
+          "9d0c633c4745-index.patch"
+        ],
+        "inputCount": 33,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/quarto-project-publish",
+        "head": "2935a9b9de089daea4e5f48e88f8c08358fad938",
+        "branch": "main",
+        "inputTreeSha256": "705cb39bcac4e484e7863331634101696529d7cee2660fa01273dd20dfe4cb5e",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "a77f8cfd048f-worktree.patch",
+          "a77f8cfd048f-index.patch"
+        ],
+        "inputCount": 57,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/quarto-reference-catalog",
+        "head": "ae0af85f7303d9d79de4f0b0715dbe61b3f651df",
+        "branch": "main",
+        "inputTreeSha256": "cf490bfe54a34834cb061e161dc9f1a4cf8ce7f4c79b171eae6031217d935a31",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "67f061fab2c0-worktree.patch",
+          "67f061fab2c0-index.patch"
+        ],
+        "inputCount": 162,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/quarto-template-backlink-verification",
+        "head": "a38cb1c30a5fba2f765b5c0a2131b76990cf4c1c",
+        "branch": null,
+        "inputTreeSha256": "a192a4975fec5f7120853233c75d3d2862b2bfb178d3894ad58b208faad884f9",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "e27510ca01c7-worktree.patch",
+          "e27510ca01c7-index.patch"
+        ],
+        "inputCount": 858,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/quarto-template-course",
+        "head": "d453be9aa4d44f79222323672ebc30a4ef86f0ce",
+        "branch": "main",
+        "inputTreeSha256": "8dab5eddc62aa7970b5b384ada25c6fcf5de7c83d36edfa0b8cb59e42883c58b",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "9aedac385f70-worktree.patch",
+          "9aedac385f70-index.patch"
+        ],
+        "inputCount": 117,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/quarto-template-original-budget-proof",
+        "head": "55d9fcf120a1a241938dd62e1884b30bb02d47f6",
+        "branch": null,
+        "inputTreeSha256": "c466becfa9ae9239f9e1429aa51d98ebfd09a6e551a1576e226ad9bcbef93729",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "34547a4a176b-worktree.patch",
+          "34547a4a176b-index.patch"
+        ],
+        "inputCount": 858,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/quarto-template-pages-profile-split",
+        "head": "4c33b15e638d166634d401830ac7aed7ae6854cc",
+        "branch": null,
+        "inputTreeSha256": "854ca5c7eedb40f37517d5dcf0a1a1050c669711da3f721757600b0cb7b43e51",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "a71fa3d23a8c-worktree.patch",
+          "a71fa3d23a8c-index.patch"
+        ],
+        "inputCount": 860,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/quarto-template-pages-proof",
+        "head": "a75429fe8d3da96492891b0e5b10a88cde7c2f3e",
+        "branch": null,
+        "inputTreeSha256": "de31ff0a1e2beddc7b5193004d2e371416661a7e9e4dfe295a6fa5aec6588aad",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "604a8ea81c2f-worktree.patch",
+          "604a8ea81c2f-index.patch"
+        ],
+        "inputCount": 858,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/quarto-template-portal-fix",
+        "head": "1d0a759e02556a411b86027e263c0501d7f6cda4",
+        "branch": null,
+        "inputTreeSha256": "4eb9f7deca9769a215e216094f047f0094254a10df18da669077016419d9ea29",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "e6fd191a6ca8-worktree.patch",
+          "e6fd191a6ca8-index.patch"
+        ],
+        "inputCount": 858,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/quarto-template-project-search-verification",
+        "head": "21ef5f04897ebd715e4022fbe5ee31906ee82afa",
+        "branch": null,
+        "inputTreeSha256": "6aa1922443a82e7a1f805889cc6258b8787bf3c920a7bcad1e5c10c2dc4fbbd3",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "408120614d51-worktree.patch",
+          "408120614d51-index.patch"
+        ],
+        "inputCount": 858,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/quarto-template-writer-compatibility-preparation",
+        "head": "d690b1c22a1caecac94a5a4bce1a6f9de83258e4",
+        "branch": null,
+        "inputTreeSha256": "cd3bf801818d4426ce2228fffb3b6e8943093331248d973b48bcf973e5c026f1",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "751314eaaaf0-worktree.patch",
+          "751314eaaaf0-index.patch"
+        ],
+        "inputCount": 858,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/tolya/course-tools/quarto-template-writer-preparation",
+        "head": "7d9060ff16182f9afdec1cda55cf1586ef69372c",
+        "branch": null,
+        "inputTreeSha256": "5b74faba19c56c81eeff1d84e89406f56e8ed5095773e526676e5bb14dabc7e4",
+        "worktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "indexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patchFiles": [
+          "89f6e13be179-worktree.patch",
+          "89f6e13be179-index.patch"
+        ],
+        "inputCount": 858,
+        "excludedCount": 0,
+        "dirty": false,
+        "statusEntries": 0,
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "archivePath": "/home/tolya/course-tools/local-tmp/worktrees/perf-20261023/performance/.superpowers/sdd/2026-10-17-general-use-implementation/task-1-evidence/user-tree-preservation.tar.gz",
+    "archiveSha256": "702d56472b5fb6cf8e912bcfe271380840b53336e416a3b31c9d64b8067f94e6",
+    "archiveBytes": 4107111,
+    "verification": {
+      "before": "2026-10-23T19:53:33.692148+00:00",
+      "after": "2026-10-23T20:01:19.226315+00:00",
+      "checked": 37,
+      "fields": [
+        "head",
+        "branch",
+        "status",
+        "inputTreeSha256",
+        "worktreePatchSha256",
+        "indexPatchSha256"
+      ],
+      "changes": []
+    },
+    "verificationSha256": "8c2cf1f36ab147d1a342eb63d70307baa7454f64deb3953c331da29e22e7f91b"
+  },
+  "localEvidence": {
+    "directory": "/home/tolya/course-tools/local-tmp/worktrees/perf-20261023/performance/.superpowers/sdd/2026-10-17-general-use-implementation/task-1-evidence",
+    "remoteSha256": "b51158b2c35631de1eb1c87ad2fff03b05df924e97e7921241e726bb32c58de1",
+    "note": "Бинарные patch и подробные per-file hashes сохранены локально; пользовательские worktrees не менялись. Пустое checkout owner-repos/Java уже имело удаления в index, что сохранено как есть."
+  },
+  "pendingMigrations": [
+    "Живые config/SourceManifest producers переходят на schema_version:2 в задаче9; legacy не принимается validators RunRecord/RunSummary как v2.",
+    "Исторический import adapter для experiment report/verify относится к задаче9; raw/evidence не переписываются."
+  ],
+  "runtime": {
+    "policy": "По прямому указанию пользователя основная матрица использует системный Quarto и bundled Deno этого Quarto; host Deno не выбирается автоматически.",
+    "primary": {
+      "quarto": {
+        "path": "/usr/bin/quarto",
+        "realPath": "/opt/quarto/bin/quarto",
+        "version": "1.11.6",
+        "sha256": "72632b5b855ffec9db28a098cf62b9b83a80c57174bfa733b2b399a7bdef037f"
+      },
+      "deno": {
+        "path": "/opt/quarto/bin/tools/x86_64/deno",
+        "realPath": "/opt/quarto/bin/tools/x86_64/deno",
+        "version": "2.7.14",
+        "sha256": "83ae80d34812cb7a4f246a21f707901b71fa937461500f5f0a2e19865115f3fb"
+      },
+      "pandoc": {
+        "path": "/opt/quarto/bin/tools/x86_64/pandoc",
+        "realPath": "/opt/quarto/bin/tools/x86_64/pandoc",
+        "version": "3.10",
+        "sha256": "8fedc028b2314cd649b6cabf363c94a7c940aff352a1c20753ffb0875f083cac"
+      }
+    },
+    "additional": {
+      "hostDeno": {
+        "path": "/usr/bin/deno",
+        "realPath": "/usr/bin/deno",
+        "version": "2.9.8",
+        "sha256": "19a52a6e8ec30efb9db5e5c45820d9fa32c0b4a17143b9b02db041dbb2bbfd29"
+      },
+      "quarto115": {
+        "path": "/home/tolya/course-tools/local-tools/quarto-1.11.5/bin/quarto",
+        "realPath": "/home/tolya/course-tools/local-tools/quarto-1.11.5/bin/quarto",
+        "version": "1.11.5",
+        "sha256": "72632b5b855ffec9db28a098cf62b9b83a80c57174bfa733b2b399a7bdef037f"
+      }
+    },
+    "cache": "/home/tolya/course-tools/local-tmp/perf-20261023-deno-cache",
+    "note": "Зависимости host установлены пользователем; executable Taskfile — /usr/bin/go-task, команды task нет. Системные настройки агент не менял.",
+    "hostDependencies": {
+      "time": {
+        "path": "/usr/bin/time",
+        "version": "GNU time 1.10",
+        "package": "time 1.10-1.1",
+        "sha256": "7b29eec93a6fce9aa554bf4fc7f94ef77121bc58f376cf730d060df07872ab63"
+      },
+      "go-task": {
+        "path": "/usr/bin/go-task",
+        "version": "3.54.0+b5aef1c2",
+        "package": "go-task 3.54.0-1.1",
+        "sha256": "459a81af203d6f8e60fdf18eb1687dff13f1a58aadda53670485eca4715da499"
+      }
+    }
+  }
+}

@@ -25,3 +25,10 @@ Deno.test("counter is a delta; missing clock, negative or unobserved counts are 
     ]
   ) assert.throws(() => validateEvent({ ...event, ...change }));
 });
+
+Deno.test("raw Event rejects metadata versions and never infers an absent version", () => {
+  for (const schema_version of [undefined, null, "1", 2, 3]) {
+    assert.throws(() => validateEvent({ ...event, schema_version }));
+  }
+  assert.equal(validateEvent(event).schema_version, 1);
+});

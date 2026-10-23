@@ -1,4 +1,6 @@
-export type Mode = "off" | "summary" | "cpu" | "trace";
+import type { SimpleMode } from "../report/types.ts";
+
+export type Mode = SimpleMode | "trace";
 export type Variant = "upstream" | "clean-control" | "candidate";
 export interface SourceRequest {
   repository: string;
