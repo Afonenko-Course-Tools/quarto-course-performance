@@ -58,7 +58,15 @@ async function fakeNative(check: (quarto: string) => Promise<void>) {
   const root = await Deno.makeTempDir();
   try {
     const quarto = join(root, "quarto");
-    await Deno.writeTextFile(quarto, "#!/bin/sh\nprintf '<%s>\\n' \"$@\"\nexit 7\n");
+    await Deno.writeTextFile(
+      quarto,
+      `#!/bin/sh
+if [ "$1" = inspect ]; then printf '{"dir":"%s","files":{"config":[]}}\\n' "$PWD"; exit; fi
+if [ "$1" = --version ]; then echo 1.11.6; exit; fi
+printf '<%s>\\n' "$@"
+exit 7
+`,
+    );
     await Deno.chmod(quarto, 0o755);
     await check(quarto);
   } finally {
@@ -68,10 +76,17 @@ async function fakeNative(check: (quarto: string) => Promise<void>) {
 
 Deno.test("native help after a native separator reaches the native render argv", async () => {
   await fakeNative(async (quarto) => {
-    await isolated(["render", "--", "--", "--help"], (_root, out) => {
+    await isolated(["render", "--", "--", "--help"], async (root, out) => {
       assert.equal(out.code, 7, decode(out.stderr));
       assert.equal(decode(out.stdout), "<render>\n<-->\n<--help>\n");
-      assert.equal(decode(out.stderr), "");
+      const directory = decode(out.stderr).match(/Отчёт Performance: (.+)/)?.[1];
+      assert(directory);
+      assert.equal(
+        await Deno.readTextFile(join(directory, "stdout.log")),
+        "<render>\n<-->\n<--help>\n",
+      );
+      await Deno.stat(join(directory, "report.md"));
+      assert(directory.startsWith(join(root, ".quarto/course-perf/runs")));
     }, { QUARTO: quarto });
   });
 });
@@ -94,8 +109,14 @@ Deno.test("render off loads the real native path without experiment configuratio
     await isolated(["render", "--perf-mode=off", "file space.qmd"], async (root, out) => {
       assert.equal(out.code, 7, decode(out.stderr));
       assert.equal(decode(out.stdout), "<render>\n<file space.qmd>\n");
-      assert.equal(decode(out.stderr), "");
-      assert.deepEqual(await Array.fromAsync(Deno.readDir(root)), []);
+      const directory = decode(out.stderr).match(/Отчёт Performance: (.+)/)?.[1];
+      assert(directory);
+      const record = JSON.parse(await Deno.readTextFile(join(directory, "run.json")));
+      assert.equal(record.schema_version, 2);
+      assert.equal(record.outcome.code, 7);
+      await Deno.stat(join(directory, "summary.json"));
+      await Deno.stat(join(directory, "report.md"));
+      assert.deepEqual((await Array.fromAsync(Deno.readDir(root))).map((e) => e.name), [".quarto"]);
     }, { QUARTO: quarto });
   });
 });

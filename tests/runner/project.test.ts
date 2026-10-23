@@ -102,3 +102,25 @@ Deno.test("inspect receives argv and environment profiles while render-only opti
     await Deno.remove(root, { recursive: true });
   }
 });
+
+Deno.test("inspect normalizes leading-dash targets without changing native render argv", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    await Deno.mkdir(join(root, "--help"));
+    await Deno.writeTextFile(join(root, "--help/_quarto.yml"), "project:\n  type: default\n");
+    await Deno.writeTextFile(join(root, "--help/a.qmd"), "# Test\n");
+    const request: NativeRenderRequest = {
+      cwd: root,
+      quarto: "/usr/bin/quarto",
+      nativeArgv: ["--", "--help"],
+      mode: "off",
+    };
+    assert.deepEqual(await resolveRenderProject(request), {
+      projectRoot: join(root, "--help"),
+      kind: "project",
+    });
+    assert.deepEqual(request.nativeArgv, ["--", "--help"]);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

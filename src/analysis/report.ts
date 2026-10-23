@@ -1,41 +1,11 @@
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import type { SourceManifest } from "../config/types.ts";
 import type { NormalizedRun } from "./normalize.ts";
-import { traces } from "../report/perfetto.ts";
 
-export function operationTotals(run: NormalizedRun) {
-  const begins = new Map(run.events.filter((e) => e.event === "begin").map((e) => [e.span_id, e]));
-  const totals = new Map<
-    string,
-    {
-      operation: string;
-      clock: string;
-      completed: number;
-      errors: number;
-      inclusive_us: number;
-      self_us: null;
-    }
-  >();
-  for (const end of run.events.filter((e) => e.event === "end")) {
-    const begin = begins.get(end.span_id);
-    if (!begin || end.timestamp_us! < begin.timestamp_us!) continue;
-    const key = `${end.clock_domain}/${end.operation_id}`;
-    const total = totals.get(key) ??
-      {
-        operation: end.operation_id!,
-        clock: end.clock_domain,
-        completed: 0,
-        errors: 0,
-        inclusive_us: 0,
-        self_us: null,
-      };
-    total.completed++;
-    total.errors += end.status === "error" ? 1 : 0;
-    total.inclusive_us += end.timestamp_us! - begin.timestamp_us!;
-    totals.set(key, total);
-  }
-  return [...totals.values()].sort((a, b) => b.inclusive_us - a.inclusive_us);
-}
+import { jsonFiles, operationTotals, writeRunArtifacts } from "../report/run.ts";
+import type { RunRecord } from "../report/types.ts";
+export { operationTotals } from "../report/run.ts";
+
 function summarizeRun(run: NormalizedRun) {
   return {
     run_id: run.runId,
@@ -57,20 +27,6 @@ function summarizeRun(run: NormalizedRun) {
   };
 }
 
-async function jsonFiles(directory: string, suffix: string, retainFileName = false) {
-  const result: Record<string, unknown>[] = [];
-  try {
-    for await (const file of Deno.readDir(directory)) {
-      if (file.isFile && file.name.endsWith(suffix)) {
-        const record = JSON.parse(await Deno.readTextFile(join(directory, file.name)));
-        result.push(retainFileName ? { ...record, file_name: file.name } : record);
-      }
-    }
-  } catch (e) {
-    if (!(e instanceof Deno.errors.NotFound)) throw e;
-  }
-  return result;
-}
 export async function writeExperimentReport(
   manifest: SourceManifest,
   runs: Iterable<NormalizedRun> | AsyncIterable<NormalizedRun>,
@@ -106,30 +62,48 @@ export async function writeExperimentReport(
     summary.push(summarizeRun(run));
     const path = join(output, "runs", run.runId);
     await Deno.mkdir(path, { recursive: true });
-    const trace = traces(run);
-    await Deno.writeTextFile(join(path, "wall.trace.json"), JSON.stringify(trace.wall));
-    await Deno.writeTextFile(join(path, "lua-cpu.trace.json"), JSON.stringify(trace.luaCpu));
-    const processes = await jsonFiles(join(path, "processes"), ".json");
-    await Deno.writeTextFile(
-      join(path, "causal.json"),
-      JSON.stringify(
-        {
-          run_id: run.runId,
-          data_valid: run.dataValid,
-          processes,
-          spans: run.events.filter((e) => e.event === "begin").map((e) => ({
-            span_id: e.span_id,
-            parent_span_id: e.parent_span_id ?? null,
-            process_id: e.process_id,
-            executor_id: e.executor_id,
-            operation_id: e.operation_id,
-            clock_domain: e.clock_domain,
-          })),
+    const build = builds.find((b) => b.runId === run.runId) ?? {};
+    // Адаптер старого experiment metadata; raw journals и preparation receipts не меняются.
+    const record: RunRecord = build.schema_version === 2
+      ? { ...build, dataValid: run.dataValid, quality: run.quality } as unknown as RunRecord
+      : {
+        ...build,
+        schema_version: 2,
+        runId: run.runId,
+        request: {
+          cwd: String(build.cwd ?? resolve(path)),
+          quarto: String((build.argv as string[] | undefined)?.[0] ?? "quarto"),
+          nativeArgv: (build.argv as string[] | undefined)?.slice(1) ?? [],
+          mode: (build.mode ?? "off") as RunRecord["request"]["mode"],
         },
-        null,
-        2,
-      ) + "\n",
-    );
+        outcome: {
+          code: Number(build.buildExitCode ?? 0),
+          signal: (build.signal ?? null) as Deno.Signal | null,
+          wallSeconds: Number(build.wallSeconds ?? 0),
+          cpuUserSeconds:
+            (build.resources as Record<string, number | null> | undefined)?.cpu_user_seconds ??
+              null,
+          cpuSystemSeconds:
+            (build.resources as Record<string, number | null> | undefined)?.cpu_system_seconds ??
+              null,
+          peakRssKiB:
+            (build.resources as Record<string, number | null> | undefined)?.peak_rss_kib ?? null,
+        },
+        preparation: (build.preparation ?? []) as RunRecord["preparation"],
+        dataValid: run.dataValid,
+        quality: run.quality,
+        versions: {
+          tool: "2.0.0",
+          quarto: manifest.runtime.quarto?.version ?? "неизвестно",
+          deno: manifest.runtime.deno?.version ?? null,
+          pandoc: manifest.runtime.pandoc?.version ?? null,
+        },
+        git: null,
+        collectionDirectory: String(build.outputDirectory ?? resolve(path)),
+        outputDirectory: resolve(path),
+        artifacts: {},
+      };
+    await writeRunArtifacts(path, record, run);
   }
   const data = {
     manifest,

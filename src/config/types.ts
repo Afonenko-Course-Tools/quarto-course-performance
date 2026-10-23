@@ -63,3 +63,9 @@ export interface RunResult {
   wallSeconds: number;
   signal: string | null;
 }
+
+export interface RunPaths {
+  runId: string;
+  stagingDirectory: string;
+  finalDirectory: string;
+}

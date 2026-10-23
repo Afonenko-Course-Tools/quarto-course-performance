@@ -4,6 +4,7 @@ import type { NativeRenderRequest } from "../../report/types.ts";
 export interface ProjectTarget {
   projectRoot: string;
   kind: "project" | "standalone";
+  resources?: string[];
 }
 
 // Только параметры, значения которых могут быть ошибочно приняты за input.
@@ -44,7 +45,7 @@ const switches = new Set([
   "-s",
 ]);
 
-function inspectArguments(argv: readonly string[]): string[] {
+function inspectArguments(argv: readonly string[], cwd: string): string[] {
   let input: string | undefined, uncertain = false, positional = false;
   const profiles: string[] = [];
   const ambiguous = () =>
@@ -81,11 +82,11 @@ function inspectArguments(argv: readonly string[]): string[] {
     if (input !== undefined) throw ambiguous();
     input = arg;
   }
-  return [...(input === undefined ? [] : [input]), ...profiles];
+  return [...(input === undefined ? [] : [resolve(cwd, input)]), ...profiles];
 }
 
 export async function resolveRenderProject(request: NativeRenderRequest): Promise<ProjectTarget> {
-  const args = inspectArguments(request.nativeArgv);
+  const args = inspectArguments(request.nativeArgv, request.cwd);
   const output = await new Deno.Command(request.quarto, {
     args: ["inspect", ...args],
     cwd: request.cwd,
@@ -101,6 +102,9 @@ export async function resolveRenderProject(request: NativeRenderRequest): Promis
     throw new Error("quarto inspect не вернул каталог проекта или самостоятельного документа");
   }
   return {
+    ...(Array.isArray(project.config?.project?.resources) && project.config.project.resources.length
+      ? { resources: project.config.project.resources }
+      : {}),
     projectRoot: resolve(request.cwd, project.dir),
     kind: Array.isArray(project.files?.config) && project.files.config.length > 0
       ? "project"

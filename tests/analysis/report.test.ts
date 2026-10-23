@@ -82,6 +82,11 @@ Deno.test("report processes an async run stream before requesting the next raw j
     async function* runs() {
       yield run;
       assert((await Deno.stat(join(root, "runs/r/wall.trace.json"))).isFile);
+      assert.equal(
+        JSON.parse(await Deno.readTextFile(join(root, "runs/r/summary.json"))).schema_version,
+        2,
+      );
+      await Deno.stat(join(root, "runs/r/report.md"));
       yield { ...run, runId: "second" };
     }
     await Deno.mkdir(join(root, "benchmarks"));
