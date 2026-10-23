@@ -1,5 +1,6 @@
 import { dirname, join, resolve } from "node:path";
 import type { BuildOutcome } from "../report/types.ts";
+import { recordCancellation } from "./resource-child.ts";
 
 export interface OwnedProcessOptions {
   executable: string;
@@ -135,6 +136,7 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
   await Deno.mkdir(directory, { recursive: true });
   const receipt = join(directory, `status-${crypto.randomUUID()}.json`);
   const resources = receipt + ".resources";
+  const cancelPath = receipt + ".cancel", spawnLock = receipt + ".spawn-lock";
   let time = options.timeExecutable === undefined ? "/usr/bin/time" : options.timeExecutable;
   if (time) {
     try {
@@ -199,7 +201,6 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
   const args = redirectedInput
     ? ["/bin/sh", "-c", "exec 3<&0; exec 0</dev/null; exec " + terminalArgs.map(quote).join(" ")]
     : terminalArgs;
-  let started = false;
   let group: number | undefined,
     pending: Deno.Signal | undefined,
     signalledAt = 0,
@@ -216,12 +217,29 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
       if (!(error instanceof Deno.errors.NotFound)) failed(error);
     }
   };
+  const spawning = () => {
+    try {
+      Deno.statSync(spawnLock);
+      return true;
+    } catch (error) {
+      if (error instanceof Deno.errors.NotFound) return false;
+      failed(error);
+      return true;
+    }
+  };
   const send = (signal: Deno.Signal) => {
-    pending = signal;
-    if (group && started && !signalledAt) {
-      signalGroup(group, signal);
+    pending ??= signal;
+    try {
+      recordCancellation(cancelPath, pending);
+    } catch (error) {
+      failed(error);
+    }
+    if (group) signalledAt ||= performance.now();
+    // Spawn, начатый до cancel, завершится до группового TERM. Ещё не начатый
+    // helper увидит cancel receipt и не породит child после этого сигнала.
+    if (group && !sent.has(group) && !spawning()) {
+      signalGroup(group, pending);
       sent.add(group);
-      signalledAt = performance.now();
     }
   };
   const term = () => send("SIGTERM"), interrupt = () => send("SIGINT");
@@ -239,6 +257,8 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
         ...options.env,
         ...(terminal ? { SHELL: "/bin/sh" } : {}),
         COURSE_PERF_OWNED_GROUP: "1",
+        COURSE_PERF_CANCEL_PATH: cancelPath,
+        COURSE_PERF_SPAWN_LOCK: spawnLock,
       },
       clearEnv: true,
       stdin: "inherit",
@@ -300,15 +320,7 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
           if (!(error instanceof Deno.errors.NotFound)) failed(error);
         }
       }
-      if (group && !started && !failure) {
-        try {
-          await Deno.stat(receipt + (time ? ".native.started" : ".started"));
-          started = true;
-        } catch (error) {
-          if (!(error instanceof Deno.errors.NotFound)) failed(error);
-        }
-        if (started && pending && !signalledAt) send(pending);
-      }
+      if (group && pending) send(pending);
       if (group && !signalledAt) {
         try {
           const notice = JSON.parse(await Deno.readTextFile(receipt + ".signal"));
@@ -331,13 +343,14 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
         ? await ownedGroups(child.pid, sessions)
         : new Set(group && await liveGroup(group) ? [group] : []);
       if (failure) {
+        send(pending ?? "SIGTERM");
         // Proxy script завершается после native group; не сигналим ему TERM,
         // иначе script способен повторно переслать уже доставленный сигнал.
         const targets = remaining.size > 1
           ? [...remaining].filter((g) => g !== child.pid)
           : [...remaining];
         for (const target of targets) {
-          if (!sent.has(target)) {
+          if (!sent.has(target) && !spawning()) {
             signalGroup(target, "SIGTERM");
             sent.add(target);
           }

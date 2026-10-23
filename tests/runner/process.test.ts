@@ -721,7 +721,7 @@ Deno.test("registered PTY ownership remains available for cleanup after native p
     await Deno.remove(root, { recursive: true });
   }
 });
-Deno.test("queued abort waits for actual native spawn through GNU time bootstrap", async () => {
+Deno.test("queued abort prevents native spawn through GNU time bootstrap", async () => {
   const root = await Deno.makeTempDir();
   try {
     const wrapper = join(root, "time"), trap = join(root, "bootstrap-signal");
@@ -736,7 +736,12 @@ Deno.test("queued abort waits for actual native spawn through GNU time bootstrap
     abort.abort("SIGTERM");
     const result = await runOwnedProcess({
       executable: Deno.execPath(),
-      args: ["eval", "setInterval(()=>{},100)"],
+      args: [
+        "eval",
+        `Deno.writeTextFileSync(${
+          JSON.stringify(join(root, "native"))
+        },"started");setInterval(()=>{},100)`,
+      ],
       cwd: root,
       env: Deno.env.toObject(),
       stdoutPath: join(root, "out"),
@@ -747,9 +752,101 @@ Deno.test("queued abort waits for actual native spawn through GNU time bootstrap
     });
     assert.equal(result.signal, "SIGTERM");
     assert.equal(result.escalated, false);
+    await assert.rejects(() => Deno.stat(join(root, "native")), Deno.errors.NotFound);
     await assert.rejects(() => Deno.stat(trap), Deno.errors.NotFound);
   } finally {
     await cleanupFixture(root);
+    await Deno.remove(root, { recursive: true });
+  }
+});
+Deno.test("external cancellation bounds stopped registered bootstrap before native spawn", async () => {
+  const root = await Deno.makeTempDir();
+  const module = new URL("../../src/runner/process.ts", import.meta.url).href;
+  let supervisor: Deno.ChildProcess | undefined;
+  try {
+    for (const held of [false, true]) {
+      const directory = join(root, held ? "held" : "plain");
+      await Deno.mkdir(directory);
+      const wrapper = join(directory, "time"),
+        pidfile = join(directory, "bootstrap-pid"),
+        native = join(directory, "native");
+      await Deno.writeTextFile(
+        wrapper,
+        `#!/bin/sh\n${
+          held
+            ? 'while [ -d "$COURSE_PERF_SPAWN_LOCK" ]; do sleep 0.005; done\nmkdir "$COURSE_PERF_SPAWN_LOCK"\n'
+            : ""
+        }printf '%s' "$$" > '${pidfile}'\nkill -STOP $$\nexec /usr/bin/time "$@"\n`,
+      );
+      await Deno.chmod(wrapper, 0o755);
+      const source = `import {runOwnedProcess} from ${
+        JSON.stringify(module)
+      };const kill=Deno.kill;Deno.kill=((pid,signal)=>{Deno.writeTextFileSync(${
+        JSON.stringify(join(directory, "signal-trace"))
+      },JSON.stringify({pid,signal})+'\\n',{append:true});return kill(pid,signal);}) as typeof Deno.kill;const result=await runOwnedProcess({executable:Deno.execPath(),args:['eval',${
+        JSON.stringify(
+          `Deno.writeTextFileSync(${JSON.stringify(native)},'started');setInterval(()=>{},100)`,
+        )
+      }],cwd:${JSON.stringify(directory)},env:Deno.env.toObject(),stdoutPath:${
+        JSON.stringify(join(directory, "out"))
+      },stderrPath:${JSON.stringify(join(directory, "err"))},timeExecutable:${
+        JSON.stringify(wrapper)
+      },graceMilliseconds:150});Deno.writeTextFileSync(${
+        JSON.stringify(join(directory, "outcome"))
+      },JSON.stringify(result));`;
+      supervisor = new Deno.Command(Deno.execPath(), {
+        args: ["eval", source],
+        stdout: "piped",
+        stderr: "piped",
+      }).spawn();
+      const completion = supervisor.output();
+      await waitFor(pidfile);
+      supervisor.kill("SIGTERM");
+      const output = await bounded(completion, 2000);
+      assert(output.success, new TextDecoder().decode(output.stderr));
+      const outcome = JSON.parse(await Deno.readTextFile(join(directory, "outcome")));
+      assert.equal(outcome.signal, "SIGKILL");
+      assert.equal(outcome.escalated, true);
+      await assert.rejects(() => Deno.stat(native), Deno.errors.NotFound);
+      await pause(100);
+      await assert.rejects(() => Deno.stat(native), Deno.errors.NotFound);
+      let groupsChecked = 0;
+      for await (const entry of Deno.readDir(directory)) {
+        if (!entry.name.endsWith(".ready")) continue;
+        groupsChecked++;
+        const { group } = JSON.parse(await Deno.readTextFile(join(directory, entry.name)));
+        const prefix = join(directory, entry.name.slice(0, -".ready".length));
+        assert.equal(JSON.parse(await Deno.readTextFile(prefix + ".cancel")).signal, "SIGTERM");
+        await assert.rejects(() => Deno.stat(prefix + ".native.started"), Deno.errors.NotFound);
+        const trace = (await Deno.readTextFile(join(directory, "signal-trace"))).trim().split("\n")
+          .map((line) => JSON.parse(line));
+        assert(trace.every((call) => call.pid === -group));
+        assert.deepEqual(
+          trace.map((call) => call.signal),
+          held ? ["SIGKILL"] : ["SIGTERM", "SIGKILL"],
+        );
+        for await (const process of Deno.readDir("/proc")) {
+          if (!/^\d+$/.test(process.name)) continue;
+          try {
+            const stat = await Deno.readTextFile(`/proc/${process.name}/stat`);
+            const fields = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
+            assert(!(Number(fields[2]) === group && fields[0] !== "Z"));
+          } catch (error) {
+            if (!(error instanceof Deno.errors.NotFound)) throw error;
+          }
+        }
+      }
+      assert(groupsChecked > 0);
+      supervisor = undefined;
+    }
+  } finally {
+    for await (const entry of Deno.readDir(root)) {
+      if (entry.isDirectory) await cleanupFixture(join(root, entry.name));
+    }
+    try {
+      supervisor?.kill("SIGKILL");
+    } catch { /* Уже завершён. */ }
+    if (supervisor) await supervisor.status;
     await Deno.remove(root, { recursive: true });
   }
 });
