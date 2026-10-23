@@ -5,7 +5,7 @@ import type {
   NativeRenderRequest,
   RunRecord,
 } from "../report/types.ts";
-import { runOwnedProcess } from "./process.ts";
+import { OwnedProcessError, runOwnedProcess } from "./process.ts";
 import { resolveRenderProject } from "../adapters/quarto/inspect.ts";
 import { finalizeRun, prepareRunStorage } from "./storage.ts";
 import { validateTelemetryEnvironment } from "./environment.ts";
@@ -72,6 +72,13 @@ async function gitProvenance(cwd: string, outputParent?: string): Promise<GitPro
     throw e;
   }
 }
+function diagnostic(message: string): unknown | undefined {
+  try {
+    console.error(message);
+  } catch (error) {
+    return error;
+  }
+}
 export async function renderCommand(request: NativeRenderRequest): Promise<number> {
   const conflicts = validateTelemetryEnvironment(Deno.env.toObject());
   if (conflicts.length) throw new Error(`Конфликт окружения измерений: ${conflicts.join(", ")}`);
@@ -102,39 +109,77 @@ export async function renderCommand(request: NativeRenderRequest): Promise<numbe
   };
   Deno.addSignalListener("SIGINT", rememberInt);
   Deno.addSignalListener("SIGTERM", rememberTerm);
-  let outcome: BuildOutcome | undefined;
-  let failure: unknown;
+  let outcome: BuildOutcome | undefined, failure: unknown;
+  let savedDirectory = paths.stagingDirectory;
   try {
-    outcome = await runNativeRender(request, paths.stagingDirectory);
-    const record: RunRecord = {
-      schema_version: 2,
-      runId: paths.runId,
-      request,
-      outcome,
-      preparation: [],
-      dataValid: true,
-      quality: { droppedEvents: 0, incompleteSpans: 0, coverageComplete: false, errors: [] },
-      versions: {
-        tool: "2.0.0",
-        quarto: new TextDecoder().decode(version.stdout).trim(),
-        deno: null,
-        pandoc: null,
-      },
-      git,
-      collectionDirectory: paths.stagingDirectory,
-      outputDirectory: paths.finalDirectory,
-      artifacts: {},
-    };
     try {
-      const directory = await finalizeRun(paths, record);
-      console.error(`Отчёт Performance: ${directory}`);
-    } catch (e) {
-      failure = e;
-      console.error(e instanceof Error ? e.message : String(e));
+      outcome = await runNativeRender(request, paths.stagingDirectory);
+    } catch (error) {
+      failure = error;
+      if (error instanceof OwnedProcessError) outcome = error.outcome;
     }
-  } catch (e) {
-    failure = e;
-    console.error(`Материалы запуска сохранены: ${paths.stagingDirectory}`);
+    if (outcome) {
+      const errors = failure ? [failure instanceof Error ? failure.message : String(failure)] : [];
+      const record: RunRecord = {
+        schema_version: 2,
+        runId: paths.runId,
+        request,
+        outcome,
+        preparation: [],
+        dataValid: !failure,
+        quality: { droppedEvents: 0, incompleteSpans: 0, coverageComplete: false, errors },
+        versions: {
+          tool: "2.0.0",
+          quarto: new TextDecoder().decode(version.stdout).trim(),
+          deno: null,
+          pandoc: null,
+        },
+        git,
+        collectionDirectory: paths.stagingDirectory,
+        outputDirectory: paths.finalDirectory,
+        artifacts: {},
+      };
+      try {
+        savedDirectory = await finalizeRun(paths, record);
+        const printError = diagnostic(`Отчёт Performance: ${savedDirectory}`);
+        failure ??= printError;
+      } catch (error) {
+        failure ??= error;
+        diagnostic(error instanceof Error ? error.message : String(error));
+      }
+      if (failure) {
+        diagnostic(failure instanceof Error ? failure.message : String(failure));
+        // Даже отказ stderr не должен заменить известный child exit/signal.
+        try {
+          const directory = await Deno.lstat(savedDirectory);
+          if (!directory.isDirectory || directory.isSymlink) {
+            throw new Error("Недопустимый каталог диагностики");
+          }
+          const receipt = await Deno.open(join(savedDirectory, "performance-error.json"), {
+            write: true,
+            createNew: true,
+          });
+          try {
+            const data = new TextEncoder().encode(
+              JSON.stringify(
+                {
+                  schema_version: 2,
+                  error: failure instanceof Error ? failure.message : String(failure),
+                },
+                null,
+                2,
+              ) + "\n",
+            );
+            let offset = 0;
+            while (offset < data.length) offset += await receipt.write(data.subarray(offset));
+          } finally {
+            receipt.close();
+          }
+        } catch { /* Доступные raw/report уже сохранены; исходный результат приоритетен. */ }
+      }
+    } else {
+      diagnostic(`Материалы запуска сохранены: ${paths.stagingDirectory}`);
+    }
   } finally {
     Deno.removeSignalListener("SIGINT", rememberInt);
     Deno.removeSignalListener("SIGTERM", rememberTerm);

@@ -110,13 +110,26 @@ async function validateMaterials(directory: string): Promise<void> {
     if (stat.isDirectory) await validateMaterials(path);
   }
 }
+async function validateReportTargets(directory: string): Promise<void> {
+  const root = await Deno.lstat(directory);
+  if (!root.isDirectory || root.isSymlink) throw new Error(`Недопустимый staging: ${directory}`);
+  for (const name of ["run.json", "summary.json", "report.md"]) {
+    try {
+      const stat = await Deno.lstat(join(directory, name));
+      if (!stat.isFile || stat.isSymlink) throw new Error(`Недопустимый файл отчёта: ${name}`);
+    } catch (e) {
+      if (!(e instanceof Deno.errors.NotFound)) throw e;
+    }
+  }
+}
 export async function finalizeRun(paths: RunPaths, record: RunRecord): Promise<string> {
   try {
-    await validateMaterials(paths.stagingDirectory);
+    await validateReportTargets(paths.stagingDirectory);
     await writeRunArtifacts(paths.stagingDirectory, {
       ...record,
       outputDirectory: paths.finalDirectory,
     });
+    await validateMaterials(paths.stagingDirectory);
     await safeDirectory(dirname(paths.finalDirectory));
     // mkdir без recursive не позволяет затереть чужой запуск, файл или ссылку.
     await Deno.mkdir(paths.finalDirectory);

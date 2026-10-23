@@ -2,6 +2,14 @@ import { dirname, join, resolve } from "node:path";
 import type { BuildOutcome } from "../report/types.ts";
 import { recordCancellation } from "./resource-child.ts";
 
+/** Ошибка измерения после остановки дерева; outcome — только для реально запущенного native. */
+export class OwnedProcessError extends Error {
+  constructor(error: unknown, readonly outcome?: BuildOutcome) {
+    super(error instanceof Error ? error.message : String(error), { cause: error });
+    this.name = "OwnedProcessError";
+  }
+}
+
 export interface OwnedProcessOptions {
   executable: string;
   args: string[];
@@ -17,18 +25,42 @@ export interface OwnedProcessOptions {
 }
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const quote = (arg: string) => "'" + arg.replaceAll("'", "'\\''") + "'";
-async function liveGroup(group: number): Promise<boolean> {
+function groupExists(group: number): boolean {
+  try {
+    Deno.kill(-group, 0);
+    return true;
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) return false;
+    throw error;
+  }
+}
+async function scanGroup(group: number): Promise<{ live: boolean; zombies: number }> {
+  let zombies = 0;
   for await (const entry of Deno.readDir("/proc")) {
     if (!/^\d+$/.test(entry.name)) continue;
     try {
       const stat = await Deno.readTextFile(`/proc/${entry.name}/stat`);
       const fields = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
-      if (Number(fields[2]) === group && fields[0] !== "Z") return true;
-    } catch (e) {
-      if (!(e instanceof Deno.errors.NotFound)) throw e;
+      if (Number(fields[2]) !== group) continue;
+      if (fields[0] !== "Z") return { live: true, zombies };
+      zombies++;
+    } catch (error) {
+      if (!(error instanceof Deno.errors.NotFound)) throw error;
     }
   }
-  return false;
+  return { live: false, zombies };
+}
+async function liveGroup(group: number): Promise<boolean> {
+  if (!groupExists(group)) return false;
+  if ((await scanGroup(group)).live) return true;
+  if (!groupExists(group)) return false;
+  // Directory enumeration могла начаться до fork, а stat parent — после exit.
+  // Новый снимок подтверждает zombie-only; пустота при существующей kernel group
+  // остаётся неопределённостью, которую обычный цикл перепроверит без раннего return.
+  const confirmed = await scanGroup(group);
+  if (confirmed.live) return true;
+  if (confirmed.zombies > 0) return false;
+  return groupExists(group);
 }
 export async function readOwnedGroup(path: string): Promise<number> {
   const value = JSON.parse(await Deno.readTextFile(path));
@@ -249,6 +281,8 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
   options.abortSignal?.addEventListener("abort", abort);
   if (options.abortSignal?.aborted) abort();
   const start = performance.now();
+  let outcome: BuildOutcome | undefined, knownNativeOutcome: BuildOutcome | undefined;
+  let processStarted = false, drained = false;
   try {
     const child = new Deno.Command("setsid", {
       args,
@@ -265,6 +299,7 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
       stdout: "piped",
       stderr: "piped",
     }).spawn();
+    processStarted = true;
     const streams = terminal
       ? [
         tee(
@@ -342,6 +377,8 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
       const remaining = failure
         ? await ownedGroups(child.pid, sessions)
         : new Set(group && await liveGroup(group) ? [group] : []);
+      // Даже stale ancestry snapshot не отменяет уже подтверждённое владение group.
+      if (failure && group && await liveGroup(group)) remaining.add(group);
       if (failure) {
         send(pending ?? "SIGTERM");
         // Proxy script завершается после native group; не сигналим ему TERM,
@@ -368,8 +405,7 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
     }
     await completed;
     await Promise.all(observed);
-    if (failure) throw failure;
-    if (mixed) await Deno.remove(fifo);
+    drained = true;
     let nativeStatus = status!;
     let nativeReceipt = false;
     for (const path of [receipt, ...(time ? [receipt + ".native"] : [])]) {
@@ -377,7 +413,7 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
         nativeStatus = JSON.parse(await Deno.readTextFile(path));
         if (path.endsWith(".native") || !time) nativeReceipt = true;
       } catch (e) {
-        if (!(e instanceof Deno.errors.NotFound)) throw e;
+        if (!(e instanceof Deno.errors.NotFound)) failed(e);
       }
     }
     if (escalated && !nativeReceipt) {
@@ -394,10 +430,10 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
           [cpuUserSeconds, cpuSystemSeconds, peakRssKiB] = values;
         }
       } catch (e) {
-        if (!(e instanceof Deno.errors.NotFound)) throw e;
+        if (!(e instanceof Deno.errors.NotFound)) failed(e);
       }
     }
-    return {
+    outcome = {
       code: nativeStatus.code,
       signal: nativeStatus.signal,
       wallSeconds: (performance.now() - start) / 1000,
@@ -407,10 +443,31 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
       escalated,
       stdioMode: terminal && !mixed ? "pty-combined" : "separate",
     };
+    try {
+      const started = await Deno.stat(receipt + (time ? ".native.started" : ".started"));
+      if (started.isFile && (nativeReceipt || escalated)) knownNativeOutcome = outcome;
+    } catch (e) {
+      if (!(e instanceof Deno.errors.NotFound)) failed(e);
+    }
   } finally {
-    fifoKeeper?.close();
+    try {
+      fifoKeeper?.close();
+    } catch (error) {
+      failed(error);
+    }
+    // После await child/status/streams: служебный FIFO не является raw artifact.
+    // Неудачный unlink не заменяет первую диагностическую ошибку.
+    if (mixed && (!processStarted || drained)) {
+      try {
+        await Deno.remove(fifo);
+      } catch (error) {
+        if (!(error instanceof Deno.errors.NotFound)) failed(error);
+      }
+    }
     Deno.removeSignalListener("SIGTERM", term);
     Deno.removeSignalListener("SIGINT", interrupt);
     options.abortSignal?.removeEventListener("abort", abort);
   }
+  if (failure) throw new OwnedProcessError(failure, knownNativeOutcome);
+  return outcome!;
 }

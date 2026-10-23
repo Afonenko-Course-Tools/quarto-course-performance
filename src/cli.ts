@@ -58,7 +58,9 @@ if (import.meta.main) {
   try {
     Deno.exit(await main(Deno.args));
   } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
+    try {
+      console.error(error instanceof Error ? error.message : String(error));
+    } catch { /* Отказ stderr не меняет код ошибки подготовки. */ }
     Deno.exit(2);
   }
 }

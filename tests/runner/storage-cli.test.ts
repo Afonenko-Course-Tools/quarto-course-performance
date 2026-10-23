@@ -318,3 +318,212 @@ Deno.test("foreign target provenance describes rendered sources rather than invo
     await Deno.remove(caller, { recursive: true });
   }
 });
+
+Deno.test("mixed TTY rejected sink retains native exit and mandatory report or printed staging", async () => {
+  const root = await Deno.makeTempDir();
+  const stages: string[] = [];
+  const quote = (s: string) => "'" + s.replaceAll("'", "'\\''") + "'";
+  try {
+    for (const code of [0, 7]) {
+      for (const fail of [false, true]) {
+        for (const unlink of [false, true]) {
+          const parent = join(root, `output-${code}-${fail}-${unlink}`),
+            messages = join(root, `messages-${code}-${fail}-${unlink}`);
+          const quarto = await fixture(
+            root,
+            `${
+              fail ? `rm -rf '${parent}'; echo blocker > '${parent}'` : ""
+            }\ntrap '' HUP\n(sleep 0.15; echo available-after-native-exit; sleep 0.1) &\nexit ${code}`,
+          );
+          const source = `import {main} from ${
+            JSON.stringify(new URL("../../src/cli.ts", import.meta.url).href)
+          };${
+            unlink
+              ? "const remove=Deno.remove;Deno.remove=async(path,options)=>{if(String(path).endsWith('.pipe'))throw new Error('unlink cleanup blocked');return await remove(path,options);};"
+              : ""
+          }const sink=new WritableStream({write(chunk){if(new TextDecoder().decode(chunk).includes('available-after-native-exit'))throw new Error('mixed downstream closed')}});Object.defineProperty(Deno.stdout.writable,'getWriter',{value:()=>sink.getWriter()});try{Deno.exit(await main(['render','--perf-output',${
+            JSON.stringify(parent)
+          }]));}catch(e){console.error(String(e));Deno.exit(2);}`;
+          const command = [Deno.execPath(), "eval", source].map(quote).join(" ") + " >" +
+            quote(messages);
+          const out = await new Deno.Command("script", {
+            args: ["-qefc", command, "/dev/null"],
+            cwd: root,
+            env: { QUARTO: quarto, SHELL: "/bin/sh" },
+            stdin: "null",
+            stdout: "piped",
+            stderr: "piped",
+          }).output();
+          const message = decoder.decode(out.stdout);
+          assert.equal(out.code, code === 7 ? 7 : 4, message);
+          assert(message.includes("mixed downstream closed"), message);
+          let dir: string;
+          if (fail || unlink) {
+            const stage = message.match(/staging сохранён: ([^: \n]+)/)?.[1];
+            assert(stage, message);
+            stages.push(stage);
+            dir = stage;
+          } else dir = await onlyRun(parent);
+          const r = JSON.parse(await Deno.readTextFile(join(dir, "run.json")));
+          assert.equal(r.outcome.code, code);
+          assert.equal(r.dataValid, false);
+          assert(r.quality.errors.some((s: string) => s.includes("mixed downstream closed")));
+          assert(
+            (await Deno.readTextFile(join(dir, "stdout.log"))).includes(
+              "available-after-native-exit",
+            ),
+          );
+          await Deno.stat(join(dir, "report.md"));
+          assert.equal(
+            (await Array.fromAsync(Deno.readDir(dir))).some((e) => e.name.endsWith(".pipe")),
+            unlink,
+          );
+          assert(
+            JSON.parse(await Deno.readTextFile(join(dir, "performance-error.json"))).error.includes(
+              "mixed downstream closed",
+            ),
+          );
+        }
+      }
+    }
+  } finally {
+    await Deno.remove(root, { recursive: true });
+    for (const s of stages) await Deno.remove(s, { recursive: true });
+  }
+});
+Deno.test("sink failure and failed finalization preserve original external signals with staged report", async () => {
+  const root = await Deno.makeTempDir();
+  const stages: string[] = [];
+  try {
+    for (const signal of ["SIGINT", "SIGTERM"] as const) {
+      const parent = join(root, signal), failed = join(root, signal + "-failed");
+      const quarto = await fixture(
+        root,
+        `rm -rf '${parent}'; echo blocker > '${parent}'\ntrap '' INT TERM\necho native-ready\nwhile :; do sleep 1; done`,
+      );
+      const source = `import {main} from ${
+        JSON.stringify(new URL("../../src/cli.ts", import.meta.url).href)
+      };const sink=new WritableStream({write(chunk){if(new TextDecoder().decode(chunk).includes('native-ready')){Deno.writeTextFileSync(${
+        JSON.stringify(failed)
+      },'failed');throw new Error('signal downstream closed')}}});Object.defineProperty(Deno.stdout.writable,'getWriter',{value:()=>sink.getWriter()});try{Deno.exit(await main(['render','--perf-output',${
+        JSON.stringify(parent)
+      }]));}catch(e){console.error(String(e));Deno.exit(2);}`;
+      const child = new Deno.Command(Deno.execPath(), {
+        args: ["eval", source],
+        cwd: root,
+        env: { QUARTO: quarto },
+        stdout: "piped",
+        stderr: "piped",
+      }).spawn();
+      const output = child.output();
+      try {
+        const deadline = Date.now() + 10000;
+        while (true) {
+          try {
+            await Deno.stat(failed);
+            break;
+          } catch (e) {
+            if (!(e instanceof Deno.errors.NotFound)) throw e;
+          }
+          assert(Date.now() < deadline);
+          await new Promise((r) => setTimeout(r, 10));
+        }
+        child.kill(signal);
+        const out = await output;
+        const message = decoder.decode(out.stderr);
+        assert.equal(out.signal, signal, message);
+        const stage = message.match(/staging сохранён: ([^: \n]+)/)?.[1];
+        assert(stage, message);
+        stages.push(stage);
+        const r = JSON.parse(await Deno.readTextFile(join(stage, "run.json")));
+        assert.equal(r.outcome.signal, "SIGKILL");
+        assert(r.quality.errors.some((s: string) => s.includes("signal downstream closed")));
+        await Deno.stat(join(stage, "report.md"));
+      } finally {
+        try {
+          child.kill("SIGTERM");
+        } catch { /* Already stopped. */ }
+        await output;
+      }
+    }
+  } finally {
+    await Deno.remove(root, { recursive: true });
+    for (const s of stages) await Deno.remove(s, { recursive: true });
+  }
+});
+Deno.test("unwritable diagnostic stderr preserves native payload and known exit with saved report", async () => {
+  const root = await Deno.makeTempDir();
+  const quote = (s: string) => "'" + s.replaceAll("'", "'\\''") + "'";
+  try {
+    for (const code of [0, 7]) {
+      const parent = join(root, `out-${code}`);
+      const quarto = await fixture(root, `echo native-payload\nexit ${code}`);
+      const command =
+        [Deno.execPath(), "run", "-A", cli, "render", "--perf-output", parent].map(quote).join(
+          " ",
+        ) + " 2>/dev/full";
+      const out = await new Deno.Command("/bin/sh", {
+        args: ["-c", command],
+        cwd: root,
+        env: { QUARTO: quarto },
+        stdout: "piped",
+        stderr: "piped",
+      }).output();
+      assert.equal(out.code, code === 7 ? 7 : 4);
+      assert.equal(decoder.decode(out.stdout), "native-payload\n");
+      assert.equal(decoder.decode(out.stderr), "");
+      const dir = await onlyRun(parent);
+      await Deno.stat(join(dir, "report.md"));
+      assert.equal(JSON.parse(await Deno.readTextFile(join(dir, "run.json"))).outcome.code, code);
+      await Deno.stat(join(dir, "performance-error.json"));
+    }
+    const blocked = join(root, "blocked-parent");
+    await Deno.writeTextFile(blocked, "existing");
+    const quarto = await fixture(root, "echo unexpected-native; exit 7");
+    const command =
+      [Deno.execPath(), "run", "-A", cli, "render", "--perf-output", blocked].map(quote).join(" ") +
+      " 2>/dev/full";
+    const out = await new Deno.Command("/bin/sh", {
+      args: ["-c", command],
+      cwd: root,
+      env: { QUARTO: quarto },
+      stdout: "piped",
+      stderr: "piped",
+    }).output();
+    assert.equal(out.code, 2);
+    assert.equal(decoder.decode(out.stdout), "");
+    assert.equal(decoder.decode(out.stderr), "");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+Deno.test("diagnostic receipt does not follow an existing symlink after failed finalization", async () => {
+  const root = await Deno.makeTempDir();
+  let stage = "";
+  try {
+    const keep = join(root, "keep");
+    await Deno.writeTextFile(keep, "original");
+    const quarto = await fixture(root, "exit 7");
+    const source = `import {main} from ${
+      JSON.stringify(new URL("../../src/cli.ts", import.meta.url).href)
+    };const write=Deno.writeTextFile;Deno.writeTextFile=async(path,data,options)=>{if(String(path).endsWith('/run.json')){const record=JSON.parse(data);await Deno.symlink(${
+      JSON.stringify(keep)
+    },record.collectionDirectory+'/performance-error.json');}return await write(path,data,options);};Deno.exit(await main(['render']));`;
+    const out = await new Deno.Command(Deno.execPath(), {
+      args: ["eval", source],
+      cwd: root,
+      env: { QUARTO: quarto },
+      stdout: "piped",
+      stderr: "piped",
+    }).output();
+    const message = decoder.decode(out.stderr);
+    stage = message.match(/staging сохранён: ([^: \n]+)/)?.[1] ?? "";
+    assert.equal(out.code, 7, message);
+    assert(stage, message);
+    await Deno.stat(join(stage, "report.md"));
+    assert.equal(await Deno.readTextFile(keep), "original");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+    if (stage) await Deno.remove(stage, { recursive: true }).catch(() => {});
+  }
+});

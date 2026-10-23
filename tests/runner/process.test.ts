@@ -608,7 +608,8 @@ Deno.test("registered PTY group waits for orphan descendant after fast native ex
   const quote = (s: string) => "'" + s.replaceAll("'", "'\\''") + "'";
   let outer: Deno.ChildProcess | undefined;
   try {
-    const native = "trap '' HUP; (sleep 0.7; printf done > \"$1/done\") & exit 7";
+    const native =
+      'trap \'\' HUP; (printf descendant-start\\n >> "$1/lifecycle"; sleep 0.7; printf done > "$1/done"; printf descendant-done\\n >> "$1/lifecycle") & printf \'parent=%s child=%s\\n\' "$$" "$!" >> "$1/lifecycle"; exit 7';
     const source = `import {runOwnedProcess} from ${
       JSON.stringify(module)
     };try{const result=await runOwnedProcess({executable:'/bin/sh',args:['-c',${
@@ -640,6 +641,41 @@ Deno.test("registered PTY group waits for orphan descendant after fast native ex
       error = await Deno.readTextFile(join(root, "error"));
     } catch (e) {
       if (!(e instanceof Deno.errors.NotFound)) throw e;
+    }
+    if (error) {
+      const snapshot: Record<string, unknown> = {
+        root,
+        error,
+        output: {
+          code: output.code,
+          stdout: new TextDecoder().decode(output.stdout),
+          stderr: new TextDecoder().decode(output.stderr),
+        },
+      };
+      const groups = new Set<number>(), materials: Record<string, string> = {};
+      for await (const entry of Deno.readDir(root)) {
+        if (!entry.isFile) continue;
+        materials[entry.name] = await Deno.readTextFile(join(root, entry.name));
+        if (entry.name.endsWith(".ready")) groups.add(JSON.parse(materials[entry.name]).group);
+      }
+      const processes: string[] = [];
+      for await (const entry of Deno.readDir("/proc")) {
+        if (!/^\d+$/.test(entry.name)) continue;
+        try {
+          const stat = await Deno.readTextFile(`/proc/${entry.name}/stat`),
+            fields = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
+          if (groups.has(Number(fields[2])) || groups.has(Number(fields[3]))) {
+            processes.push(stat + " wait=" + await Deno.readTextFile(`/proc/${entry.name}/wchan`));
+          }
+        } catch (e) {
+          if (!(e instanceof Deno.errors.NotFound)) throw e;
+        }
+      }
+      snapshot.materials = materials;
+      snapshot.processes = processes;
+      const path = root + "-failure.json";
+      await Deno.writeTextFile(path, JSON.stringify(snapshot, null, 2));
+      throw new Error(`${error}; snapshot=${path}`);
     }
     assert.equal(error, "");
     const outcome = JSON.parse(await Deno.readTextFile(join(root, "outcome")));
@@ -822,7 +858,7 @@ Deno.test("external cancellation bounds stopped registered bootstrap before nati
           .map((line) => JSON.parse(line));
         assert(trace.every((call) => call.pid === -group));
         assert.deepEqual(
-          trace.map((call) => call.signal),
+          trace.filter((call) => call.signal !== 0).map((call) => call.signal),
           held ? ["SIGKILL"] : ["SIGTERM", "SIGKILL"],
         );
         for await (const process of Deno.readDir("/proc")) {
@@ -847,6 +883,235 @@ Deno.test("external cancellation bounds stopped registered bootstrap before nati
       supervisor?.kill("SIGKILL");
     } catch { /* Уже завершён. */ }
     if (supervisor) await supervisor.status;
+    await Deno.remove(root, { recursive: true });
+  }
+});
+Deno.test("known native outcome accompanies downstream failure but pre-spawn failure does not invent one", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    for (const code of [0, 7]) {
+      let caught: unknown;
+      try {
+        await runOwnedProcess({
+          executable: "/bin/sh",
+          args: ["-c", `(sleep 0.15; echo delayed) & exit ${code}`],
+          cwd: root,
+          env: Deno.env.toObject(),
+          stdoutPath: join(root, `out-${code}`),
+          stderrPath: join(root, `err-${code}`),
+          timeExecutable: null,
+          stdout: new WritableStream({
+            write() {
+              throw new Error("known downstream failure");
+            },
+          }),
+          stderr: new WritableStream({ write() {} }),
+        });
+      } catch (error) {
+        caught = error;
+      }
+      assert(caught instanceof Error);
+      assert.match(caught.message, /known downstream failure/);
+      assert.equal((caught as Error & { outcome?: { code: number } }).outcome?.code, code);
+    }
+    let caught: unknown;
+    const sink = new WritableStream<Uint8Array>();
+    Object.defineProperty(sink, "getWriter", {
+      value: () => {
+        throw new Error("pre-spawn sink failure");
+      },
+    });
+    try {
+      await runOwnedProcess({
+        executable: "/bin/sh",
+        args: ["-c", `echo spawned > '${root}/unexpected-native'`],
+        cwd: root,
+        env: Deno.env.toObject(),
+        stdoutPath: join(root, "out-prespawn"),
+        stderrPath: join(root, "err-prespawn"),
+        timeExecutable: null,
+        stdout: sink,
+        stderr: new WritableStream({ write() {} }),
+      });
+    } catch (error) {
+      caught = error;
+    }
+    assert(caught instanceof Error);
+    assert.match(caught.message, /pre-spawn sink failure/);
+    assert.equal((caught as Error & { outcome?: unknown }).outcome, undefined);
+    await assert.rejects(() => Deno.stat(join(root, "unexpected-native")), Deno.errors.NotFound);
+  } finally {
+    await cleanupFixture(root);
+    await Deno.remove(root, { recursive: true });
+  }
+});
+Deno.test("a stale proc directory snapshot cannot hide a new live member of the registered group", async () => {
+  for (const mode of ["normal", "double-empty"]) {
+    const root = await Deno.makeTempDir();
+    const quote = (s: string) => "'" + s.replaceAll("'", "'\\''") + "'";
+    let outer: Deno.ChildProcess | undefined;
+    try {
+      const fixture = new URL("./fixtures/orphan-stale-scan.ts", import.meta.url).pathname;
+      outer = new Deno.Command("script", {
+        args: [
+          "-qefc",
+          [Deno.execPath(), "run", "-A", fixture, root, mode].map(quote).join(" "),
+          "/dev/null",
+        ],
+        env: { SHELL: "/bin/sh" },
+        stdin: "null",
+        stdout: "piped",
+        stderr: "piped",
+      }).spawn();
+      const output = await bounded(outer.output());
+      assert(output.success, new TextDecoder().decode(output.stderr));
+      const flight = JSON.parse(await Deno.readTextFile(join(root, "flight.json")));
+      assert.equal(flight.kernelExists, true);
+      assert(
+        flight.processes.some((p: { state: string; presentInSnapshot: boolean }) =>
+          p.state !== "Z" && !p.presentInSnapshot
+        ),
+      );
+      const result = JSON.parse(await Deno.readTextFile(join(root, "result.json")));
+      assert.equal(result.outcome.code, 7);
+      assert.equal(
+        result.doneAtReturn,
+        true,
+        "a real live descendant absent from an earlier /proc enumeration must still finish before return",
+      );
+    } finally {
+      await cleanupFixture(root, outer);
+      await Deno.remove(root, { recursive: true });
+    }
+  }
+});
+Deno.test("zombie-only group returns while a real live member beside a zombie still finishes", async () => {
+  for (const withLive of [false, true]) {
+    const root = await Deno.makeTempDir();
+    let holder: number | undefined;
+    let running: Promise<unknown> | undefined;
+    try {
+      let doneAtReturn = false;
+      running = runOwnedProcess({
+        executable: "python3",
+        args: [
+          new URL("./fixtures/zombie-group.py", import.meta.url).pathname,
+          root,
+          withLive ? "live" : "zombie",
+        ],
+        cwd: root,
+        env: Deno.env.toObject(),
+        stdoutPath: join(root, "out"),
+        stderrPath: join(root, "err"),
+        timeExecutable: null,
+        stdout: new WritableStream({ write() {} }),
+        stderr: new WritableStream({ write() {} }),
+      }).then((outcome) => {
+        try {
+          doneAtReturn = Deno.statSync(join(root, "live-done")).isFile;
+        } catch { /* No live completion yet. */ }
+        return outcome;
+      });
+      await waitFor(join(root, "state.json"));
+      const state = JSON.parse(await Deno.readTextFile(join(root, "state.json")));
+      holder = state.holder;
+      const fields = async (pid: number) =>
+        (await Deno.readTextFile(`/proc/${pid}/stat`)).split(") ")[1].split(" ");
+      const zombie = await fields(state.zombie), holderStat = await fields(state.holder);
+      assert.equal(zombie[0], "Z");
+      assert.equal(Number(zombie[2]), state.group);
+      assert.equal(Number(zombie[3]), state.session);
+      assert.notEqual(holderStat[0], "Z");
+      assert.equal(Number(holderStat[2]), state.holderGroup);
+      assert.notEqual(state.holderGroup, state.group);
+      if (withLive) {
+        await waitFor(join(root, "live-ready"));
+        const live = await fields(state.live);
+        assert.notEqual(live[0], "Z");
+        assert.equal(Number(live[2]), state.group);
+        await Deno.writeTextFile(join(root, "finish-live"), "");
+      }
+      const result = await bounded(running) as { code: number };
+      assert.equal(result.code, 7);
+      Deno.kill(-state.group, 0); // The unreaped zombie is still visible to the kernel.
+      const evidenceDirectory = Deno.env.get("PERF_TEST_EVIDENCE_DIRECTORY");
+      if (evidenceDirectory) {
+        await Deno.mkdir(evidenceDirectory, { recursive: true });
+        await Deno.writeTextFile(
+          join(evidenceDirectory, withLive ? "zombie-live.json" : "zombie-only.json"),
+          JSON.stringify({ state, zombie, holderStat, result, doneAtReturn }, null, 2),
+        );
+      }
+      if (withLive) assert.equal(doneAtReturn, true);
+      else {assert.notEqual(
+          (await fields(state.holder))[0],
+          "Z",
+          "unreaped zombies must not wait for a live holder in another process group",
+        );}
+    } finally {
+      await Deno.writeTextFile(join(root, "finish-live"), "");
+      await Deno.writeTextFile(join(root, "release-holder"), "");
+      if (holder) {
+        try {
+          await waitFor(join(root, "holder-done"));
+        } catch {
+          try {
+            Deno.kill(holder, "SIGKILL");
+          } catch { /* Own fixture holder already exited. */ }
+        }
+      }
+      await cleanupFixture(root);
+      if (running) await running.catch(() => {});
+      await Deno.remove(root, { recursive: true });
+    }
+  }
+});
+Deno.test("known registered group survives a stale error-path proc snapshot until controlled stop", async () => {
+  const root = await Deno.makeTempDir();
+  const quote = (s: string) => "'" + s.replaceAll("'", "'\\''") + "'";
+  let outer: Deno.ChildProcess | undefined;
+  try {
+    const fixture = new URL("./fixtures/orphan-stale-scan.ts", import.meta.url).pathname;
+    outer = new Deno.Command("script", {
+      args: [
+        "-qefc",
+        [Deno.execPath(), "run", "-A", fixture, root, "failure"].map(quote).join(" "),
+        "/dev/null",
+      ],
+      env: { SHELL: "/bin/sh" },
+      stdin: "null",
+      stdout: "piped",
+      stderr: "piped",
+    }).spawn();
+    const output = await bounded(outer.output()).catch(async (error) => {
+      const path = root + "-failure.json";
+      await Deno.copyFile(join(root, "flight.json"), path);
+      throw new Error(`${error}; snapshot=${path}`);
+    });
+    assert(output.success, new TextDecoder().decode(output.stderr));
+    const flight = JSON.parse(await Deno.readTextFile(join(root, "flight.json")));
+    assert(flight.kernelExists);
+    assert(
+      flight.processes.some((p: { state: string; presentInSnapshot: boolean }) =>
+        p.state !== "Z" && !p.presentInSnapshot
+      ),
+    );
+    const result = JSON.parse(await Deno.readTextFile(join(root, "result.json")));
+    assert.equal(result.outcome.code, 7);
+    assert.equal(result.outcome.escalated, true);
+    assert.match(result.error, /stale error-path downstream/);
+    for await (const entry of Deno.readDir("/proc")) {
+      if (!/^\d+$/.test(entry.name)) continue;
+      try {
+        const stat = await Deno.readTextFile(`/proc/${entry.name}/stat`),
+          f = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
+        if (Number(f[2]) === flight.group) assert.equal(f[0], "Z");
+      } catch (error) {
+        if (!(error instanceof Deno.errors.NotFound)) throw error;
+      }
+    }
+  } finally {
+    await cleanupFixture(root, outer);
     await Deno.remove(root, { recursive: true });
   }
 });
