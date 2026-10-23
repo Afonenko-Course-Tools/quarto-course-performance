@@ -15,6 +15,7 @@ async function waitFor(path: string) {
 Deno.test("owned process streams early output, preserves numeric 7 and unavailable resources", async () => {
   const root = await Deno.makeTempDir();
   try {
+    const forwarded: string[] = [], errors: string[] = [];
     const run = runOwnedProcess({
       executable: Deno.execPath(),
       args: [
@@ -26,6 +27,16 @@ Deno.test("owned process streams early output, preserves numeric 7 and unavailab
       stdoutPath: join(root, "out"),
       stderrPath: join(root, "err"),
       timeExecutable: join(root, "missing-gnu-time"),
+      stdout: new WritableStream({
+        write(chunk) {
+          forwarded.push(new TextDecoder().decode(chunk));
+        },
+      }),
+      stderr: new WritableStream({
+        write(chunk) {
+          errors.push(new TextDecoder().decode(chunk));
+        },
+      }),
     });
     await waitFor(join(root, "out"));
     assert.match(await Deno.readTextFile(join(root, "out")), /early/);
@@ -36,6 +47,8 @@ Deno.test("owned process streams early output, preserves numeric 7 and unavailab
     assert.equal(result.cpuSystemSeconds, null);
     assert.equal(result.peakRssKiB, null);
     assert.match(await Deno.readTextFile(join(root, "err")), /error/);
+    assert.equal(forwarded.join(""), "early\n");
+    assert.equal(errors.join(""), "error\n");
   } finally {
     await Deno.remove(root, { recursive: true });
   }
@@ -329,6 +342,241 @@ Deno.test("PTY output preserves redirected stdin type and current file offset", 
     assert.match(log, /READ:remaining/);
     assert.doesNotMatch(log, /READ:consumed/);
   } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+async function bounded<T>(operation: Promise<T>, milliseconds = 3000): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("fixture timeout")), milliseconds);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+async function cleanupFixture(root: string, supervisor?: Deno.ChildProcess) {
+  for await (const entry of Deno.readDir(root)) {
+    if (!entry.name.endsWith(".ready")) continue;
+    try {
+      const { group } = JSON.parse(await Deno.readTextFile(join(root, entry.name)));
+      if (Number.isSafeInteger(group) && group > 1) Deno.kill(-group, "SIGKILL");
+    } catch { /* Только собственные receipts fixture; group могла уже остановиться. */ }
+  }
+  try {
+    supervisor?.kill("SIGKILL");
+  } catch { /* Уже завершён. */ }
+  if (supervisor) await supervisor.status;
+}
+Deno.test("a rejected downstream stops and awaits its tree while preserving available logs", async () => {
+  const root = await Deno.makeTempDir();
+  const module = new URL("../../src/runner/process.ts", import.meta.url).href;
+  let supervisor: Deno.ChildProcess | undefined;
+  try {
+    const beat = join(root, "beat"), caught = join(root, "caught");
+    const native = `console.error('available-stderr');Deno.writeTextFileSync(${
+      JSON.stringify(beat)
+    },'x');console.log('first');setInterval(()=>Deno.writeTextFileSync(${
+      JSON.stringify(beat)
+    },'x',{append:true}),20);`;
+    const source = `import {runOwnedProcess} from ${
+      JSON.stringify(module)
+    };try {await runOwnedProcess({executable:Deno.execPath(),args:['eval',${
+      JSON.stringify(native)
+    }],cwd:${JSON.stringify(root)},env:Deno.env.toObject(),stdoutPath:${
+      JSON.stringify(join(root, "out"))
+    },stderrPath:${
+      JSON.stringify(join(root, "err"))
+    },timeExecutable:null,graceMilliseconds:150,stdout:new WritableStream({write(){throw new Error('downstream closed')}}),stderr:new WritableStream({write(){}})});}catch(e){await Deno.writeTextFile(${
+      JSON.stringify(caught)
+    },String(e));}`;
+    supervisor = new Deno.Command(Deno.execPath(), {
+      args: ["eval", source],
+      stdout: "piped",
+      stderr: "piped",
+    }).spawn();
+    const output = await bounded(supervisor.output());
+    assert(output.success, new TextDecoder().decode(output.stderr));
+    assert.match(await Deno.readTextFile(caught), /downstream closed/);
+    assert.match(await Deno.readTextFile(join(root, "out")), /first/);
+    assert.match(await Deno.readTextFile(join(root, "err")), /available-stderr/);
+    const size = (await Deno.stat(beat)).size;
+    await pause(100);
+    assert.equal((await Deno.stat(beat)).size, size);
+  } finally {
+    await cleanupFixture(root, supervisor);
+    await Deno.remove(root, { recursive: true });
+  }
+});
+Deno.test("keyboard Ctrl-C is observed once and escalates a stubborn PTY child", async () => {
+  const root = await Deno.makeTempDir();
+  const module = new URL("../../src/runner/process.ts", import.meta.url).href;
+  const quote = (s: string) => "'" + s.replaceAll("'", "'\\''") + "'";
+  let outer: Deno.ChildProcess | undefined;
+  let completion: Promise<Deno.CommandOutput> | undefined;
+  try {
+    const ready = join(root, "ready"),
+      beat = join(root, "beat"),
+      signals = join(root, "signals"),
+      outcome = join(root, "outcome");
+    const native = `Deno.addSignalListener('SIGINT',()=>Deno.writeTextFileSync(${
+      JSON.stringify(signals)
+    },'I',{append:true}));Deno.writeTextFileSync(${
+      JSON.stringify(ready)
+    },'ready');setInterval(()=>Deno.writeTextFileSync(${
+      JSON.stringify(beat)
+    },'x',{append:true}),20);`;
+    const source = `import {runOwnedProcess} from ${
+      JSON.stringify(module)
+    };Deno.writeTextFileSync(${
+      JSON.stringify(join(root, "supervisor"))
+    },String(Deno.pid));const result=await runOwnedProcess({executable:Deno.execPath(),args:['eval',${
+      JSON.stringify(native)
+    }],cwd:${JSON.stringify(root)},env:Deno.env.toObject(),stdoutPath:${
+      JSON.stringify(join(root, "out"))
+    },stderrPath:${
+      JSON.stringify(join(root, "err"))
+    },timeExecutable:null,graceMilliseconds:150});Deno.writeTextFileSync(${
+      JSON.stringify(outcome)
+    },JSON.stringify(result));`;
+    outer = new Deno.Command("script", {
+      args: ["-qefc", [Deno.execPath(), "eval", source].map(quote).join(" "), "/dev/null"],
+      env: { SHELL: "/bin/sh" },
+      stdin: "piped",
+      stdout: "piped",
+      stderr: "piped",
+    }).spawn();
+    const input = outer.stdin.getWriter();
+    completion = outer.output();
+    await waitFor(ready);
+    await waitFor(beat);
+    await input.write(new Uint8Array([3]));
+    input.releaseLock();
+    await bounded(waitFor(outcome), 1500);
+    const result = JSON.parse(await Deno.readTextFile(outcome));
+    assert.equal(result.escalated, true);
+    assert.equal(result.signal, "SIGKILL");
+    assert.equal(await Deno.readTextFile(signals), "I");
+    const size = (await Deno.stat(beat)).size;
+    await pause(100);
+    assert.equal((await Deno.stat(beat)).size, size);
+    const output = await bounded(completion);
+    assert(output.success, new TextDecoder().decode(output.stderr));
+  } finally {
+    await cleanupFixture(root);
+    try {
+      Deno.kill(Number(await Deno.readTextFile(join(root, "supervisor"))), "SIGKILL");
+    } catch { /* Собственный supervisor уже завершён. */ }
+    try {
+      outer?.kill("SIGKILL");
+    } catch { /* Уже завершён. */ }
+    try {
+      await outer?.stdin.close();
+    } catch { /* stdin уже закрыт. */ }
+    if (outer) await outer.status;
+    if (completion) await completion;
+    await Deno.remove(root, { recursive: true });
+  }
+});
+Deno.test("readiness is atomically published after delayed write and validates positive integer PGID", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const helper = await import("../../src/runner/resource-child.ts") as Record<string, unknown>;
+    const process = await import("../../src/runner/process.ts") as Record<string, unknown>;
+    const publish = helper.publishReceipt as (
+      path: string,
+      value: unknown,
+      write?: (path: string, data: string) => Promise<void>,
+    ) => Promise<void>;
+    const read = process.readOwnedGroup as (path: string) => Promise<number>;
+    assert.equal(typeof publish, "function");
+    assert.equal(typeof read, "function");
+    const path = join(root, "ready");
+    let written!: () => void, release!: () => void;
+    const started = new Promise<void>((r) => written = r),
+      gate = new Promise<void>((r) => release = r);
+    const pending = publish(path, { group: 123 }, async (temporary, data) => {
+      await Deno.writeTextFile(temporary, "");
+      written();
+      await gate;
+      await Deno.writeTextFile(temporary, data);
+    });
+    await started;
+    await assert.rejects(() => read(path), Deno.errors.NotFound);
+    release();
+    await pending;
+    assert.equal(await read(path), 123);
+    for (const group of [0, 1, -1, 1.5, NaN, "123", null]) {
+      await Deno.writeTextFile(path, JSON.stringify({ group }));
+      await assert.rejects(() => read(path), /PGID/);
+    }
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+Deno.test("invalid readiness stops only the proven owned descendants before reporting protocol error", async () => {
+  const root = await Deno.makeTempDir();
+  const module = new URL("../../src/runner/process.ts", import.meta.url).href;
+  const beat = join(root, "beat"), neighbor = join(root, "neighbor");
+  const other = new Deno.Command(Deno.execPath(), {
+    args: [
+      "eval",
+      `setInterval(()=>Deno.writeTextFileSync(${JSON.stringify(neighbor)},'n',{append:true}),15)`,
+    ],
+    stdout: "null",
+    stderr: "null",
+  }).spawn();
+  let supervisor: Deno.ChildProcess | undefined;
+  try {
+    const stat = await Deno.readTextFile(`/proc/${other.pid}/stat`);
+    const neighborGroup = Number(stat.slice(stat.lastIndexOf(")") + 2).split(" ")[2]);
+    for (const invalid of [0, neighborGroup]) {
+      try {
+        await Deno.remove(beat);
+      } catch (error) {
+        if (!(error instanceof Deno.errors.NotFound)) throw error;
+      }
+      const native = `setInterval(()=>Deno.writeTextFileSync(${
+        JSON.stringify(beat)
+      },'x',{append:true}),15);`;
+      const source = `import {runOwnedProcess} from ${
+        JSON.stringify(module)
+      };const original=Deno.readTextFile;Deno.readTextFile=(async(path,...args)=>{const text=await original(path,...args);if(String(path).endsWith('.ready')){while(true){try{await Deno.stat(${
+        JSON.stringify(beat)
+      });break;}catch{await new Promise(r=>setTimeout(r,10));}}return JSON.stringify({group:${
+        JSON.stringify(invalid)
+      }});}return text;}) as typeof Deno.readTextFile;try{await runOwnedProcess({executable:Deno.execPath(),args:['eval',${
+        JSON.stringify(native)
+      }],cwd:${JSON.stringify(root)},env:Deno.env.toObject(),stdoutPath:${
+        JSON.stringify(join(root, "out"))
+      },stderrPath:${
+        JSON.stringify(join(root, "err"))
+      },timeExecutable:null,graceMilliseconds:150});}catch(e){Deno.writeTextFileSync(${
+        JSON.stringify(join(root, "caught"))
+      },String(e));}`;
+      supervisor = new Deno.Command(Deno.execPath(), {
+        args: ["eval", source],
+        stdout: "piped",
+        stderr: "piped",
+      }).spawn();
+      const output = await bounded(supervisor.output());
+      assert(output.success, new TextDecoder().decode(output.stderr));
+      assert.match(await Deno.readTextFile(join(root, "caught")), /PGID/);
+      const size = (await Deno.stat(beat)).size;
+      await waitFor(neighbor);
+      const otherSize = (await Deno.stat(neighbor)).size;
+      await pause(100);
+      assert.equal((await Deno.stat(beat)).size, size);
+      assert((await Deno.stat(neighbor)).size > otherSize);
+    }
+  } finally {
+    await cleanupFixture(root, supervisor);
+    other.kill("SIGKILL");
+    await other.status;
     await Deno.remove(root, { recursive: true });
   }
 });

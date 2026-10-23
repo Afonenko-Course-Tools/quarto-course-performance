@@ -29,22 +29,102 @@ async function liveGroup(group: number): Promise<boolean> {
   }
   return false;
 }
+export async function readOwnedGroup(path: string): Promise<number> {
+  const value = JSON.parse(await Deno.readTextFile(path));
+  if (!Number.isSafeInteger(value.group) || value.group <= 1) {
+    throw new Error("Некорректный PGID в readiness receipt");
+  }
+  return value.group;
+}
+
+// Только аварийный путь до доверенного receipt: session создана нашим setsid PID.
+// Дополнительные session признаются своими лишь по фактическому родству с ним.
+async function ownedGroups(root: number, sessions: Set<number>): Promise<Set<number>> {
+  const processes = new Map<
+    number,
+    { parent: number; group: number; session: number; live: boolean }
+  >();
+  for await (const entry of Deno.readDir("/proc")) {
+    if (!/^\d+$/.test(entry.name)) continue;
+    try {
+      const stat = await Deno.readTextFile(`/proc/${entry.name}/stat`);
+      const f = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
+      processes.set(Number(entry.name), {
+        parent: Number(f[1]),
+        group: Number(f[2]),
+        session: Number(f[3]),
+        live: f[0] !== "Z",
+      });
+    } catch (error) {
+      if (!(error instanceof Deno.errors.NotFound)) throw error;
+    }
+  }
+  const descendants = new Set([root]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const [pid, process] of processes) {
+      if (!descendants.has(pid) && descendants.has(process.parent)) {
+        descendants.add(pid);
+        sessions.add(process.session);
+        changed = true;
+      }
+    }
+  }
+  const own = processes.get(Deno.pid)?.session;
+  return new Set(
+    [...processes.values()].filter((p) =>
+      p.live && p.group > 1 &&
+      p.session !== own && sessions.has(p.session)
+    ).map((p) => p.group),
+  );
+}
+
 async function tee(
   input: ReadableStream<Uint8Array>,
   path: string,
   output: WritableStream<Uint8Array>,
+  failed: (error: unknown) => void,
 ) {
-  const log = await Deno.open(path, { write: true, create: true, truncate: true });
-  const sink = output.getWriter();
+  let log: Deno.FsFile | undefined;
+  let sink: WritableStreamDefaultWriter<Uint8Array> | undefined;
+  try {
+    log = await Deno.open(path, { write: true, create: true, truncate: true });
+  } catch (error) {
+    failed(error);
+  }
+  try {
+    sink = output.getWriter();
+  } catch (error) {
+    failed(error);
+  }
   try {
     for await (const chunk of input) {
-      let offset = 0;
-      while (offset < chunk.length) offset += await log.write(chunk.subarray(offset));
-      await sink.write(chunk);
+      if (log) {
+        try {
+          let offset = 0;
+          while (offset < chunk.length) offset += await log.write(chunk.subarray(offset));
+        } catch (error) {
+          failed(error);
+          log.close();
+          log = undefined;
+        }
+      }
+      if (sink) {
+        try {
+          await sink.write(chunk);
+        } catch (error) {
+          failed(error);
+          sink.releaseLock();
+          sink = undefined;
+        }
+      }
     }
+  } catch (error) {
+    failed(error);
   } finally {
-    sink.releaseLock();
-    log.close();
+    sink?.releaseLock();
+    log?.close();
   }
 }
 
@@ -122,15 +202,24 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
   let group: number | undefined,
     pending: Deno.Signal | undefined,
     signalledAt = 0,
-    escalated = false;
+    escalated = false,
+    failure: unknown;
+  const sent = new Set<number>();
+  const failed = (error: unknown) => {
+    failure ??= error instanceof Error ? error : new Error("Ошибка supervisor", { cause: error });
+  };
+  const signalGroup = (target: number, signal: Deno.Signal) => {
+    try {
+      Deno.kill(-target, signal);
+    } catch (error) {
+      if (!(error instanceof Deno.errors.NotFound)) failed(error);
+    }
+  };
   const send = (signal: Deno.Signal) => {
     pending = signal;
     if (group && !signalledAt) {
-      try {
-        Deno.kill(-group, signal);
-      } catch (e) {
-        if (!(e instanceof Deno.errors.NotFound)) throw e;
-      }
+      signalGroup(group, signal);
+      sent.add(group);
       signalledAt = performance.now();
     }
   };
@@ -161,11 +250,13 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
           child.stdout,
           stdoutTerminal ? options.stdoutPath : options.stderrPath,
           stdoutTerminal ? Deno.stdout.writable : Deno.stderr.writable,
+          failed,
         ),
         tee(
           child.stderr,
           mixed ? receipt + ".supervisor-stderr" : options.stderrPath,
           mixed ? new WritableStream({ write() {} }) : Deno.stderr.writable,
+          failed,
         ),
         ...(redirected
           ? [(async () => {
@@ -176,47 +267,84 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
               stdoutTerminal
                 ? (options.stderr ?? Deno.stderr.writable)
                 : (options.stdout ?? Deno.stdout.writable),
+              failed,
             );
           })()]
           : []),
       ]
       : [
-        tee(child.stdout, options.stdoutPath, options.stdout ?? Deno.stdout.writable),
-        tee(child.stderr, options.stderrPath, options.stderr ?? Deno.stderr.writable),
+        tee(child.stdout, options.stdoutPath, options.stdout ?? Deno.stdout.writable, failed),
+        tee(child.stderr, options.stderrPath, options.stderr ?? Deno.stderr.writable, failed),
       ];
+    const observed = streams.map((stream) => stream.catch(failed));
+    const sessions = new Set([child.pid]);
     let status: Deno.CommandStatus | undefined;
     const completed = child.status.then((s) => {
       status = s;
     });
     while (true) {
-      if (!group) {
+      if (!group && !failure) {
         try {
-          group = JSON.parse(await Deno.readTextFile(receipt + ".ready")).group;
-        } catch (e) {
-          if (!(e instanceof Deno.errors.NotFound)) throw e;
+          const candidate = await readOwnedGroup(receipt + ".ready");
+          const owned = await ownedGroups(child.pid, sessions);
+          // Между снимками быстрый native уже может завершиться. Проверяем
+          // наличие чужой live group после ownership snapshot, а не до него.
+          if (!owned.has(candidate) && await liveGroup(candidate)) {
+            throw new Error("PGID readiness не принадлежит собственной session");
+          }
+          group = candidate;
+        } catch (error) {
+          if (!(error instanceof Deno.errors.NotFound)) failed(error);
         }
         if (group && pending) send(pending);
       }
-      if ((group || status) && fifoKeeper) {
+      if (group && !signalledAt) {
+        try {
+          const notice = JSON.parse(await Deno.readTextFile(receipt + ".signal"));
+          if (!["SIGINT", "SIGTERM"].includes(notice.signal)) {
+            throw new Error("Некорректный signal receipt");
+          }
+          // Этот сигнал PTY уже доставил; повторной пересылки нет.
+          pending = notice.signal;
+          sent.add(group);
+          signalledAt = performance.now();
+        } catch (error) {
+          if (!(error instanceof Deno.errors.NotFound)) failed(error);
+        }
+      }
+      if ((group || status || failure) && fifoKeeper) {
         fifoKeeper.close();
         fifoKeeper = undefined;
       }
-      if (status && (group === undefined || !await liveGroup(group))) break;
-      if (
-        group && signalledAt && !escalated &&
-        performance.now() - signalledAt > (options.graceMilliseconds ?? 2000)
-      ) {
-        escalated = true;
-        try {
-          Deno.kill(-group, "SIGKILL");
-        } catch (e) {
-          if (!(e instanceof Deno.errors.NotFound)) throw e;
+      const remaining = failure
+        ? await ownedGroups(child.pid, sessions)
+        : new Set(group && await liveGroup(group) ? [group] : []);
+      if (failure) {
+        // Proxy script завершается после native group; не сигналим ему TERM,
+        // иначе script способен повторно переслать уже доставленный сигнал.
+        const targets = remaining.size > 1
+          ? [...remaining].filter((g) => g !== child.pid)
+          : [...remaining];
+        for (const target of targets) {
+          if (!sent.has(target)) {
+            signalGroup(target, "SIGTERM");
+            sent.add(target);
+          }
         }
+        signalledAt ||= performance.now();
+      }
+      if (status && remaining.size === 0) break;
+      if (signalledAt && performance.now() - signalledAt > (options.graceMilliseconds ?? 2000)) {
+        for (const target of remaining) {
+          if (!escalated) signalGroup(target, "SIGKILL");
+        }
+        if (remaining.size) escalated = true;
       }
       await pause(10);
     }
     await completed;
-    await Promise.all(streams);
+    await Promise.all(observed);
+    if (failure) throw failure;
     if (mixed) await Deno.remove(fifo);
     let nativeStatus = status!;
     let nativeReceipt = false;
