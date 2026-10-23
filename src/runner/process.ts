@@ -199,6 +199,7 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
   const args = redirectedInput
     ? ["/bin/sh", "-c", "exec 3<&0; exec 0</dev/null; exec " + terminalArgs.map(quote).join(" ")]
     : terminalArgs;
+  let started = false;
   let group: number | undefined,
     pending: Deno.Signal | undefined,
     signalledAt = 0,
@@ -217,7 +218,7 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
   };
   const send = (signal: Deno.Signal) => {
     pending = signal;
-    if (group && !signalledAt) {
+    if (group && started && !signalledAt) {
       signalGroup(group, signal);
       sent.add(group);
       signalledAt = performance.now();
@@ -287,16 +288,26 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
         try {
           const candidate = await readOwnedGroup(receipt + ".ready");
           const owned = await ownedGroups(child.pid, sessions);
-          // Между снимками быстрый native уже может завершиться. Проверяем
-          // наличие чужой live group после ownership snapshot, а не до него.
-          if (!owned.has(candidate) && await liveGroup(candidate)) {
+          // Регистрационный helper удерживает живую group до ack: любой
+          // неподтверждённый candidate — ошибка, даже если такой PGID не существует.
+          if (!owned.has(candidate)) {
             throw new Error("PGID readiness не принадлежит собственной session");
           }
           group = candidate;
+          // sessions уже сохранены, пока ожидающий helper удерживает parent-chain.
+          await Deno.writeTextFile(receipt + ".registered", "");
         } catch (error) {
           if (!(error instanceof Deno.errors.NotFound)) failed(error);
         }
-        if (group && pending) send(pending);
+      }
+      if (group && !started && !failure) {
+        try {
+          await Deno.stat(receipt + (time ? ".native.started" : ".started"));
+          started = true;
+        } catch (error) {
+          if (!(error instanceof Deno.errors.NotFound)) failed(error);
+        }
+        if (started && pending && !signalledAt) send(pending);
       }
       if (group && !signalledAt) {
         try {
