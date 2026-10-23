@@ -109,3 +109,45 @@ Deno.test("system Quarto probe observes bundled runtime capabilities", async () 
   assert.equal(caps.luaHook, true);
   assert(caps.runtime.deno.hash);
 });
+
+Deno.test("probe resolves bare Deno and Pandoc overrides through effective PATH for runtime receipts", async () => {
+  const root = await Deno.makeTempDir({ prefix: "effective PATH runtime " });
+  try {
+    const bundled = await probeQuarto("quarto");
+    const first = join(root, "not executable"), selected = join(root, "selected");
+    await Deno.mkdir(first);
+    await Deno.mkdir(selected);
+    for (
+      const [name, binary] of [["selected-deno", bundled.deno], ["selected-pandoc", bundled.pandoc]]
+    ) {
+      await Deno.writeTextFile(join(first, name), "not executable\n");
+      await Deno.chmod(join(first, name), 0o644);
+      await Deno.symlink(binary, join(selected, name));
+    }
+    for (
+      const override of [
+        { QUARTO_DENO: "selected-deno" },
+        { QUARTO_PANDOC: "selected-pandoc" },
+        { QUARTO_DENO: "selected-deno", QUARTO_PANDOC: "selected-pandoc" },
+      ] as Record<string, string>[]
+    ) {
+      const env = { PATH: `${first}:${selected}:${Deno.env.get("PATH") ?? ""}`, ...override };
+      const before = JSON.stringify(env);
+      const caps = await probeQuarto("quarto", env);
+      for (
+        const [key, name] of [["deno", "selected-deno"], ["pandoc", "selected-pandoc"]] as const
+      ) {
+        const expected = override[key === "deno" ? "QUARTO_DENO" : "QUARTO_PANDOC"]
+          ? join(selected, name)
+          : bundled[key];
+        assert.equal(caps[key], expected);
+        assert.equal(caps.runtime[key].path, expected);
+        assert.equal(caps.runtime[key].hash, bundled.runtime[key].hash);
+        assert.equal(caps.runtime[key].version, bundled.runtime[key].version);
+      }
+      assert.equal(JSON.stringify(env), before);
+    }
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

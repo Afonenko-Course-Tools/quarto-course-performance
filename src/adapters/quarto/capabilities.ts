@@ -1,6 +1,25 @@
 import type { SourceManifest } from "../../config/types.ts";
-import { join } from "node:path";
+import { delimiter, join, resolve } from "node:path";
 import { hashFile } from "../../sources/snapshot.ts";
+// Subprocess ищет bare command в PATH; receipts должны читать тот же файл.
+async function executablePath(command: string, env: Record<string, string>): Promise<string> {
+  if (command.includes("/") || command.includes("\\")) return resolve(command);
+  for (const directory of (env.PATH ?? "").split(delimiter)) {
+    const candidate = resolve(directory, command);
+    try {
+      const info = await Deno.stat(candidate);
+      if (info.isFile && (info.mode === null || (info.mode & 0o111) !== 0)) return candidate;
+    } catch (error) {
+      if (
+        !(error instanceof Deno.errors.NotFound) &&
+        !(error instanceof Deno.errors.NotADirectory) &&
+        !(error instanceof Deno.errors.PermissionDenied)
+      ) throw error;
+    }
+  }
+  throw new Error(`Исполняемый файл ${command} не найден в effective PATH`);
+}
+
 export async function probeQuarto(
   runtimePath: string,
   overrides: Record<string, string> = {},
@@ -19,7 +38,10 @@ export async function probeQuarto(
   };
   const [bin, share] = (await run(runtimePath, ["--paths"])).split("\n");
   if (!bin || !share) throw new Error("Неизвестная структура Quarto");
-  const deno = env.QUARTO_DENO || join(bin, "tools", Deno.build.arch, "deno");
+  const deno = await executablePath(
+    env.QUARTO_DENO || join(bin, "tools", Deno.build.arch, "deno"),
+    env,
+  );
   let pandoc = env.QUARTO_PANDOC || join(bin, "tools", Deno.build.arch, "pandoc");
   if (!env.QUARTO_PANDOC) {
     try {
@@ -29,6 +51,7 @@ export async function probeQuarto(
       pandoc = join(bin, "tools/pandoc");
     }
   }
+  pandoc = await executablePath(pandoc, env);
   const help = await run(deno, ["run", "--help"]),
     version = await run(runtimePath, ["--version"]),
     main = join(share, "filters/main.lua");
