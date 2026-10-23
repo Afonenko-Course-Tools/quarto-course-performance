@@ -974,6 +974,15 @@ Deno.test("a stale proc directory snapshot cannot hide a new live member of the 
       );
       const result = JSON.parse(await Deno.readTextFile(join(root, "result.json")));
       assert.equal(result.outcome.code, 7);
+      assert.equal(result.injectedSnapshots, mode === "double-empty" ? 2 : 1);
+      const evidenceDirectory = Deno.env.get("PERF_TEST_EVIDENCE_DIRECTORY");
+      if (evidenceDirectory) {
+        await Deno.mkdir(evidenceDirectory, { recursive: true });
+        await Deno.writeTextFile(
+          join(evidenceDirectory, `stale-${mode}.json`),
+          JSON.stringify(result, null, 2),
+        );
+      }
       assert.equal(
         result.doneAtReturn,
         true,

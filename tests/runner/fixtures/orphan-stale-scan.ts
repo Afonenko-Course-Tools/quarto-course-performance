@@ -3,6 +3,7 @@ const root = Deno.args[0];
 const fault = Deno.args[1] === "failure";
 const doubleEmpty = Deno.args[1] === "double-empty";
 let staleEntries: Deno.DirEntry[] | undefined, repeated = false;
+let injectedSnapshots = 0;
 const NativeCommand = Deno.Command;
 let ownedDone: Promise<Deno.CommandStatus> | undefined;
 Deno.Command = class extends NativeCommand {
@@ -18,7 +19,19 @@ Deno.Command = class extends NativeCommand {
 const readDir = Deno.readDir;
 let injected = false;
 Deno.readDir = ((path: string | URL) => {
-  if (path !== "/proc" || injected) return readDir(path);
+  if (path !== "/proc") return readDir(path);
+  if (injected) {
+    if (doubleEmpty && !repeated && staleEntries) {
+      repeated = true;
+      return {
+        async *[Symbol.asyncIterator]() {
+          injectedSnapshots++;
+          for (const entry of staleEntries!) yield entry;
+        },
+      };
+    }
+    return readDir(path);
+  }
   try {
     Deno.statSync(root + "/parent-ready");
   } catch {
@@ -36,6 +49,7 @@ Deno.readDir = ((path: string | URL) => {
   staleEntries = entries;
   return {
     async *[Symbol.asyncIterator]() {
+      injectedSnapshots++;
       Deno.writeTextFileSync(root + "/release", "");
       await ownedDone;
       const ready = [...Deno.readDirSync(root)].find((e) => e.name.endsWith(".ready"))!;
@@ -117,5 +131,9 @@ try {
 } catch { /* Return before live descendant finishes. */ }
 Deno.writeTextFileSync(
   root + "/result.json",
-  JSON.stringify({ outcome, doneAtReturn, error: error ? String(error) : undefined }, null, 2),
+  JSON.stringify(
+    { outcome, doneAtReturn, injectedSnapshots, error: error ? String(error) : undefined },
+    null,
+    2,
+  ),
 );

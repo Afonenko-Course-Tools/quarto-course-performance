@@ -134,8 +134,6 @@ export async function finalizeRun(paths: RunPaths, record: RunRecord): Promise<s
     // mkdir без recursive не позволяет затереть чужой запуск, файл или ссылку.
     await Deno.mkdir(paths.finalDirectory);
     await copyDirectory(paths.stagingDirectory, paths.finalDirectory);
-    await Deno.remove(paths.stagingDirectory, { recursive: true });
-    return paths.finalDirectory;
   } catch (error) {
     throw new Error(
       `Не удалось сохранить итоговый отчёт; staging сохранён: ${paths.stagingDirectory}: ${
@@ -144,4 +142,17 @@ export async function finalizeRun(paths: RunPaths, record: RunRecord): Promise<s
       { cause: error },
     );
   }
+  // Полный final уже сохранён. Частичная ошибка cleanup не отменяет этот результат.
+  try {
+    await Deno.remove(paths.stagingDirectory, { recursive: true });
+  } catch (error) {
+    try {
+      console.error(
+        `Итоговый отчёт сохранён: ${paths.finalDirectory}; не удалось полностью очистить остаток staging: ${paths.stagingDirectory}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    } catch { /* Недоступный stderr не отменяет уже сохранённый полный final. */ }
+  }
+  return paths.finalDirectory;
 }

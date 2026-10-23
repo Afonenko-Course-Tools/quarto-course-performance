@@ -116,3 +116,85 @@ Deno.test("report processes an async run stream before requesting the next raw j
     await Deno.remove(root, { recursive: true });
   }
 });
+
+Deno.test("legacy Quarto render metadata preserves the executable and only argv after render", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const manifest = { experimentId: "e", sources: [], packages: [], runtime: {} };
+    for (const executable of ["quarto", "/usr/bin/quarto"]) {
+      const runId = executable === "quarto" ? "bare" : "absolute";
+      const dir = join(root, "runs", runId);
+      await Deno.mkdir(dir, { recursive: true });
+      await Deno.writeTextFile(
+        join(dir, "run.json"),
+        JSON.stringify({
+          runId,
+          cwd: "/original/cwd",
+          argv: [executable, "render", "page.qmd", "--profile", "student", "--", "--help"],
+          mode: "off",
+          buildExitCode: 7,
+          wallSeconds: 1,
+          preparation: [],
+        }),
+      );
+      await writeExperimentReport(manifest, [{
+        runId,
+        events: [],
+        executors: {},
+        dataValid: true,
+        quality: { droppedEvents: 0, incompleteSpans: 0, coverageComplete: true, errors: [] },
+      }], root);
+      const converted = JSON.parse(await Deno.readTextFile(join(dir, "run.json")));
+      assert.equal(converted.request.quarto, executable);
+      assert.deepEqual(converted.request.nativeArgv, [
+        "page.qmd",
+        "--profile",
+        "student",
+        "--",
+        "--help",
+      ]);
+      assert.deepEqual(converted.argv, [
+        executable,
+        "render",
+        "page.qmd",
+        "--profile",
+        "student",
+        "--",
+        "--help",
+      ]);
+    }
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+Deno.test("legacy arbitrary commands are not silently relabeled as native Quarto render", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    for (const argv of [["python3", "render", "page.qmd"], ["quarto", "preview", "page.qmd"]]) {
+      const dir = join(root, "runs/r");
+      await Deno.mkdir(dir, { recursive: true });
+      const legacy = JSON.stringify({
+        runId: "r",
+        cwd: "/original",
+        argv,
+        mode: "off",
+        buildExitCode: 0,
+      });
+      await Deno.writeTextFile(join(dir, "run.json"), legacy);
+      await assert.rejects(
+        () =>
+          writeExperimentReport({ experimentId: "e", sources: [], packages: [], runtime: {} }, [{
+            runId: "r",
+            events: [],
+            executors: {},
+            dataValid: true,
+            quality: { droppedEvents: 0, incompleteSpans: 0, coverageComplete: true, errors: [] },
+          }], root),
+        /Quarto render/,
+      );
+      assert.equal(await Deno.readTextFile(join(dir, "run.json")), legacy);
+    }
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

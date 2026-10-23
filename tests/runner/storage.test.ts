@@ -236,3 +236,84 @@ Deno.test("standalone directly in system temp still receives external staging", 
     if (stage) await Deno.remove(stage, { recursive: true }).catch(() => {});
   }
 });
+
+Deno.test("partial staging cleanup PermissionDenied returns the complete committed final", async () => {
+  const root = await Deno.makeTempDir();
+  let stage = "";
+  const remove = Deno.remove, report = console.error;
+  let cleanupError: unknown;
+  const messages: string[] = [];
+  try {
+    const paths = await prepareRunStorage({
+      cwd: root,
+      quarto: "quarto",
+      mode: "off",
+      nativeArgv: [],
+    }, { projectRoot: root, kind: "standalone" });
+    stage = paths.stagingDirectory;
+    await Deno.writeTextFile(join(stage, "stdout.log"), "native output");
+    await Deno.mkdir(join(stage, "protected"));
+    await Deno.writeTextFile(join(stage, "protected/raw.jsonl"), "unchanged raw");
+    await Deno.chmod(join(stage, "protected"), 0o500);
+    Deno.remove = async (path, options) => {
+      try {
+        return await remove(path, options);
+      } catch (error) {
+        if (path === stage) cleanupError = error;
+        throw error;
+      }
+    };
+    console.error = (...args: unknown[]) => {
+      messages.push(args.map(String).join(" "));
+    };
+    const final = await finalizeRun(paths, record(stage, paths.runId));
+    assert(
+      cleanupError instanceof Deno.errors.PermissionDenied,
+      "the real read-only directory must reject recursive cleanup",
+    );
+    assert.equal(final, paths.finalDirectory);
+    for (
+      const name of ["stdout.log", "run.json", "summary.json", "report.md", "protected/raw.jsonl"]
+    ) await Deno.stat(join(final, name));
+    assert.equal(await Deno.readTextFile(join(final, "protected/raw.jsonl")), "unchanged raw");
+    assert.equal(
+      JSON.parse(await Deno.readTextFile(join(final, "run.json"))).outputDirectory,
+      final,
+    );
+    const remaining = (await Array.fromAsync(Deno.readDir(stage))).map((e) => e.name);
+    assert(
+      ["run.json", "summary.json", "report.md", "stdout.log"].some((name) =>
+        !remaining.includes(name)
+      ),
+      "real cleanup removed part of staging before PermissionDenied",
+    );
+    assert(messages.some((message) => message.includes(final) && message.includes(stage)));
+    const evidenceDirectory = Deno.env.get("PERF_TEST_EVIDENCE_DIRECTORY");
+    if (evidenceDirectory) {
+      await Deno.mkdir(evidenceDirectory, { recursive: true });
+      await Deno.writeTextFile(
+        join(evidenceDirectory, "cleanup-committed-final.json"),
+        JSON.stringify(
+          {
+            returned: final,
+            final: paths.finalDirectory,
+            stage,
+            remainingStaging: remaining,
+            finalFiles: (await Array.fromAsync(Deno.readDir(final))).map((e) => e.name),
+            cleanupError: String(cleanupError),
+          },
+          null,
+          2,
+        ),
+      );
+    }
+  } finally {
+    Deno.remove = remove;
+    console.error = report;
+    if (stage) {
+      await Deno.chmod(join(stage, "protected"), 0o700).catch(() => {});
+      await remove(stage, { recursive: true }).catch(() => {});
+    }
+    await remove(root, { recursive: true });
+  }
+});

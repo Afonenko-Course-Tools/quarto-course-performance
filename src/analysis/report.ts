@@ -1,4 +1,4 @@
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import type { SourceManifest } from "../config/types.ts";
 import type { NormalizedRun } from "./normalize.ts";
 
@@ -64,6 +64,23 @@ export async function writeExperimentReport(
     await Deno.mkdir(path, { recursive: true });
     const build = builds.find((b) => b.runId === run.runId) ?? {};
     // Адаптер старого experiment metadata; raw journals и preparation receipts не меняются.
+    let legacyQuarto = "quarto", legacyNativeArgv: string[] = [];
+    if (build.schema_version !== 2 && build.argv !== undefined) {
+      const argv = build.argv;
+      if (
+        !Array.isArray(argv) || argv.some((arg) => typeof arg !== "string") ||
+        argv[1] !== "render" ||
+        !(typeof argv[0] === "string" &&
+          (["quarto", "quarto.exe"].includes(basename(argv[0]).toLowerCase()) ||
+            argv[0] === manifest.runtime.quarto?.path))
+      ) {
+        throw new Error(
+          "Legacy argv не описывает известный Quarto render; необходима явная адаптация команды",
+        );
+      }
+      legacyQuarto = argv[0];
+      legacyNativeArgv = argv.slice(2);
+    }
     const record: RunRecord = build.schema_version === 2
       ? { ...build, dataValid: run.dataValid, quality: run.quality } as unknown as RunRecord
       : {
@@ -72,8 +89,8 @@ export async function writeExperimentReport(
         runId: run.runId,
         request: {
           cwd: String(build.cwd ?? resolve(path)),
-          quarto: String((build.argv as string[] | undefined)?.[0] ?? "quarto"),
-          nativeArgv: (build.argv as string[] | undefined)?.slice(1) ?? [],
+          quarto: legacyQuarto,
+          nativeArgv: legacyNativeArgv,
           mode: (build.mode ?? "off") as RunRecord["request"]["mode"],
         },
         outcome: {

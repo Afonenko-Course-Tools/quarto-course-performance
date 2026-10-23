@@ -527,3 +527,48 @@ Deno.test("diagnostic receipt does not follow an existing symlink after failed f
     if (stage) await Deno.remove(stage, { recursive: true }).catch(() => {});
   }
 });
+
+Deno.test("CLI keeps native zero and seven and reports complete final after partial staging cleanup", async () => {
+  const root = await Deno.makeTempDir();
+  const stages: string[] = [];
+  try {
+    for (const code of [0, 7]) {
+      const parent = join(root, `output-${code}`), stageReceipt = join(root, `stage-${code}`);
+      const quarto = await fixture(root, `echo native-payload\nexit ${code}`);
+      const source = `import {main} from ${
+        JSON.stringify(new URL("../../src/cli.ts", import.meta.url).href)
+      };const write=Deno.writeTextFile;Deno.writeTextFile=async(path,data,options)=>{if(String(path).endsWith('/run.json')){const record=JSON.parse(data),stage=record.collectionDirectory;await write(${
+        JSON.stringify(stageReceipt)
+      },stage);await Deno.mkdir(stage+'/protected');await write(stage+'/protected/raw.jsonl','raw');await Deno.chmod(stage+'/protected',0o500);}return await write(path,data,options);};Deno.exit(await main(['render','--perf-output',${
+        JSON.stringify(parent)
+      }]));`;
+      const out = await new Deno.Command(Deno.execPath(), {
+        args: ["eval", source],
+        cwd: root,
+        env: { QUARTO: quarto },
+        stdout: "piped",
+        stderr: "piped",
+      }).output();
+      const stage = await Deno.readTextFile(stageReceipt);
+      stages.push(stage);
+      const message = decoder.decode(out.stderr);
+      assert.equal(out.code, code, message);
+      assert.equal(decoder.decode(out.stdout), "native-payload\n");
+      const final = message.match(/Отчёт Performance: ([^\r\n]+)/)?.[1];
+      assert(final, message);
+      assert.equal(final, await onlyRun(parent));
+      for (
+        const file of ["run.json", "summary.json", "report.md", "stdout.log", "protected/raw.jsonl"]
+      ) await Deno.stat(join(final, file));
+      assert(message.includes("не удалось полностью очистить остаток staging"), message);
+      assert(message.includes(stage), message);
+      assert.equal(JSON.parse(await Deno.readTextFile(join(final, "run.json"))).outcome.code, code);
+    }
+  } finally {
+    for (const stage of stages) {
+      await Deno.chmod(join(stage, "protected"), 0o700).catch(() => {});
+      await Deno.remove(stage, { recursive: true }).catch(() => {});
+    }
+    await Deno.remove(root, { recursive: true });
+  }
+});
