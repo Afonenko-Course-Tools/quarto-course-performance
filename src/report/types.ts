@@ -12,6 +12,8 @@ export interface NativeRenderRequest {
 export type RunRequest = Omit<NativeRenderRequest, "mode"> & { mode: Mode };
 
 export interface BuildOutcome {
+  escalated?: boolean;
+  stdioMode?: "separate" | "pty-combined";
   code: number;
   signal: Deno.Signal | null;
   wallSeconds: number;
@@ -149,6 +151,11 @@ export function validateRunRecord(value: unknown): RunRecord {
   if (request.outputParent !== undefined) string(request.outputParent, "request.outputParent");
   const outcome = object(r.outcome, "outcome");
   number(outcome.code, "outcome.code", false, true);
+  if (outcome.escalated !== undefined) boolean(outcome.escalated, "outcome.escalated");
+  if (
+    outcome.stdioMode !== undefined &&
+    !["separate", "pty-combined"].includes(outcome.stdioMode as string)
+  ) invalid("outcome.stdioMode");
   if (outcome.signal !== null && !signals.includes(outcome.signal as Deno.Signal)) {
     invalid("outcome.signal");
   }

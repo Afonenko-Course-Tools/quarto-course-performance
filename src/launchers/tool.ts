@@ -37,6 +37,7 @@ const child = new Deno.Command(binary, {
   stderr: "inherit",
 }).spawn();
 const forward = (signal: Deno.Signal) => {
+  if (env.COURSE_PERF_OWNED_GROUP === "1") return;
   try {
     child.kill(signal);
   } catch { /* Уже завершён. */ }

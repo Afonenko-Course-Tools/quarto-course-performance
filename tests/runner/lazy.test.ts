@@ -54,9 +54,25 @@ Deno.test("native render help bypasses project inspect and report staging", asyn
   );
 });
 
-Deno.test("native help after a native separator is not treated as a help request", async () => {
-  await isolated(["render", "--", "--", "--help"], (_root, out) => {
-    assert.doesNotMatch(decode(out.stdout), /quarto render/);
+async function fakeNative(check: (quarto: string) => Promise<void>) {
+  const root = await Deno.makeTempDir();
+  try {
+    const quarto = join(root, "quarto");
+    await Deno.writeTextFile(quarto, "#!/bin/sh\nprintf '<%s>\\n' \"$@\"\nexit 7\n");
+    await Deno.chmod(quarto, 0o755);
+    await check(quarto);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+}
+
+Deno.test("native help after a native separator reaches the native render argv", async () => {
+  await fakeNative(async (quarto) => {
+    await isolated(["render", "--", "--", "--help"], (_root, out) => {
+      assert.equal(out.code, 7, decode(out.stderr));
+      assert.equal(decode(out.stdout), "<render>\n<-->\n<--help>\n");
+      assert.equal(decode(out.stderr), "");
+    }, { QUARTO: quarto });
   });
 });
 
@@ -73,11 +89,13 @@ Deno.test("experiment capabilities needs no Compiler API or npm cache", async ()
   );
 });
 
-Deno.test("render off does not load experiment configuration or npm compiler", async () => {
-  await isolated(["render", "--perf-mode=off", "missing.qmd"], (_root, out) => {
-    assert.doesNotMatch(
-      decode(out.stderr),
-      /scenarios\/java\.json|npm:|Compiler API|Download|CLI параметр/,
-    );
-  }, { QUARTO: "/usr/bin/quarto" });
+Deno.test("render off loads the real native path without experiment configuration or npm compiler", async () => {
+  await fakeNative(async (quarto) => {
+    await isolated(["render", "--perf-mode=off", "file space.qmd"], async (root, out) => {
+      assert.equal(out.code, 7, decode(out.stderr));
+      assert.equal(decode(out.stdout), "<render>\n<file space.qmd>\n");
+      assert.equal(decode(out.stderr), "");
+      assert.deepEqual(await Array.fromAsync(Deno.readDir(root)), []);
+    }, { QUARTO: quarto });
+  });
 });

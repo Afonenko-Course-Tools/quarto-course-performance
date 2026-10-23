@@ -198,3 +198,52 @@ Deno.test("SIGTERM flushes incomplete TS work and preserves the signal; SIGKILL 
     await Deno.remove(root, { recursive: true });
   }
 });
+
+Deno.test("owned group forwards each signal once through a launcher", async () => {
+  const { runOwnedProcess } = await import("../../src/runner/process.ts");
+  const root = await Deno.makeTempDir();
+  try {
+    const setup = await prepareLaunchers({
+      workspace: root,
+      deno: Deno.execPath(),
+      pandoc,
+      dataDir,
+    });
+    const entry = join(root, "once.ts"), ready = join(root, "ready"), count = join(root, "count");
+    await Deno.writeTextFile(
+      entry,
+      `Deno.addSignalListener('SIGTERM',()=>{Deno.writeTextFileSync(${
+        JSON.stringify(count)
+      },'x',{append:true});setTimeout(()=>Deno.exit(7),80)});Deno.writeTextFileSync(${
+        JSON.stringify(ready)
+      },'yes');setInterval(()=>{},100);`,
+    );
+    const abort = new AbortController();
+    const running = runOwnedProcess({
+      executable: setup.env.QUARTO_DENO,
+      args: ["run", "-A", entry],
+      cwd: root,
+      env: { ...Deno.env.toObject(), ...setup.env, COURSE_PERF_MODE: "off" },
+      stdoutPath: join(root, "out"),
+      stderrPath: join(root, "err"),
+      abortSignal: abort.signal,
+    });
+    for (let n = 0; n < 300; n++) {
+      try {
+        await Deno.stat(ready);
+        break;
+      } catch {
+        await new Promise((r) => setTimeout(r, 10));
+      }
+    }
+    await Deno.stat(ready);
+    abort.abort("SIGTERM");
+    const result = await running;
+    assert.equal(await Deno.readTextFile(count), "x");
+    assert.equal(result.code, 7);
+    assert.equal(result.signal, null);
+    assert.equal(result.escalated, false);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

@@ -192,3 +192,22 @@ Deno.test("common run metadata accepts isolated trace without narrowing it to a 
   const parsed = validateRunRecord({ ...run, request: { ...run.request, mode: "trace" } });
   assert.equal(parsed.request.mode, "trace");
 });
+
+Deno.test("outcome escalation and combined PTY receipts are optional but validated", () => {
+  assert.equal(validateRunRecord(run).outcome.escalated, undefined);
+  assert.equal(
+    validateRunRecord({
+      ...run,
+      outcome: { ...run.outcome, escalated: true, stdioMode: "pty-combined" },
+    }).outcome.stdioMode,
+    "pty-combined",
+  );
+  assert.throws(
+    () => validateRunRecord({ ...run, outcome: { ...run.outcome, escalated: "yes" } }),
+    /escalated/,
+  );
+  assert.throws(
+    () => validateRunRecord({ ...run, outcome: { ...run.outcome, stdioMode: "combined" } }),
+    /stdioMode/,
+  );
+});
