@@ -8,6 +8,10 @@ import type {
 import { OwnedProcessError, runOwnedProcess } from "./process.ts";
 import { resolveRenderProject } from "../adapters/quarto/inspect.ts";
 import { finalizeRun, prepareRunStorage } from "./storage.ts";
+import { prepareRenderDiagnostic } from "./diagnostic.ts";
+import { type NormalizedRun, normalizeRun } from "../analysis/normalize.ts";
+import { jsonFiles } from "../report/run.ts";
+import type { PreparationReceipt } from "../config/types.ts";
 import { validateTelemetryEnvironment } from "./environment.ts";
 
 export async function runNativeRender(
@@ -82,9 +86,6 @@ function diagnostic(message: string): unknown | undefined {
 export async function renderCommand(request: NativeRenderRequest): Promise<number> {
   const conflicts = validateTelemetryEnvironment(Deno.env.toObject());
   if (conflicts.length) throw new Error(`Конфликт окружения измерений: ${conflicts.join(", ")}`);
-  if (request.mode !== "off") {
-    throw new Error("Подготовка диагностического режима ещё не подключена");
-  }
   const target = await resolveRenderProject(request);
   // Git относится к исходникам выбранного проекта; native .quarto — служебная история.
   // Provenance читается до создания каталога результата и внешнего staging.
@@ -100,6 +101,28 @@ export async function renderCommand(request: NativeRenderRequest): Promise<numbe
   }).output();
   if (!version.success) throw new Error("Не удалось определить версию Quarto");
   const paths = await prepareRunStorage(request, target);
+  const prepared = request.mode === "off"
+    ? undefined
+    : await prepareRenderDiagnostic(request, target, join(paths.stagingDirectory, "diagnostic"));
+  const diagnosticEnv: Record<string, string> = prepared
+    ? {
+      ...prepared.env,
+      COURSE_PERF_MODE: request.mode,
+      COURSE_PERF_RUN_ID: paths.runId,
+      COURSE_PERF_EXPERIMENT_ID: paths.runId,
+      COURSE_PERF_OUTPUT_DIR: paths.stagingDirectory,
+    }
+    : {};
+  if (prepared) {
+    await Deno.writeTextFile(
+      join(paths.stagingDirectory, "coverage.json"),
+      JSON.stringify(prepared.coverage, null, 2) + "\n",
+    );
+    await Deno.writeTextFile(
+      join(paths.stagingDirectory, "mode.json"),
+      JSON.stringify({ mode: request.mode, runId: paths.runId, experimentId: paths.runId }),
+    );
+  }
   let externalSignal: Deno.Signal | null = null;
   const rememberInt = () => {
     externalSignal ??= "SIGINT";
@@ -113,26 +136,48 @@ export async function renderCommand(request: NativeRenderRequest): Promise<numbe
   let savedDirectory = paths.stagingDirectory;
   try {
     try {
-      outcome = await runNativeRender(request, paths.stagingDirectory);
+      outcome = await runNativeRender(request, paths.stagingDirectory, diagnosticEnv);
     } catch (error) {
       failure = error;
       if (error instanceof OwnedProcessError) outcome = error.outcome;
     }
     if (outcome) {
       const errors = failure ? [failure instanceof Error ? failure.message : String(failure)] : [];
+      let normalized: NormalizedRun | undefined;
+      const preparation = [...prepared?.preparation ?? []];
+      if (prepared) {
+        try {
+          normalized = await normalizeRun(paths.stagingDirectory);
+          preparation.push(
+            ...await jsonFiles(
+              join(paths.stagingDirectory, "preparation"),
+              ".json",
+            ) as unknown as PreparationReceipt[],
+          );
+        } catch (error) {
+          failure ??= error;
+          errors.push(error instanceof Error ? error.message : String(error));
+        }
+      }
       const record: RunRecord = {
         schema_version: 2,
         runId: paths.runId,
         request,
         outcome,
-        preparation: [],
-        dataValid: !failure,
-        quality: { droppedEvents: 0, incompleteSpans: 0, coverageComplete: false, errors },
+        preparation,
+        dataValid: !failure && (normalized?.dataValid ?? !prepared),
+        quality: normalized
+          ? {
+            ...normalized.quality,
+            coverageComplete: false,
+            errors: [...normalized.quality.errors, ...errors],
+          }
+          : { droppedEvents: 0, incompleteSpans: 0, coverageComplete: false, errors },
         versions: {
           tool: "2.0.0",
           quarto: new TextDecoder().decode(version.stdout).trim(),
-          deno: null,
-          pandoc: null,
+          deno: prepared?.coverage.runtime.runtime.deno?.version ?? null,
+          pandoc: prepared?.coverage.runtime.runtime.pandoc?.version ?? null,
         },
         git,
         collectionDirectory: paths.stagingDirectory,
@@ -140,7 +185,7 @@ export async function renderCommand(request: NativeRenderRequest): Promise<numbe
         artifacts: {},
       };
       try {
-        savedDirectory = await finalizeRun(paths, record);
+        savedDirectory = await finalizeRun(paths, record, normalized);
         const printError = diagnostic(`Отчёт Performance: ${savedDirectory}`);
         failure ??= printError;
       } catch (error) {

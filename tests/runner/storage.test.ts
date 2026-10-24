@@ -317,3 +317,64 @@ Deno.test("partial staging cleanup PermissionDenied returns the complete committ
     await remove(root, { recursive: true });
   }
 });
+
+Deno.test("finalize retains diagnostic aggregates after relocation without rewriting raw or receipts", async () => {
+  const root = await Deno.makeTempDir();
+  let stage = "";
+  try {
+    const paths = await prepareRunStorage({
+      cwd: root,
+      quarto: "quarto",
+      nativeArgv: [],
+      mode: "summary",
+    }, { projectRoot: root, kind: "standalone" });
+    stage = paths.stagingDirectory;
+    await Deno.mkdir(join(stage, "events"));
+    const raw = '{"raw_path":"' + stage + '"}\n';
+    const receipt = '{"path":"' + stage + '/bootstrap","sourceHash":"original"}\n';
+    await Deno.writeTextFile(join(stage, "events/raw.jsonl"), raw);
+    await Deno.writeTextFile(join(stage, "receipt.json"), receipt);
+    const r = record(stage, paths.runId);
+    r.request.mode = "summary";
+    r.preparation = [{
+      kind: "bootstrap",
+      path: stage + "/bootstrap",
+      sourceHash: "source",
+      preparedHash: "prepared",
+    }];
+    const normalized = {
+      runId: paths.runId,
+      dataValid: true,
+      quality: r.quality,
+      executors: { "p/ts": { process_id: "p", executor_id: "ts", counters: { calls: 2 } } },
+      events: [{
+        schema_version: 1 as const,
+        experiment_id: "e",
+        run_id: paths.runId,
+        process_id: "p",
+        executor_id: "ts",
+        sequence: 1,
+        event: "counter" as const,
+        kind: "ast_walk" as const,
+        origin: "manual" as const,
+        clock_domain: "none" as const,
+        counter: { name: "calls", value: 1, quality: "observed-exact" as const },
+      }],
+    };
+    const output = await finalizeRun(paths, r, normalized);
+    const summary = JSON.parse(await Deno.readTextFile(join(output, "summary.json")));
+    assert.deepEqual(
+      summary.counters.map((c: { value: number; source: string }) => [c.value, c.source]),
+      [[1, "event"], [2, "executor-summary"]],
+    );
+    assert.equal(await Deno.readTextFile(join(output, "events/raw.jsonl")), raw);
+    assert.equal(await Deno.readTextFile(join(output, "receipt.json")), receipt);
+    assert.deepEqual(
+      JSON.parse(await Deno.readTextFile(join(output, "run.json"))).preparation,
+      r.preparation,
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+    if (stage) await Deno.remove(stage, { recursive: true }).catch(() => {});
+  }
+});

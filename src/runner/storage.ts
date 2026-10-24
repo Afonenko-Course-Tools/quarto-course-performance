@@ -2,6 +2,7 @@ import { dirname, join, matchesGlob, parse, relative, resolve } from "node:path"
 import type { NativeRenderRequest, RunRecord } from "../report/types.ts";
 import type { ProjectTarget } from "../adapters/quarto/inspect.ts";
 import { writeRunArtifacts } from "../report/run.ts";
+import type { NormalizedRun } from "../analysis/normalize.ts";
 import type { RunPaths } from "../config/types.ts";
 export type { RunPaths } from "../config/types.ts";
 
@@ -122,13 +123,17 @@ async function validateReportTargets(directory: string): Promise<void> {
     }
   }
 }
-export async function finalizeRun(paths: RunPaths, record: RunRecord): Promise<string> {
+export async function finalizeRun(
+  paths: RunPaths,
+  record: RunRecord,
+  normalized?: NormalizedRun,
+): Promise<string> {
   try {
     await validateReportTargets(paths.stagingDirectory);
     await writeRunArtifacts(paths.stagingDirectory, {
       ...record,
       outputDirectory: paths.finalDirectory,
-    });
+    }, normalized);
     await validateMaterials(paths.stagingDirectory);
     await safeDirectory(dirname(paths.finalDirectory));
     // mkdir без recursive не позволяет затереть чужой запуск, файл или ссылку.

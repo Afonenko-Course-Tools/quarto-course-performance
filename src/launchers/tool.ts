@@ -1,4 +1,5 @@
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { preparePandocData } from "./setup.ts";
 const [kind, ...originalArgs] = Deno.args;
 if (!["deno", "pandoc"].includes(kind)) throw new Error("Неизвестный launcher");
 const env = Deno.env.toObject(), id = crypto.randomUUID();
@@ -21,12 +22,28 @@ if (mode && mode !== "off") {
     }
   }
   if (kind === "pandoc") {
-    const index = args.indexOf("--data-dir");
-    if (index >= 0) args.splice(index, 2);
-    for (let i = args.length - 1; i >= 0; i--) {
-      if (args[i].startsWith("--data-dir=")) args.splice(i, 1);
+    let source = env.COURSE_PERF_SOURCE_DATA_DIR;
+    for (let i = 0; i < args.length; i++) {
+      if (args[i] === "--data-dir") {
+        if (!args[i + 1]) throw new Error("Необходимо значение --data-dir");
+        source = resolve(args[i + 1]);
+        args.splice(i, 2);
+        i--;
+      } else if (args[i].startsWith("--data-dir=")) {
+        source = resolve(args[i].slice("--data-dir=".length));
+        args.splice(i, 1);
+        i--;
+      }
     }
-    args.push("--data-dir", env.COURSE_PERF_DATA_DIR);
+    let dataDir = env.COURSE_PERF_DATA_DIR;
+    if (source !== env.COURSE_PERF_SOURCE_DATA_DIR) {
+      dataDir = join(env.COURSE_PERF_OUTPUT_DIR, "pandoc-data", id);
+      const receipt = await preparePandocData(source, dataDir, env.COURSE_PERF_INIT_LUA);
+      const directory = join(env.COURSE_PERF_OUTPUT_DIR, "preparation");
+      await Deno.mkdir(directory, { recursive: true });
+      await Deno.writeTextFile(join(directory, id + ".json"), JSON.stringify(receipt));
+    }
+    args.push("--data-dir", dataDir);
   }
 }
 const child = new Deno.Command(binary, {
