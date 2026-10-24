@@ -200,7 +200,14 @@ Deno.test("public render preparation preserves selected binaries share and funct
     );
     const observed = join(root, "observed");
     const out = await new Deno.Command(prepared.env.QUARTO_PANDOC, {
-      args: ["--lua-filter", filter, "-t", "plain"],
+      args: [
+        "--data-dir",
+        join(selectedShare, "pandoc/datadir"),
+        "--lua-filter",
+        filter,
+        "-t",
+        "plain",
+      ],
       env: {
         ...prepared.env,
         COURSE_PERF_MODE: "summary",
