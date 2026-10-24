@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import { writeRunArtifacts } from "../../src/report/run.ts";
 import { type RunRecord, validateRunRecord, validateRunSummary } from "../../src/report/types.ts";
 
+import { regressionRuns } from "./fixtures/perfetto/regressions.ts";
 import { pair, run } from "./fixtures/perfetto/control.ts";
 import { traces } from "../../src/report/perfetto.ts";
 import { record } from "./fixture.ts";
@@ -179,6 +180,39 @@ Deno.test("off with normalized metadata never promises an internal trace", async
     await writeRunArtifacts(root, record(root), run([]));
     await assert.rejects(() => Deno.stat(join(root, "wall.trace.json")), Deno.errors.NotFound);
     assert(!(await Deno.readTextFile(join(root, "report.md"))).includes("wall.trace.json"));
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("common builder writes corrected clocks relationships and preserved quality", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    for (const [name, input] of Object.entries(regressionRuns())) {
+      const dir = join(root, name), rec = record(dir, input.runId);
+      rec.request.mode = "trace";
+      rec.dataValid = input.dataValid;
+      rec.quality = input.quality;
+      const raw = JSON.stringify(input.events);
+      await writeRunArtifacts(dir, rec, input);
+      const expected = traces(input);
+      for (
+        const [file, trace] of [["wall.trace.json", expected.wall], [
+          "lua-cpu.trace.json",
+          expected.luaCpu,
+        ], ...expected.localWall.map((l) => [l.fileName, l.trace])] as const
+      ) {
+        assert.deepEqual(JSON.parse(await Deno.readTextFile(join(dir, String(file)))), trace);
+      }
+      const sidecar = JSON.parse(await Deno.readTextFile(join(dir, "export.json")));
+      assert.equal(sidecar.data_valid, input.dataValid);
+      assert.deepEqual(sidecar.quality, input.quality);
+      const summary = validateRunSummary(
+        JSON.parse(await Deno.readTextFile(join(dir, "summary.json"))),
+      );
+      assert.equal(summary.operations.length, input.events.length / 2);
+      assert.equal(JSON.stringify(input.events), raw);
+    }
   } finally {
     await Deno.remove(root, { recursive: true });
   }

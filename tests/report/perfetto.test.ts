@@ -1,4 +1,5 @@
 import { strict as assert } from "node:assert";
+import { regressionRuns } from "./fixtures/perfetto/regressions.ts";
 import { traces } from "../../src/report/perfetto.ts";
 import { pair, run } from "./fixtures/perfetto/control.ts";
 
@@ -200,4 +201,77 @@ Deno.test("aborted-only runs and unmeasured process relationships remain metadat
     (metadata.args.excluded_spans as { status: string }[]).some((e) => e.status === "aborted"),
   );
   assert(!bundle.wall.traceEvents.some((e) => e.ph !== "M"));
+});
+
+Deno.test("equal-start parents keep exact anchors on unambiguous logical lanes", () => {
+  for (const input of [regressionRuns().equalStart, regressionRuns().equalBounds]) {
+    const events = traces(input).wall.traceEvents;
+    const slices = events.filter((e) => e.ph === "X");
+    assert.notEqual(slices[0].tid, slices[1].tid);
+    const links = events.filter((e) => e.ph === "s" || e.ph === "f");
+    assert.deepEqual(links.map((e) => e.ts), [0, 0]);
+    assert.equal(links[0].tid, slices.find((e) => e.name === "parent")!.tid);
+    assert.equal(links[1].tid, slices.find((e) => e.name === "child")!.tid);
+  }
+});
+Deno.test("150000 correct pairs export without argument spread or historical lane scans", () => {
+  const input = run(pair("seed", 0, 1));
+  input.events = [];
+  for (let i = 0; i < 150000; i++) {
+    const events = pair(`s${i}`, i * 2, i * 2 + 1);
+    events[0].sequence = i * 2 + 1;
+    events[1].sequence = i * 2 + 2;
+    input.events.push(...events);
+  }
+  const slices = traces(input).wall.traceEvents.filter((e) => e.ph === "X");
+  assert.equal(slices.length, 150000);
+  assert.equal(slices[0].ts, 0);
+  assert.equal(slices.at(-1)!.ts, 299998);
+  assert.equal(new Set(slices.map((e) => e.tid)).size, 1);
+});
+Deno.test("invalid mixed-clock executor keeps pair clocks in separate files", () => {
+  const bundle = traces(regressionRuns().mixedClocks);
+  assert.deepEqual(bundle.wall.traceEvents.filter((e) => e.ph === "X").map((e) => e.name), [
+    "wall",
+  ]);
+  const cpu = bundle.luaCpu.traceEvents.filter((e) => e.ph === "X");
+  assert.deepEqual(cpu.map((e) => e.name), ["cpu"]);
+  assert.equal(cpu[0].args.clock_alignment, "local-executor-only");
+  assert.equal(cpu[0].args.data_valid, false);
+  assert(!bundle.wall.traceEvents.some((e) => e.ph === "s" || e.ph === "f"));
+});
+Deno.test("cycles and paths leading into cycles cannot authorize nesting or flows", () => {
+  for (const input of [regressionRuns().cycle, regressionRuns().leadingCycle]) {
+    const events = traces(input).wall.traceEvents;
+    const slices = events.filter((e) => e.ph === "X");
+    assert.equal(new Set(slices.map((e) => e.tid)).size, slices.length);
+    assert(!events.some((e) => e.ph === "s" || e.ph === "f"));
+  }
+});
+Deno.test("one local executor supports confirmed flows without cross-executor synchronization", () => {
+  const inputs = regressionRuns();
+  for (const input of [inputs.localCpu, inputs.localWall]) {
+    const bundle = traces(input);
+    const trace = input === inputs.localCpu ? bundle.luaCpu : bundle.localWall[0].trace;
+    const links = trace.traceEvents.filter((e) => e.ph === "s" || e.ph === "f");
+    assert.deepEqual(links.map((e) => e.ph), ["s", "f"]);
+    assert.deepEqual(links.map((e) => e.ts), [0, 30]);
+  }
+});
+Deno.test("excluded span metadata is deterministic across all scales and storage order", () => {
+  const input = run([
+    ...pair("ok", 0, 10),
+    ...pair("bad-b", 1, 2).slice(0, 1),
+    ...pair("bad-a", 1, 2).slice(0, 1),
+    ...pair("lua", 1, 2, { executor_id: "lua", clock_domain: "process_cpu" }),
+  ]);
+  const expected = traces(input);
+  assert.deepEqual(expected, traces({ ...input, events: [...input.events].reverse() }));
+  const metadata = [expected.wall, expected.luaCpu].flatMap((t) => t.traceEvents).filter((e) =>
+    e.name === "course_perf_run" || e.name === "course_perf_quality"
+  );
+  assert(metadata.length >= 3);
+  for (const event of metadata) {
+    assert.deepEqual(event.args.excluded_spans, metadata[0].args.excluded_spans);
+  }
 });

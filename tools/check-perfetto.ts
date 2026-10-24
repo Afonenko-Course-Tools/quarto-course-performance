@@ -1,6 +1,8 @@
 import { isAbsolute, join } from "node:path";
 import { strict as assert } from "node:assert";
 import { type ChromeTrace, traces } from "../src/report/perfetto.ts";
+import { regressionRuns } from "../tests/report/fixtures/perfetto/regressions.ts";
+import { pair, run } from "../tests/report/fixtures/perfetto/control.ts";
 import { controlRun } from "../tests/report/fixtures/perfetto/control.ts";
 
 const sql = `SELECT
@@ -95,7 +97,118 @@ export async function checkPerfetto(binary: string, directory: string): Promise<
     await write(path, trace);
     assert.notDeepEqual(await query(binary, path, sql), expected, `Gate пропустил ${name}`);
   }
-  console.log(`Perfetto v58.2: SQL и четыре отрицательных контроля пройдены. Fixture: ${wallPath}`);
+  const regression = regressionRuns();
+  async function imported(name: string, trace: ChromeTrace, statement: string, expected: number[]) {
+    const path = join(directory, name + ".trace.json");
+    await write(path, trace);
+    await Deno.writeTextFile(join(directory, name + ".sql"), statement);
+    assert.deepEqual(await query(binary, path, statement), expected, `Регрессия ${name}`);
+  }
+  const relationSql =
+    `SELECT COUNT(*), COUNT(DISTINCT track_id), MAX(depth), MIN(ts), MAX(ts), SUM(dur),
+    (SELECT COUNT(*) FROM flow),
+    (SELECT COUNT(*) FROM flow f JOIN slice p ON p.id=f.slice_out JOIN slice c ON c.id=f.slice_in
+      WHERE p.name='parent' AND c.name='child'),
+    (SELECT COUNT(*) FROM track WHERE type='thread_overlapping_slice') FROM slice;`;
+  for (
+    const [name, input, duration] of [
+      ["equal-start", regression.equalStart, 30000],
+      ["equal-bounds", regression.equalBounds, 40000],
+    ] as const
+  ) {
+    await imported(name, traces(input).wall, relationSql, [2, 2, 0, 0, 0, duration, 1, 1, 0]);
+  }
+  const mixed = traces(regression.mixedClocks);
+  for (
+    const [name, trace, clock, alignment, duration] of [
+      ["mixed-wall", mixed.wall, "monotonic_process", "calibrated", 10000],
+      ["mixed-cpu", mixed.luaCpu, "process_cpu", "local-executor-only", 8000],
+    ] as const
+  ) {
+    await imported(
+      name,
+      trace,
+      `SELECT COUNT(*), SUM(dur),
+      SUM(EXTRACT_ARG(arg_set_id,'args.clock_domain')='${clock}'),
+      SUM(EXTRACT_ARG(arg_set_id,'args.clock_alignment')='${alignment}'),
+      SUM(EXTRACT_ARG(arg_set_id,'args.data_valid')=0), (SELECT COUNT(*) FROM flow) FROM slice;`,
+      [1, duration, 1, 1, 1, 0],
+    );
+  }
+  for (
+    const [name, input, count] of [["cycle", regression.cycle, 2], [
+      "leading-cycle",
+      regression.leadingCycle,
+      3,
+    ]] as const
+  ) {
+    await imported(
+      name,
+      traces(input).wall,
+      "SELECT COUNT(*), COUNT(DISTINCT track_id), MAX(depth), (SELECT COUNT(*) FROM flow) FROM slice;",
+      [count, count, 0, 0],
+    );
+  }
+  await imported("local-cpu-flow", traces(regression.localCpu).luaCpu, relationSql, [
+    2,
+    1,
+    0,
+    0,
+    30000,
+    20000,
+    1,
+    1,
+    0,
+  ]);
+  await imported("local-wall-flow", traces(regression.localWall).localWall[0].trace, relationSql, [
+    2,
+    1,
+    0,
+    0,
+    30000,
+    20000,
+    1,
+    1,
+    0,
+  ]);
+  for (const clock of ["process_cpu", "monotonic_process"] as const) {
+    const different = run([
+      ...pair("parent", 0, 10, { clock_domain: clock, executor_id: "one" }),
+      ...pair("child", 30, 40, {
+        clock_domain: clock,
+        executor_id: "two",
+        parent_span_id: "parent",
+      }),
+    ]);
+    for (const executor of Object.values(different.executors)) executor.calibration = undefined;
+    const bundle = traces(different);
+    if (clock === "process_cpu") {
+      await imported("different-lua-executors", bundle.luaCpu, relationSql, [
+        2,
+        2,
+        0,
+        0,
+        30000,
+        20000,
+        0,
+        0,
+        0,
+      ]);
+    } else {
+      assert.equal(bundle.localWall.length, 2);
+      for (const [index, local] of bundle.localWall.entries()) {
+        await imported(
+          `different-local-wall-${index + 1}`,
+          local.trace,
+          "SELECT COUNT(*), (SELECT COUNT(*) FROM flow) FROM slice;",
+          [1, 0],
+        );
+      }
+    }
+  }
+  console.log(
+    `Perfetto v58.2: SQL, 11 регрессионных файлов и четыре отрицательных контроля пройдены. Fixture: ${wallPath}`,
+  );
 }
 if (import.meta.main) {
   const args = [...Deno.args];

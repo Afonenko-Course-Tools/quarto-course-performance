@@ -30,7 +30,7 @@ export interface TraceBundle {
 const empty = (): ChromeTrace => ({ traceEvents: [], displayTimeUnit: "ms" });
 const compare = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0;
 const executorKey = (e: ValidatedInterval["begin"]) =>
-  JSON.stringify([e.process_id, e.executor_id]);
+  JSON.stringify([e.process_id, e.executor_id, e.clock_domain]);
 function origin(run: NormalizedRun, interval: ValidatedInterval): number | undefined {
   const e = interval.begin;
   const calibration = run.executors[`${e.process_id}/${e.executor_id}`]?.calibration as {
@@ -56,10 +56,37 @@ export function traces(
   }
   const keys = [...groups.keys()].sort(compare);
   const pids = [...new Set(intervals.map((i) => i.begin.process_id))].sort(compare);
-  const origins = intervals.filter((i) => i.begin.clock_domain === "monotonic_process")
-    .map((i) => origin(run, i)).filter((n): n is number => n !== undefined);
-  const zero = origins.length ? Math.min(...origins) : 0;
+  let zero = Infinity;
+  for (const rows of groups.values()) {
+    if (rows[0].begin.clock_domain !== "monotonic_process") continue;
+    const calibration = origin(run, rows[0]);
+    if (calibration !== undefined) zero = Math.min(zero, calibration);
+  }
+  if (zero === Infinity) zero = 0;
   const bySpan = new Map(intervals.map((i) => [i.begin.span_id!, i]));
+  const excludedSpans = validatedEvents(run).filter((e) => e.span_id && !bySpan.has(e.span_id))
+    .map((e) => ({
+      process_id: e.process_id,
+      executor_id: e.executor_id,
+      span_id: e.span_id,
+      event: e.event,
+      status: e.status ?? null,
+    }))
+    .sort((a, b) => compare(JSON.stringify(a), JSON.stringify(b)));
+  // Один критерий исключает как сам цикл, так и любое отношение, ведущее в него.
+  const lineageValidity = new Map<string, boolean>();
+  function validLineage(id: string): boolean {
+    const path: string[] = [], seen = new Set<string>();
+    let cursor: string | undefined = id;
+    while (cursor && bySpan.has(cursor) && !lineageValidity.has(cursor) && !seen.has(cursor)) {
+      path.push(cursor);
+      seen.add(cursor);
+      cursor = bySpan.get(cursor)!.begin.parent_span_id;
+    }
+    const valid = !cursor || !seen.has(cursor) && lineageValidity.get(cursor) !== false;
+    for (const span of path) lineageValidity.set(span, valid);
+    return lineageValidity.get(id) ?? valid;
+  }
   bundle.wall.traceEvents.push({
     ph: "M",
     name: "course_perf_run",
@@ -73,15 +100,7 @@ export function traces(
       process_receipts: [...processes].sort((a, b) =>
         compare(String(a.process_id), String(b.process_id))
       ),
-      excluded_spans: validatedEvents(run).filter((e) => e.span_id && !bySpan.has(e.span_id))
-        .map((e) => ({
-          process_id: e.process_id,
-          executor_id: e.executor_id,
-          span_id: e.span_id,
-          event: e.event,
-          status: e.status ?? null,
-        }))
-        .sort((a, b) => compare(JSON.stringify(a), JSON.stringify(b))),
+      excluded_spans: excludedSpans,
     },
   });
   const placed = new Map<string, { trace: ChromeTrace; event: ChromeTraceEvent }>();
@@ -98,6 +117,7 @@ export function traces(
     trace.traceEvents.push({ ph: "M", name, pid, tid: track, args });
   }
   function ancestor(parent: ValidatedInterval, child: ValidatedInterval): boolean {
+    if (!validLineage(child.begin.span_id!) || !validLineage(parent.begin.span_id!)) return false;
     const seen = new Set<string>();
     let id = child.begin.parent_span_id;
     while (id && !seen.has(id)) {
@@ -135,15 +155,7 @@ export function traces(
         data_valid: run.dataValid,
         coverage_complete: run.quality.coverageComplete,
         quality: run.quality,
-        excluded_spans: validatedEvents(run).filter((e) => e.span_id && !bySpan.has(e.span_id)).map(
-          (e) => ({
-            process_id: e.process_id,
-            executor_id: e.executor_id,
-            span_id: e.span_id,
-            event: e.event,
-            status: e.status ?? null,
-          }),
-        ),
+        excluded_spans: excludedSpans,
       });
     }
     const known = processMetadata.get(trace) ?? new Set<number>();
@@ -160,13 +172,23 @@ export function traces(
     const lanes: { tid: number; intervals: ValidatedInterval[] }[] = [];
     for (const interval of rows) {
       const { begin, end, durationUs } = interval;
+      // Более ранние завершённые интервалы уже не ограничивают будущую дорожку.
+      for (const lane of lanes) {
+        lane.intervals = lane.intervals.filter((other) =>
+          other.end.timestamp_us! > begin.timestamp_us! ||
+          other.begin.timestamp_us === begin.timestamp_us
+        );
+      }
       let lane = lanes.find((l) =>
         l.intervals.every((other) =>
-          other.end.timestamp_us! <= begin.timestamp_us! ||
-          end.timestamp_us! <= other.begin.timestamp_us! ||
-          (other.begin.timestamp_us! <= begin.timestamp_us! &&
-            end.timestamp_us! <= other.end.timestamp_us! &&
-            ancestor(other, interval))
+          // Perfetto сортирует все X до s/f при равном ts: общий tid теряет точный anchor.
+          other.begin.timestamp_us !== begin.timestamp_us && (
+            other.end.timestamp_us! <= begin.timestamp_us! ||
+            end.timestamp_us! <= other.begin.timestamp_us! ||
+            (other.begin.timestamp_us! <= begin.timestamp_us! &&
+              end.timestamp_us! <= other.end.timestamp_us! &&
+              ancestor(other, interval))
+          )
         )
       );
       if (!lane) {
@@ -227,17 +249,12 @@ export function traces(
     const parentId = bySpan.get(id)!.begin.parent_span_id;
     const parent = parentId ? placed.get(parentId) : undefined;
     if (
-      !parent || child.trace !== bundle.wall || parent.trace !== bundle.wall ||
-      parent.event.ts! > child.event.ts! || parentId === id
+      !parent || child.trace !== parent.trace || parent.event.ts! > child.event.ts! ||
+      !validLineage(id)
     ) continue;
-    // Циклическое отношение не является подтверждённой причинной связью.
-    let cursor: string | undefined = parentId;
-    const seen = new Set([id]);
-    while (cursor && !seen.has(cursor)) {
-      seen.add(cursor);
-      cursor = bySpan.get(cursor)?.begin.parent_span_id;
-    }
-    if (cursor) continue;
+    const sameLocalClock =
+      executorKey(bySpan.get(id)!.begin) === executorKey(bySpan.get(parentId!)!.begin);
+    if (child.trace !== bundle.wall && !sameLocalClock) continue;
     const args = {
       relationship: "logical-parent",
       run_id: run.runId,
@@ -249,7 +266,7 @@ export function traces(
     };
     const linkId = ++flowId;
     for (const [ph, anchor] of [["s", parent.event], ["f", child.event]] as const) {
-      bundle.wall.traceEvents.push({
+      child.trace.traceEvents.push({
         ph,
         ...(ph === "f" ? { bp: "e" as const } : {}),
         name: "Логическое родительство",

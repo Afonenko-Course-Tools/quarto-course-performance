@@ -489,3 +489,57 @@ Deno.test("mixed old and new bridge calls never label derived owner attribution 
     await Deno.remove(root, { recursive: true });
   }
 });
+
+Deno.test("invalid raw mixed clocks remain separate through common derived callers", async () => {
+  const rows = [
+    { ...span("begin", 1, "wall"), timestamp_us: 0 },
+    { ...span("begin", 2, "cpu", "process_cpu"), executor_id: "ts", timestamp_us: 1 },
+    { ...span("end", 3, "cpu", "process_cpu"), executor_id: "ts", timestamp_us: 9 },
+    { ...span("end", 4, "wall"), timestamp_us: 10 },
+  ];
+  const root = await input(rows);
+  try {
+    const normalized = await normalizeRun(root);
+    assert.equal(normalized.dataValid, false);
+    assert.equal(normalized.quality.errors.length, 2);
+    assert(normalized.quality.errors.every((e) => e.includes("executor summary")));
+    assert.equal(normalized.events.length, 4);
+    const bundle = traces(normalized);
+    assert.deepEqual(bundle.wall.traceEvents.filter((e) => e.ph === "X").map((e) => e.name), [
+      "wall",
+    ]);
+    assert.deepEqual(bundle.luaCpu.traceEvents.filter((e) => e.ph === "X").map((e) => e.name), [
+      "cpu",
+    ]);
+    const { operationTotals } = await import("../../src/report/run.ts");
+    assert.deepEqual(operationTotals(normalized).map((t) => [t.clock, t.inclusive_us]), [[
+      "monotonic_process",
+      10,
+    ], ["process_cpu", 8]]);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+Deno.test("raw parent cycle quality prevents apparent ancestry but keeps interval evidence", async () => {
+  const rows = [
+    { ...span("begin", 1, "a"), parent_span_id: "b", timestamp_us: 0 },
+    { ...span("begin", 2, "b"), parent_span_id: "a", timestamp_us: 5 },
+    { ...span("begin", 3, "c"), parent_span_id: "b", timestamp_us: 6 },
+    { ...span("end", 4, "c"), timestamp_us: 9 },
+    { ...span("end", 5, "b"), timestamp_us: 10 },
+    { ...span("end", 6, "a"), timestamp_us: 20 },
+  ];
+  const root = await input(rows);
+  try {
+    const normalized = await normalizeRun(root);
+    assert.equal(normalized.dataValid, false);
+    assert.equal(normalized.quality.errors.length, 1);
+    assert.match(normalized.quality.errors[0], /Цикл parent spans/);
+    const exported = traces(normalized).wall.traceEvents;
+    assert.equal(exported.filter((e) => e.ph === "X").length, 3);
+    assert.equal(new Set(exported.filter((e) => e.ph === "X").map((e) => e.tid)).size, 3);
+    assert.equal(exported.filter((e) => e.ph === "s" || e.ph === "f").length, 0);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
