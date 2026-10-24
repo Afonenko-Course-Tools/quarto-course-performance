@@ -1,5 +1,5 @@
 import { strict as assert } from "node:assert";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { copyTree, files, hashBytes, hashFile, treeHash } from "../src/sources/snapshot.ts";
 import { prepareDiagnostic } from "../src/runner/diagnostic.ts";
@@ -50,9 +50,95 @@ export async function compareStrictTrees(left: string, right: string, exceptions
   };
 }
 
-export async function checkJava(project: string, output: string, replacementOwner?: string) {
-  assert(isAbsolute(project) && isAbsolute(output), "--project/--output требуют абсолютные пути");
-  assert(!output.startsWith(project + "/"), "Evidence должен находиться вне source");
+type JavaInputs = { project: string; output: string; replacementOwner: string };
+const usage =
+  "check-java-general-use.ts --project /absolute/checkout --output /absolute/new-evidence --replacement-owner /absolute/owner-checkout";
+
+function requireAbsolute(value: string, flag: string) {
+  assert(typeof value === "string" && isAbsolute(value), `${flag} требует абсолютный путь`);
+}
+
+export function parseJavaArgs(args: string[]): JavaInputs {
+  const flags: Record<string, string> = {};
+  for (let i = 0; i < args.length; i += 2) {
+    const key = args[i], value = args[i + 1];
+    if (!["--project", "--output", "--replacement-owner"].includes(key) || !value || flags[key]) {
+      throw new Error(usage);
+    }
+    flags[key] = value;
+  }
+  for (const key of ["--project", "--output", "--replacement-owner"]) {
+    requireAbsolute(flags[key], key);
+  }
+  return {
+    project: flags["--project"],
+    output: flags["--output"],
+    replacementOwner: flags["--replacement-owner"],
+  };
+}
+
+const git = async (path: string, args: string[]) => {
+  const result = await new Deno.Command("git", {
+    args: ["--no-optional-locks", "-C", path, ...args],
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
+  assert(result.success, decode(result.stderr));
+  return decode(result.stdout).trim();
+};
+
+/** Только чтение: все входы проверяются до создания evidence и запуска матрицы. */
+export async function preflightJava(
+  project: string,
+  output: string,
+  replacementOwner: string,
+): Promise<JavaInputs> {
+  requireAbsolute(project, "--project");
+  requireAbsolute(output, "--output");
+  requireAbsolute(replacementOwner, "--replacement-owner");
+  project = await Deno.realPath(project);
+  assert((await Deno.stat(project)).isDirectory, "--project должен быть каталогом");
+  // Для нового output mkdir требует существующий parent. realPath учитывает
+  // symlink до обработки ..; resolve исходной строки здесь был бы недостаточен.
+  try {
+    output = await Deno.realPath(output);
+  } catch (error) {
+    if (!(error instanceof Deno.errors.NotFound)) throw error;
+    output = resolve(await Deno.realPath(dirname(output)), basename(output));
+  }
+  const within = relative(project, output);
+  assert(
+    within && (within === ".." || within.startsWith("../") || isAbsolute(within)),
+    "Evidence должен находиться вне source",
+  );
+  try {
+    replacementOwner = await Deno.realPath(replacementOwner);
+    assert((await Deno.stat(replacementOwner)).isDirectory);
+    assert((await Deno.lstat(join(replacementOwner, "_extensions"))).isDirectory);
+    assert((await Deno.lstat(join(replacementOwner, "_extensions/reference-catalog"))).isDirectory);
+    assert(
+      (await Deno.stat(join(replacementOwner, "_extensions/reference-catalog/_extension.yml")))
+        .isFile,
+    );
+    await files(join(replacementOwner, "_extensions/reference-catalog"), { sourceSnapshot: true });
+    const ownerRoot = await git(replacementOwner, ["rev-parse", "--show-toplevel"]);
+    assert.equal(await Deno.realPath(ownerRoot), replacementOwner, "Нужен корень owner checkout");
+    await git(replacementOwner, ["rev-parse", "--verify", "HEAD"]);
+    assert.equal(
+      await git(replacementOwner, ["status", "--porcelain"]),
+      "",
+      "Owner должен быть clean",
+    );
+  } catch (error) {
+    throw new Error(
+      `--replacement-owner: нужен чистый owner checkout с пакетом reference-catalog: ${error}`,
+    );
+  }
+  return { project, output, replacementOwner };
+}
+
+export async function checkJava(project: string, output: string, replacementOwner: string) {
+  ({ project, output, replacementOwner } = await preflightJava(project, output, replacementOwner));
   await Deno.mkdir(output, { recursive: false });
   const commands: unknown[] = [], gates: unknown[] = [];
   const environment = Object.fromEntries([
@@ -99,15 +185,6 @@ export async function checkJava(project: string, output: string, replacementOwne
     commands.push(receipt);
     console.log(`${label}: exit ${result.code}`);
     return result;
-  };
-  const git = async (path: string, args: string[]) => {
-    const result = await new Deno.Command("git", {
-      args: ["-C", path, ...args],
-      stdout: "piped",
-      stderr: "piped",
-    }).output();
-    assert(result.success, decode(result.stderr));
-    return decode(result.stdout).trim();
   };
   const sourceSHA = await git(project, ["rev-parse", "HEAD"]);
   assert.equal(await git(project, ["status", "--porcelain"]), "", "Source должен быть clean");
@@ -434,10 +511,6 @@ export async function checkJava(project: string, output: string, replacementOwne
         runtime: {},
       };
       if (replacement) {
-        assert(
-          replacementOwner && isAbsolute(replacementOwner),
-          "Для actual replacement нужен --replacement-owner /absolute/owner-checkout",
-        );
         assert.equal(await git(replacementOwner, ["status", "--porcelain"]), "");
         const ownerSHA = await git(replacementOwner, ["rev-parse", "HEAD"]);
         const owner: SourceReceipt = {
@@ -638,15 +711,6 @@ export async function checkJava(project: string, output: string, replacementOwne
 }
 
 if (import.meta.main) {
-  const flags: Record<string, string> = {};
-  for (let i = 0; i < Deno.args.length; i += 2) {
-    const key = Deno.args[i], value = Deno.args[i + 1];
-    if (!["--project", "--output", "--replacement-owner"].includes(key) || !value || flags[key]) {
-      throw new Error(
-        "check-java-general-use.ts --project /absolute/checkout --output /absolute/new-evidence --replacement-owner /absolute/owner",
-      );
-    }
-    flags[key] = value;
-  }
-  await checkJava(flags["--project"], flags["--output"], flags["--replacement-owner"]);
+  const { project, output, replacementOwner } = parseJavaArgs(Deno.args);
+  await checkJava(project, output, replacementOwner);
 }
