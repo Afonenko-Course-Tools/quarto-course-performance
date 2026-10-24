@@ -15,7 +15,7 @@ jobs:
           persist-credentials: false
       - uses: quarto-dev/quarto-actions/setup@8a96df13519ee81fd526f2dfca5962811136661b
         with:
-          version: 1.11.5
+          version: 1.11.6
       - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed
         with:
           deno-version: v2.7.14
@@ -24,6 +24,20 @@ jobs:
           curl -fL https://github.com/sharkdp/hyperfine/releases/download/v2.0.0/hyperfine_2.0.0_amd64.deb -o /tmp/hyperfine.deb
           echo "880ba127c51c7b9debde2d830fe27dedbfc92cf2885edd44f7dfbe2152f72afe  /tmp/hyperfine.deb" | sha256sum --check
           sudo dpkg -i /tmp/hyperfine.deb
+      - name: Закреплённые npm-архивы для разработки
+        run: |
+          curl --fail --location --output /tmp/typescript-5.9.3.tgz https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz
+          curl --fail --location --output /tmp/luaparse-0.3.1.tgz https://registry.npmjs.org/luaparse/-/luaparse-0.3.1.tgz
+          echo "10e108c9cf7d5f2879053dff18515fb405abf2ccef63eaaf017d9c571687a1d3  /tmp/typescript-5.9.3.tgz" | sha256sum --check
+          echo "facb9742bf9ddecb2a2fa2935d486a05e359db51f5fd6147f4f23d433e3c854b  /tmp/luaparse-0.3.1.tgz" | sha256sum --check
+          mkdir -p node_modules/typescript node_modules/luaparse
+          tar -xzf /tmp/typescript-5.9.3.tgz --strip-components=1 -C node_modules/typescript
+          tar -xzf /tmp/luaparse-0.3.1.tgz --strip-components=1 -C node_modules/luaparse
+      - name: Фактические версии toolchain
+        run: |
+          quarto --version
+          deno --version
+          quarto pandoc --version
       - run: deno task check
       - name: Native fixtures выбранных инструментов
         run: deno task test

@@ -113,6 +113,10 @@ Deno.test("render off loads the real native path without experiment configuratio
       const record = JSON.parse(await Deno.readTextFile(join(directory, "run.json")));
       assert.equal(record.schema_version, 2);
       assert.equal(record.outcome.code, 7);
+      const message = decode(out.stderr);
+      assert.match(message, /Performance: wall=\d+\.\d{3}s; CPU user=/);
+      assert.match(message, /CPU system=.*peak RSS=.*KiB; status=7; data=VALID/);
+      assert(message.includes(directory));
       await Deno.stat(join(directory, "summary.json"));
       await Deno.stat(join(directory, "report.md"));
       assert.deepEqual((await Array.fromAsync(Deno.readDir(root))).map((e) => e.name), [".quarto"]);

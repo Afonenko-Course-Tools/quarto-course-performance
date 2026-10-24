@@ -192,7 +192,16 @@ export async function renderCommand(request: NativeRenderRequest): Promise<numbe
       };
       try {
         savedDirectory = await finalizeRun(paths, record, normalized);
-        const printError = diagnostic(`Отчёт Performance: ${savedDirectory}`);
+        const unavailable = (value: number | null) => value === null ? "недоступно" : String(value);
+        const printError = diagnostic(
+          `Performance: wall=${outcome.wallSeconds.toFixed(3)}s; CPU user=${
+            unavailable(outcome.cpuUserSeconds)
+          }; CPU system=${unavailable(outcome.cpuSystemSeconds)}; peak RSS=${
+            unavailable(outcome.peakRssKiB)
+          } KiB; status=${outcome.signal ?? outcome.code}; data=${
+            diagnosticValid ? "VALID" : "INVALID"
+          }\nОтчёт Performance: ${savedDirectory}`,
+        );
         failure ??= printError;
       } catch (error) {
         failure ??= error;

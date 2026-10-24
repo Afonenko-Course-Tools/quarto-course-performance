@@ -140,6 +140,7 @@ Deno.test("trace bundle and versioned export survive staging with relative exist
     assert.match(report, /общая wall-шкала/);
     assert.match(report, /локальная wall-шкала/);
     assert.match(report, /Lua CPU/);
+    assert.match(report, /run\.json: outcome\.peakRssKiB/);
     for (const link of report.matchAll(/\]\(([^)]+)\)/g)) {
       await Deno.stat(resolve(final, decodeURI(link[1])));
     }
