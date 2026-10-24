@@ -16,7 +16,7 @@ Deno.test("report separates clock totals, does not claim self time, and retains 
     run_id: "r",
     process_id: "p",
     executor_id: "ts",
-    sequence: 1,
+    sequence: event === "begin" ? 1 : 2,
     event,
     kind: "phase",
     span_id: id,

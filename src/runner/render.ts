@@ -115,6 +115,10 @@ export async function renderCommand(request: NativeRenderRequest): Promise<numbe
     : {};
   if (prepared) {
     await Deno.writeTextFile(
+      join(paths.stagingDirectory, "expectations.json"),
+      JSON.stringify({ schema_version: 2, processes: [] }),
+    );
+    await Deno.writeTextFile(
       join(paths.stagingDirectory, "coverage.json"),
       JSON.stringify(prepared.coverage, null, 2) + "\n",
     );

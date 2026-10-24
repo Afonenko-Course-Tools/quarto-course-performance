@@ -1402,5 +1402,17 @@
     "path": "application/export.ts",
     "operation": "course-prairielearn.application.export.command",
     "kind": "command"
+  },
+  {
+    "extension": "course-navigation",
+    "path": "filter.lua",
+    "operation": "course-navigation.filter.handler.Pandoc",
+    "kind": "phase"
+  },
+  {
+    "extension": "course-site",
+    "path": "infrastructure/navigation.ts",
+    "operation": "course-site.infrastructure.navigation.addressNavigation",
+    "kind": "phase"
   }
 ]

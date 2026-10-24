@@ -29,7 +29,11 @@ export async function prepareDiagnostic(
   preparation.push(...setup.preparation);
   const registry = new URL("../../docs/operation-registry.json", import.meta.url).pathname;
   const coverage = {
-    complete: true,
+    complete: false,
+    installed: { ts: true, lua: true },
+    instrumented: { ts: true, lua: true },
+    observed: { ts: false, lua: false },
+    integrity: "pending",
     ts: [] as unknown[],
     luaModules: [] as string[],
     runtime: caps,
@@ -50,7 +54,7 @@ export async function prepareDiagnostic(
     const path = join(prepared.root, module);
     await contained(prepared.root, path);
     if (path.endsWith(".lua")) {
-      coverage.luaModules.push(module);
+      coverage.luaModules.push(path);
       continue;
     }
     if (!path.endsWith(".ts")) throw new Error("Неподдержанный scope module");
@@ -118,6 +122,10 @@ export async function prepareRenderDiagnostic(
     preparation: setup.preparation,
     coverage: {
       complete: false,
+      installed: { ts: true, lua: true },
+      instrumented: { ts: true, lua: true },
+      observed: { ts: false, lua: false },
+      integrity: "pending",
       scopeKind: "semantic-registry",
       target,
       runtime: caps,

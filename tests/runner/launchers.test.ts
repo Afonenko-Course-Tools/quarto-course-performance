@@ -546,3 +546,113 @@ Deno.test("Pandoc data-dir rejects destination aliases and missing descendants o
     await Deno.remove(root, { recursive: true });
   }
 });
+
+Deno.test("launcher receipts precede child code and distinguish executable CPU work from help", async () => {
+  const { normalizeRun } = await import("../../src/analysis/normalize.ts");
+  const root = await Deno.makeTempDir();
+  try {
+    const setup = await prepareLaunchers({
+      workspace: join(root, "launcher"),
+      deno: Deno.execPath(),
+      pandoc,
+      dataDir,
+    });
+    const entry = join(root, "entry.ts");
+    await Deno.writeTextFile(
+      entry,
+      `const root=Deno.env.get('COURSE_PERF_OUTPUT_DIR')!,id=Deno.env.get('COURSE_PERF_PROCESS_ID')!;const receipt=JSON.parse(await Deno.readTextFile(root+'/processes/'+id+'.json'));if(!receipt.expectation.summary_path||!receipt.expectation.profile_path||receipt.expectation.executed)throw new Error('missing initial expectation');console.log('executed');`,
+    );
+    for (
+      const [name, kind, args, active] of [
+        ["work", "deno", ["run", "-A", entry, "--help"], true],
+        ["deno-help", "deno", ["run", "--help"], false],
+        ["pandoc-help", "pandoc", ["--help"], false],
+        ["no-markup", "pandoc", ["-t", "plain"], false],
+      ] as const
+    ) {
+      const output = join(root, name);
+      await Deno.mkdir(output);
+      await Deno.writeTextFile(
+        join(output, "expectations.json"),
+        JSON.stringify({ schema_version: 2, processes: [] }),
+      );
+      const result = await new Deno.Command(
+        setup.env[kind === "deno" ? "QUARTO_DENO" : "QUARTO_PANDOC"],
+        {
+          args: [...args],
+          env: {
+            ...Deno.env.toObject(),
+            ...setup.env,
+            COURSE_PERF_MODE: "cpu",
+            COURSE_PERF_RUN_ID: "r",
+            COURSE_PERF_EXPERIMENT_ID: "e",
+            COURSE_PERF_OUTPUT_DIR: output,
+          },
+          clearEnv: true,
+          stdin: "null",
+          stdout: "piped",
+          stderr: "piped",
+        },
+      ).output();
+      assert(result.success, new TextDecoder().decode(result.stderr));
+      const run = await normalizeRun(output);
+      assert(run.dataValid, JSON.stringify(run.quality));
+      const expectations = JSON.parse(await Deno.readTextFile(join(output, "expectations.json")));
+      assert.equal(expectations.schema_version, 2);
+      assert.equal(expectations.processes.length, 1);
+      assert.equal(expectations.processes[0].activated, active);
+      assert.equal(expectations.processes[0].executed, active);
+      assert.equal(Boolean(expectations.processes[0].summary_path), active);
+      if (active) {
+        await Deno.remove(join(output, expectations.processes[0].summary_path));
+        assert.equal((await normalizeRun(output)).dataValid, false);
+      }
+    }
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("final receipt I/O failure preserves native exit and leaves initial facts for invalidation", async () => {
+  const { normalizeRun } = await import("../../src/analysis/normalize.ts");
+  const root = await Deno.makeTempDir();
+  try {
+    const setup = await prepareLaunchers({
+      workspace: join(root, "launchers"),
+      deno: Deno.execPath(),
+      pandoc,
+      dataDir,
+    });
+    const output = join(root, "output");
+    await Deno.mkdir(output);
+    await Deno.writeTextFile(
+      join(output, "expectations.json"),
+      JSON.stringify({ schema_version: 2, processes: [] }),
+    );
+    const entry = join(root, "entry.ts");
+    await Deno.writeTextFile(
+      entry,
+      `const root=Deno.env.get('COURSE_PERF_OUTPUT_DIR')!;Deno.renameSync(root+'/processes',root+'/saved-processes');Deno.writeTextFileSync(root+'/processes','blocked');Deno.exit(7);`,
+    );
+    const result = await new Deno.Command(setup.env.QUARTO_DENO, {
+      args: ["run", "-A", entry],
+      env: {
+        ...setup.env,
+        COURSE_PERF_MODE: "summary",
+        COURSE_PERF_RUN_ID: "r",
+        COURSE_PERF_EXPERIMENT_ID: "e",
+        COURSE_PERF_OUTPUT_DIR: output,
+      },
+      stdout: "piped",
+      stderr: "piped",
+    }).output();
+    assert.equal(result.code, 7, new TextDecoder().decode(result.stderr));
+    const [file] = [...Deno.readDirSync(join(output, "saved-processes"))];
+    const initial = JSON.parse(await Deno.readTextFile(join(output, "saved-processes", file.name)));
+    assert.equal(initial.exit_code, null);
+    assert(initial.expectation.summary_path);
+    assert.equal((await normalizeRun(output)).dataValid, false);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

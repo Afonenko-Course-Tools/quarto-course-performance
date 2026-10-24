@@ -98,6 +98,23 @@ Deno.test("simple summary works without private Quarto filter adapter and cpu wr
           () => Deno.stat(join(output, "diagnostic/share/filters/main.lua")),
           Deno.errors.NotFound,
         );
+        const events: Record<string, unknown>[] = [];
+        for (const dir of Deno.readDirSync(join(output, "events"))) {
+          for (const file of Deno.readDirSync(join(output, "events", dir.name))) {
+            if (file.name.endsWith(".jsonl")) {
+              events.push(
+                ...(await Deno.readTextFile(join(output, "events", dir.name, file.name))).split(
+                  "\n",
+                ).filter(Boolean).map((line) => JSON.parse(line)),
+              );
+            }
+          }
+        }
+        const owner = events.find((e) =>
+          e.event === "begin" && e.operation_id === "fixture.owner"
+        )!;
+        assert.equal(owner.document_id, join(root, "doc.qmd"));
+        assert.deepEqual(owner.attributes, { extension_id: "fixture" });
         const summary = JSON.parse(await Deno.readTextFile(join(output, "summary.json")));
         assert(
           summary.operations.some((o: { operationId: string; completed: number }) =>

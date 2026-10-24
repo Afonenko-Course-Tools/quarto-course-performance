@@ -192,3 +192,95 @@ Deno.test("calibration uncertainty includes a stalled epoch-clock read", async (
     await Deno.remove(root, { recursive: true });
   }
 });
+
+Deno.test("ABI 1 records explicit context without leaking parallel document IDs and removes stale child parent", async () => {
+  const root = await Deno.makeTempDir();
+  Deno.env.set("COURSE_PERF_MODE", "summary");
+  try {
+    const agent = installTsAgent({
+      experimentId: "e",
+      runId: "r",
+      processId: "current",
+      outputDirectory: root,
+      mode: "summary",
+    });
+    const m = createMetrics("owner");
+    const spec = {
+      id: "phase",
+      kind: "phase" as const,
+      document_id: "a.qmd",
+      attributes: { custom: 7, extension_id: "wrong" },
+    };
+    const a = m.wrapAsync(spec, async () => {
+      await new Promise((r) => setTimeout(r, 5));
+    });
+    const b = m.wrapAsync({ ...spec, document_id: "b.qmd" }, async () => {});
+    await Promise.all([a(), b()]);
+    m.wrapSync({ id: "no-document", kind: "phase" }, () => {})();
+    agent.metrics.wrapSync({ id: "old-bridge", kind: "phase" }, () => {})();
+    const begins = agent.events.filter((e) => e.event === "begin");
+    assert.deepEqual(begins.map((e) => e.document_id), ["a.qmd", "b.qmd", undefined, undefined]);
+    assert.deepEqual(begins[0].attributes, { custom: 7, extension_id: "owner" });
+    assert.equal(begins[3].attributes, undefined);
+    assert.equal(spec.attributes.extension_id, "wrong");
+    const ambient = Deno.env.get("COURSE_PERF_PARENT_SPAN_ID");
+    Deno.env.set("COURSE_PERF_PARENT_SPAN_ID", "ambient-ghost");
+    const base = {
+      ...Deno.env.toObject(),
+      FUNCTIONAL: "yes",
+      COURSE_PERF_PARENT_SPAN_ID: "stale",
+      COURSE_PERF_PARENT_PROCESS_ID: "stale-process",
+    };
+    const env = m.childEnv(base);
+    assert.equal(env.COURSE_PERF_PARENT_SPAN_ID, undefined);
+    assert.equal(env.COURSE_PERF_PARENT_PROCESS_ID, "current");
+    assert.equal(base.COURSE_PERF_PARENT_SPAN_ID, "stale");
+    const child = await new Deno.Command(Deno.execPath(), {
+      args: [
+        "eval",
+        "console.log(JSON.stringify([Deno.env.get('COURSE_PERF_PARENT_SPAN_ID'),Deno.env.get('FUNCTIONAL')]))",
+      ],
+      env,
+      clearEnv: true,
+      stdout: "piped",
+    }).output();
+    if (ambient === undefined) Deno.env.delete("COURSE_PERF_PARENT_SPAN_ID");
+    else Deno.env.set("COURSE_PERF_PARENT_SPAN_ID", ambient);
+    assert.deepEqual(JSON.parse(new TextDecoder().decode(child.stdout)), [null, "yes"]);
+    for (const e of agent.events.filter((e) => e.event === "end")) {
+      assert(e.document_id === "a.qmd" || e.document_id === "b.qmd" || e.document_id === undefined);
+    }
+  } finally {
+    Deno.env.delete("COURSE_PERF_MODE");
+    Reflect.deleteProperty(globalThis, Symbol.for("course.performance.agent.v1"));
+    await Deno.remove(root, { recursive: true });
+  }
+});
+Deno.test("walk counter deltas carry the same recorded context as the operation", async () => {
+  const root = await Deno.makeTempDir();
+  Deno.env.set("COURSE_PERF_MODE", "summary");
+  try {
+    const a = installTsAgent({
+      experimentId: "e",
+      runId: "r",
+      processId: "p",
+      outputDirectory: root,
+      mode: "summary",
+    });
+    createMetrics("owner").wrapWalk({
+      id: "walk",
+      kind: "ast_walk",
+      scope: "fragment",
+      document_id: "doc.qmd",
+    }, () => {})();
+    assert.equal(a.events.length, 3);
+    for (const e of a.events) {
+      assert.equal(e.document_id, "doc.qmd");
+      assert.equal(e.attributes?.extension_id, "owner");
+    }
+  } finally {
+    Deno.env.delete("COURSE_PERF_MODE");
+    Reflect.deleteProperty(globalThis, Symbol.for("course.performance.agent.v1"));
+    await Deno.remove(root, { recursive: true });
+  }
+});

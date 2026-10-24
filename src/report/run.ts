@@ -1,9 +1,12 @@
 import { isAbsolute, join } from "node:path";
 import type { CounterAggregate, RunRecord, RunSummary } from "./types.ts";
-import type { NormalizedRun } from "../analysis/normalize.ts";
+import {
+  type NormalizedRun,
+  operationAttribution,
+  validatedIntervals,
+} from "../analysis/normalize.ts";
 import { traces } from "./perfetto.ts";
 export function operationTotals(run: NormalizedRun) {
-  const begins = new Map(run.events.filter((e) => e.event === "begin").map((e) => [e.span_id, e]));
   const totals = new Map<
     string,
     {
@@ -13,12 +16,14 @@ export function operationTotals(run: NormalizedRun) {
       errors: number;
       inclusive_us: number;
       self_us: null;
+      extension_id: string | null;
+      extension_attribution: "recorded" | "derived" | "unavailable";
     }
   >();
-  for (const end of run.events.filter((e) => e.event === "end")) {
-    const begin = begins.get(end.span_id);
-    if (!begin || end.timestamp_us! < begin.timestamp_us!) continue;
-    const key = `${end.clock_domain}/${end.operation_id}`;
+  for (const { begin, end, durationUs } of validatedIntervals(run)) {
+    const attribution = operationAttribution(begin);
+    const key =
+      `${end.clock_domain}/${end.operation_id}/${attribution.extension_id}/${attribution.extension_attribution}`;
     const total = totals.get(key) ??
       {
         operation: end.operation_id!,
@@ -27,10 +32,11 @@ export function operationTotals(run: NormalizedRun) {
         errors: 0,
         inclusive_us: 0,
         self_us: null,
+        ...attribution,
       };
     total.completed++;
     total.errors += end.status === "error" ? 1 : 0;
-    total.inclusive_us += end.timestamp_us! - begin.timestamp_us!;
+    total.inclusive_us += durationUs;
     totals.set(key, total);
   }
   return [...totals.values()].sort((a, b) => b.inclusive_us - a.inclusive_us);
@@ -78,6 +84,8 @@ export function summarizeRunRecord(record: RunRecord, normalized?: NormalizedRun
     operations: normalized
       ? operationTotals(normalized).map((o) => ({
         operationId: o.operation,
+        extensionId: o.extension_id,
+        extensionAttribution: o.extension_attribution,
         clockDomain: o.clock as "monotonic_process" | "process_cpu",
         completed: o.completed,
         errors: o.errors,

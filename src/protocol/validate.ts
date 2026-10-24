@@ -14,6 +14,17 @@ export function validateEvent(value: unknown): Event {
     !["manual", "auto", "runtime"].includes(e.origin) ||
     !["monotonic_process", "process_cpu", "none"].includes(e.clock_domain)
   ) throw new Error("Неизвестный Event или clock domain");
+  if (e.document_id !== undefined && (typeof e.document_id !== "string" || !e.document_id)) {
+    throw new Error("Некорректный document_id");
+  }
+  if (
+    e.attributes !== undefined &&
+    (!e.attributes || typeof e.attributes !== "object" || Array.isArray(e.attributes) ||
+      Object.values(e.attributes).some((value) =>
+        value !== null && typeof value !== "string" && typeof value !== "boolean" &&
+        !(typeof value === "number" && Number.isFinite(value))
+      ))
+  ) throw new Error("Некорректные attributes");
   if (e.event === "begin" || e.event === "end") {
     if (
       !e.span_id || !e.operation_id || !Number.isFinite(e.timestamp_us) || e.timestamp_us! < 0 ||

@@ -41,6 +41,11 @@ return function(config)
   local function_symbols, symbol_ordinals, symbols = setmetatable({}, {__mode='k'}), {}, {}
   arrays[symbols]=true
   local executor_id = config.executorId or ('lua-' .. tostring({}):gsub('[^%w]',''))
+  local started,start_error=pcall(function()
+    local file=assert(io.open(directory..'/'..executor_id..'.started.json','w'))
+    file:write(encode{schema_version=1,process_id=config.processId,executor_id=executor_id,agent='lua',executed=true});file:close()
+  end)
+  if not started then errors[#errors+1]='activation: '..tostring(start_error) end
   local function stack()
     local thread = coroutine.running() or main_thread
     if not stacks[thread] then stacks[thread]={} end
@@ -55,26 +60,37 @@ return function(config)
   local function safe_emit(e)
     local ok,err=pcall(emit,e); if not ok then errors[#errors+1]=tostring(err) end
   end
+  local function document_context(spec)
+    local document=spec.document_id
+    local public=rawget(_G,'quarto')
+    if not document and public and public.doc then document=public.doc.input_file end
+    if type(document)~='string' or document=='' then document=nil end
+    local attributes
+    if spec.attributes then attributes={};for key,value in pairs(spec.attributes) do attributes[key]=value end end
+    return document,attributes
+  end
   local function begin(spec, push)
     serial=serial+1; local id=config.processId..'-'..executor_id..'-'..serial
     local current=stack(); local parent=current[#current] or creator_spans[coroutine.running() or main_thread] or os.getenv('COURSE_PERF_PARENT_SPAN_ID')
+    local document,attributes=document_context(spec)
     local key='calls.'..spec.id; counters[key]=(counters[key] or 0)+1
     if spec.id=='quarto.filter.run' then counters.filter_runs=(counters.filter_runs or 0)+1 end
     local handler=spec.id:match('%.handler%.(.+)$');if handler then local name='handler_calls.'..handler;counters[name]=(counters[name] or 0)+1 end
     if spec.kind=='ast_walk' then
       key='walk_api_calls.'..spec.scope; counters[key]=(counters[key] or 0)+1
-      safe_emit{event='counter',kind='ast_walk',origin=spec.origin or 'manual',clock_domain='none',counter={name=key,value=1,quality='observed-exact'}}
+      safe_emit{document_id=document,attributes=attributes,event='counter',kind='ast_walk',origin=spec.origin or 'manual',clock_domain='none',counter={name=key,value=1,quality='observed-exact'}}
     end
-    active[id]=spec
-    safe_emit{event='begin',kind=spec.kind,span_id=id,parent_span_id=parent,operation_id=spec.id,symbol_id=spec.symbol_id,origin=spec.origin or 'manual',clock_domain='process_cpu',timestamp_us=clock()}
+    active[id]={spec=spec,document_id=document,attributes=attributes}
+    safe_emit{document_id=document,attributes=attributes,event='begin',kind=spec.kind,span_id=id,parent_span_id=parent,operation_id=spec.id,symbol_id=spec.symbol_id,origin=spec.origin or 'manual',clock_domain='process_cpu',timestamp_us=clock()}
     if push~=false then current[#current+1]=id end
     return id
   end
   local function finish(id,status,pop)
-    local spec=active[id]; if not spec then return end
+    local observation=active[id]; if not observation then return end
+    local spec=observation.spec
     active[id]=nil
     if status=='aborted' then aborted=aborted+1 end
-    safe_emit{event='end',kind=spec.kind,span_id=id,operation_id=spec.id,origin=spec.origin or 'manual',clock_domain='process_cpu',timestamp_us=clock(),status=status}
+    safe_emit{document_id=observation.document_id,attributes=observation.attributes,event='end',kind=spec.kind,span_id=id,operation_id=spec.id,origin=spec.origin or 'manual',clock_domain='process_cpu',timestamp_us=clock(),status=status}
     if pop~=false then local current=stack(); if current[#current]==id then current[#current]=nil end end
   end
   local function wrap(spec,fn)
@@ -99,7 +115,7 @@ return function(config)
     return function(node,filter,...)
       local observed=setmetatable({},getmetatable(filter))
       for key,value in pairs(filter) do
-        observed[key]=type(value)=='function' and wrap({id=spec.id..'.handler.'..tostring(key),kind='function',origin='runtime'},value) or value
+        observed[key]=type(value)=='function' and wrap({id=spec.id..'.handler.'..tostring(key),kind='function',origin='runtime',document_id=spec.document_id,attributes=spec.attributes},value) or value
       end
       return original(node,observed,...)
     end
@@ -167,10 +183,18 @@ return function(config)
     for thread in pairs(hooks) do
       if debug.gethook(thread) then errors[#errors+1]='Конфликт coroutine debug hooks';return false end
     end
+    local function identity(source)
+      if source:sub(1,1)=='@' then source=source:sub(2) end
+      if source:sub(1,1)=='=' then return nil end
+      if pandoc.path.is_relative(source) then source=pandoc.path.join{pandoc.system.get_working_directory(),source} end
+      return pandoc.path.normalize(source)
+    end
+    local selected_files={}
+    for _,path in ipairs(scope) do local file=identity(path);if file then selected_files[file]=true end end
+    local own_file=identity(agent_source)
     local function selected(source)
-      if source==agent_source then return false end
-      for _,path in ipairs(scope) do if source:find(path,1,true) then return true end end
-      return false
+      local file=identity(source)
+      return file and file~=own_file and selected_files[file]==true
     end
     local hook
     hook=function(event)

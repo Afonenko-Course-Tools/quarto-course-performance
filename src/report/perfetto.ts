@@ -1,4 +1,8 @@
-import type { NormalizedRun } from "../analysis/normalize.ts";
+import {
+  type NormalizedRun,
+  operationAttribution,
+  validatedIntervals,
+} from "../analysis/normalize.ts";
 export function traces(run: NormalizedRun) {
   type TraceEvent = {
     name: string;
@@ -18,16 +22,11 @@ export function traces(run: NormalizedRun) {
       traceEvents: [],
       displayTimeUnit: "ms",
     };
-  const starts = new Map<string, typeof run.events[number]>();
   const origins = Object.values(run.executors).map((x) =>
     (x.calibration as { time_origin_ms?: number } | undefined)?.time_origin_ms
   ).filter((x): x is number => typeof x === "number");
   const zero = origins.length ? Math.min(...origins) : 0;
-  for (const e of run.events) {
-    if (e.event === "begin") starts.set(e.span_id!, e);
-    if (e.event !== "end") continue;
-    const start = starts.get(e.span_id!);
-    if (!start) continue;
+  for (const { begin: start, end: e, durationUs } of validatedIntervals(run)) {
     const executor = run.executors[`${start.process_id}/${start.executor_id}`],
       calibration = executor?.calibration as
         | { time_origin_ms?: number; uncertainty_us?: number }
@@ -40,11 +39,13 @@ export function traces(run: NormalizedRun) {
       cat: start.kind,
       ph: "X",
       ts: start.timestamp_us! + shift,
-      dur: e.timestamp_us! - start.timestamp_us!,
+      dur: durationUs,
       pid: start.process_id,
       tid: start.executor_id,
       args: {
         run_id: run.runId,
+        document_id: start.document_id ?? null,
+        ...operationAttribution(start),
         clock_domain: start.clock_domain,
         parent_span_id: start.parent_span_id ?? null,
         status: e.status,

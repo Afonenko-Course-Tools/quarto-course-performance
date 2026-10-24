@@ -65,3 +65,29 @@ Deno.test("ordinary facade import needs no permission to read environment", asyn
     await Deno.remove(root, { recursive: true });
   }
 });
+
+Deno.test("new facade supplies optional context to an older ABI 1 agent", () => {
+  const registry = globalThis as Record<symbol, unknown>,
+    key = Symbol.for("course.performance.agent.v1");
+  Deno.env.set("COURSE_PERF_MODE", "summary");
+  let recorded: unknown;
+  const wrap = (_spec: unknown, fn: () => number) => {
+    recorded = _spec;
+    return fn;
+  };
+  registry[key] = {
+    abiVersion: 1,
+    metrics: { wrapSync: wrap, wrapAsync: wrap, wrapWalk: wrap, childEnv: (base: unknown) => base },
+  };
+  try {
+    assert.equal(createMetrics("legacy").wrapSync({ id: "phase", kind: "phase" }, () => 42)(), 42);
+    assert.deepEqual(recorded, {
+      id: "phase",
+      kind: "phase",
+      attributes: { extension_id: "legacy" },
+    });
+  } finally {
+    delete registry[key];
+    Deno.env.delete("COURSE_PERF_MODE");
+  }
+});

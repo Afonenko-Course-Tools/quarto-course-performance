@@ -49,7 +49,23 @@ export interface CounterAggregate {
   semantics: "delta" | "total";
   quality: "observed-exact" | "partial";
 }
+export interface ProcessExpectation {
+  process_id: string;
+  agent: "ts" | "lua";
+  requested: boolean;
+  supported: boolean;
+  activated: boolean;
+  executed: boolean;
+  summary_path?: string;
+  profile_path?: string;
+}
+export interface DiagnosticExpectations {
+  schema_version: 2;
+  processes: ProcessExpectation[];
+}
 export interface OperationAggregate {
+  extensionId?: string | null;
+  extensionAttribution?: "recorded" | "derived" | "unavailable";
   operationId: string;
   clockDomain: "monotonic_process" | "process_cpu";
   completed: number;
@@ -219,4 +235,42 @@ export function validateRunSummary(value: unknown): RunSummary {
     if (!["observed-exact", "partial"].includes(o.quality as string)) invalid("operations.quality");
   }
   return s as unknown as RunSummary;
+}
+
+export function validateDiagnosticExpectations(value: unknown): DiagnosticExpectations {
+  const e = object(value, "expectations");
+  if (e.schema_version !== 2 || !Array.isArray(e.processes)) {
+    invalid("expectations.schema_version/processes");
+  }
+  const seen = new Set<string>();
+  for (const item of e.processes) {
+    const p = object(item, "expectations.processes");
+    string(p.process_id, "process_id");
+    if (!["ts", "lua"].includes(p.agent as string)) invalid("agent");
+    const key = `${p.process_id}/${p.agent}`;
+    if (seen.has(key)) invalid("duplicate process expectation");
+    seen.add(key);
+    for (const field of ["requested", "supported", "activated", "executed"]) {
+      boolean(p[field], field);
+    }
+    if (p.activated && (!p.requested || !p.supported) || p.executed && !p.activated) {
+      invalid("activation");
+    }
+    for (const field of ["summary_path", "profile_path"]) {
+      if (p[field] === undefined) continue;
+      string(p[field], field);
+      const path = p[field] as string;
+      if (path.startsWith("/") || path.includes("\\") || path.split("/").includes("..")) {
+        invalid(field);
+      }
+      if (field === "summary_path" && ((p.agent === "lua") !== path.endsWith("/"))) {
+        invalid(`${field}/namespace`);
+      }
+      if (field === "profile_path" && (p.agent !== "ts" || path.endsWith("/"))) {
+        invalid(`${field}/profile`);
+      }
+      if (!p.activated) invalid(`${field}/activation`);
+    }
+  }
+  return e as unknown as DiagnosticExpectations;
 }

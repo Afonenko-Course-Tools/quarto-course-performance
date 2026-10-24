@@ -58,6 +58,10 @@ export async function executeScenario(
   );
   if (mode !== "off") {
     await Deno.writeTextFile(
+      join(outputDirectory, "expectations.json"),
+      JSON.stringify({ schema_version: 2, processes: [] }),
+    );
+    await Deno.writeTextFile(
       join(outputDirectory, "mode.json"),
       JSON.stringify({ mode, runId, experimentId: prepared.manifest.experimentId }),
     );
