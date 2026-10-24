@@ -1420,5 +1420,26 @@
     "path": "infrastructure/native-run.ts",
     "operation": "course-core.infrastructure.native-run.commonPathDocument",
     "kind": "io"
+  },
+  {
+    "extension": "course-print",
+    "path": "infrastructure/process.ts",
+    "operation": "course-print.command",
+    "kind": "command",
+    "phase": "process"
+  },
+  {
+    "extension": "course-moodle",
+    "path": "infrastructure/process.ts",
+    "operation": "course-moodle.command",
+    "kind": "command",
+    "phase": "process"
+  },
+  {
+    "extension": "course-cloud",
+    "path": "validate.lua",
+    "operation": "course-cloud.validate-paths",
+    "kind": "command",
+    "phase": "validate"
   }
 ]
