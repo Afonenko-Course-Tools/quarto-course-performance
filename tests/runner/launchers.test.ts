@@ -491,3 +491,58 @@ Deno.test("Pandoc data-dir preparation rejects directory cycles and special file
     await Deno.remove(root, { recursive: true });
   }
 });
+
+Deno.test("Pandoc data-dir rejects staging inside a reachable linked temp before creating any copy", async () => {
+  const { preparePandocData } = await import("../../src/launchers/setup.ts");
+  const root = await Deno.makeTempDir();
+  try {
+    const data = join(root, "data"), temp = join(root, "temp"), destination = join(temp, "staging");
+    await Deno.mkdir(data);
+    await Deno.mkdir(temp);
+    const original = "CUSTOM_INIT=true;INIT_COUNT=(INIT_COUNT or 0)+1;return 'native'\n";
+    await Deno.writeTextFile(join(data, "init.lua"), original);
+    await Deno.writeTextFile(join(temp, "sentinel"), "unchanged");
+    await Deno.symlink(temp, join(data, "cache"));
+    const filter = join(root, "filter.lua");
+    await Deno.writeTextFile(filter, "assert(CUSTOM_INIT);assert(INIT_COUNT==1);return {}\n");
+    const native = await new Deno.Command(pandoc, {
+      args: ["--data-dir", data, "--lua-filter", filter, "-t", "plain"],
+      stdin: "null",
+      stdout: "piped",
+      stderr: "piped",
+    }).output();
+    assert(native.success, new TextDecoder().decode(native.stderr));
+    await assert.rejects(
+      () => preparePandocData(data, destination, "unused.lua"),
+      /внутри источника|пересеч/,
+    );
+    await assert.rejects(() => Deno.stat(destination), Deno.errors.NotFound);
+    assert.deepEqual([...Deno.readDirSync(temp)].map((entry) => entry.name), ["sentinel"]);
+    assert.equal(await Deno.readTextFile(join(temp, "sentinel")), "unchanged");
+    assert.equal(await Deno.readTextFile(join(data, "init.lua")), original);
+    assert.equal(await Deno.readLink(join(data, "cache")), temp);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("Pandoc data-dir rejects destination aliases and missing descendants of source aliases before source mutation", async () => {
+  const { preparePandocData } = await import("../../src/launchers/setup.ts");
+  const root = await Deno.makeTempDir();
+  try {
+    const data = join(root, "data"), alias = join(root, "alias");
+    await Deno.mkdir(data);
+    await Deno.symlink(data, alias);
+    for (const destination of [alias, join(alias, "missing", "staging")]) {
+      await assert.rejects(
+        () => preparePandocData(data, destination, "unused.lua"),
+        /внутри источника|пересеч/,
+      );
+      assert.deepEqual([...Deno.readDirSync(data)], []);
+      await assert.rejects(() => Deno.stat(join(data, "init.lua")), Deno.errors.NotFound);
+      assert.equal(await Deno.readLink(alias), data);
+    }
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

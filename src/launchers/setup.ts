@@ -1,4 +1,4 @@
-import { join, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { copyTree, hashBytes, hashFile, treeHash } from "../sources/snapshot.ts";
 import type { PreparationReceipt } from "../config/types.ts";
 const project = new URL("../../", import.meta.url).pathname;
@@ -102,29 +102,60 @@ export async function preparePandocData(
 
 /** Только явно выбранный runtime data-dir: ссылки материализуются без записи в source. */
 async function copyPandocData(source: string, destination: string): Promise<void> {
-  const canonical = await Deno.realPath(source);
-  const rel = relative(canonical, resolve(destination));
-  if (rel === "" || rel !== ".." && !rel.startsWith("../")) {
-    throw new Error(`Копия Pandoc data-dir не может находиться внутри источника: ${source}`);
+  // Даже ещё не существующий destination разрешается через физический existing ancestor.
+  let existing = isAbsolute(destination) ? destination : Deno.cwd() + "/" + destination;
+  const suffix: string[] = [];
+  let physicalDestination: string;
+  while (true) {
+    try {
+      physicalDestination = join(await Deno.realPath(existing), ...suffix);
+      break;
+    } catch (error) {
+      if (!(error instanceof Deno.errors.NotFound)) throw error;
+      const present = await Deno.lstat(existing).then(() => true, (statError) => {
+        if (statError instanceof Deno.errors.NotFound) return false;
+        throw statError;
+      });
+      if (present || dirname(existing) === existing) throw error;
+      suffix.unshift(basename(existing));
+      existing = dirname(existing);
+    }
   }
-  await Deno.mkdir(destination, { recursive: true });
-  async function visit(from: string, to: string, ancestors: Set<string>): Promise<void> {
-    const real = await Deno.realPath(from), info = await Deno.stat(from);
+  const inside = (parent: string, child: string) => {
+    const rel = relative(parent, child);
+    return rel === "" || rel !== ".." && !rel.startsWith("../") && !isAbsolute(rel);
+  };
+  const entries: { source: string; target: string; info: Deno.FileInfo }[] = [];
+  // Сначала проверяется всё достижимое дерево. До завершения этого обхода записей нет.
+  async function inspect(from: string, to: string, ancestors: Set<string>): Promise<void> {
+    const real = await Deno.realPath(from), info = await Deno.stat(real);
+    if (info.isDirectory && ancestors.has(real)) {
+      throw new Error(`Цикл символических ссылок Pandoc data-dir: ${from}`);
+    }
+    if (inside(real, physicalDestination) || inside(physicalDestination, real)) {
+      throw new Error(
+        `Копия Pandoc data-dir не может находиться внутри источника или пересекаться с достижимым путём: ${from}`,
+      );
+    }
+    if (!info.isDirectory && !info.isFile) {
+      throw new Error(`Специальный файл в Pandoc data-dir: ${from}`);
+    }
+    entries.push({ source: real, target: to, info });
     if (info.isDirectory) {
-      if (ancestors.has(real)) {
-        throw new Error(`Цикл символических ссылок Pandoc data-dir: ${from}`);
-      }
       const next = new Set(ancestors);
       next.add(real);
-      await Deno.mkdir(to, { recursive: true });
-      for await (const entry of Deno.readDir(from)) {
-        await visit(join(from, entry.name), join(to, entry.name), next);
+      for await (const entry of Deno.readDir(real)) {
+        await inspect(join(real, entry.name), join(to, entry.name), next);
       }
-    } else if (info.isFile) {
+    }
+  }
+  await inspect(source, physicalDestination, new Set());
+  for (const { source: from, target: to, info } of entries) {
+    if (info.isDirectory) await Deno.mkdir(to, { recursive: true });
+    else {
       await Deno.copyFile(from, to);
       if (info.mode !== null) await Deno.chmod(to, info.mode & 0o777);
       if (info.mtime !== null) await Deno.utime(to, info.atime ?? info.mtime, info.mtime);
-    } else throw new Error(`Специальный файл в Pandoc data-dir: ${from}`);
+    }
   }
-  await visit(source, destination, new Set());
 }
