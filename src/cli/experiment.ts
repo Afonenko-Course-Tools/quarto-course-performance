@@ -9,7 +9,11 @@ import { benchmarkPair } from "../runner/benchmark.ts";
 import { hashFile } from "../sources/snapshot.ts";
 import { compareBenchmarks } from "../analysis/compare.ts";
 import { type NormalizedRun, normalizeRun } from "../analysis/normalize.ts";
-import { assertWritableExperiment, writeExperimentReport } from "../analysis/report.ts";
+import {
+  assertWritableExperiment,
+  importHistoricalExperiment,
+  writeExperimentReport,
+} from "../analysis/report.ts";
 import {
   importSourceManifest,
   liveSourceManifest,
@@ -18,12 +22,20 @@ import {
 } from "../config/types.ts";
 function parseFlags(args: readonly string[]): Record<string, string> {
   const flags: Record<string, string> = {};
-  for (let n = 0; n < args.length; n += 2) {
-    if (!args[n].startsWith("--") || !args[n + 1] || flags[args[n]]) {
+  for (let n = 0; n < args.length; n++) {
+    if (args[n] === "--import-historical") {
+      if (flags[args[n]]) throw new Error("Повтор --import-historical");
+      flags[args[n]] = "true";
+      continue;
+    }
+    if (
+      !args[n].startsWith("--") || !args[n + 1] || args[n + 1].startsWith("--") || flags[args[n]]
+    ) {
       throw new Error("Некорректные/повторные CLI параметры");
     }
     if (
       ![
+        "--output",
         "--quarto",
         "--workspace",
         "--config",
@@ -39,6 +51,7 @@ function parseFlags(args: readonly string[]): Record<string, string> {
       ].includes(args[n])
     ) throw new Error("Неизвестный CLI параметр");
     flags[args[n]] = args[n + 1];
+    n++;
   }
   return flags;
 }
@@ -48,6 +61,14 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
   if (
     !["sources", "freeze", "run", "benchmark", "report", "verify", "capabilities"].includes(command)
   ) throw new Error("Команды: sources, freeze, run, benchmark, report, verify, capabilities");
+  if (
+    (flags["--import-historical"] || flags["--output"]) && !["report", "verify"].includes(command)
+  ) {
+    throw new Error("Исторический импорт разрешён только report/verify");
+  }
+  if (Boolean(flags["--import-historical"]) !== Boolean(flags["--output"])) {
+    throw new Error("Необходимы вместе --import-historical и явный --output");
+  }
   if (command === "capabilities") {
     console.log(
       JSON.stringify(
@@ -237,6 +258,15 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
     return result.buildExitCode ? 3 : result.dataValid ? 0 : 4;
   }
   if (command === "report" || command === "verify") {
+    if (flags["--import-historical"]) {
+      const report = await importHistoricalExperiment(
+        workspace,
+        flags["--output"],
+        flags["--experiment"],
+      );
+      console.log(`Отчёт: ${join(report.outputDirectory, "report.md")}`);
+      return report.exitCode;
+    }
     const manifest = importSourceManifest(
       JSON.parse(await Deno.readTextFile(join(workspace, "candidate.manifest.json"))),
       true,

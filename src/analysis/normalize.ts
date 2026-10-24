@@ -70,7 +70,10 @@ export function operationAttribution(event: Event): {
     extension_attribution: prefix ? "derived" : "unavailable",
   };
 }
-export async function normalizeRun(directory: string): Promise<NormalizedRun> {
+export async function normalizeRun(
+  directory: string,
+  options: { readOnly?: boolean; identity?: { runId: string; experimentId: string } } = {},
+): Promise<NormalizedRun> {
   const events: Event[] = [],
     quality: QualitySummary = {
       droppedEvents: 0,
@@ -79,12 +82,16 @@ export async function normalizeRun(directory: string): Promise<NormalizedRun> {
       errors: [],
     },
     executors: Record<string, Record<string, unknown>> = {};
-  let runId = "";
-  let experimentId = "";
+  let runId = options.identity?.runId ?? "";
+  let experimentId = options.identity?.experimentId ?? "";
   try {
     const identity = JSON.parse(await Deno.readTextFile(join(directory, "mode.json")));
-    runId = identity.runId ?? "";
-    experimentId = identity.experimentId ?? "";
+    if (options.identity && (identity.runId !== runId || identity.experimentId !== experimentId)) {
+      quality.errors.push("Mode receipt расходится с identity metadata");
+    } else {
+      runId = identity.runId ?? runId;
+      experimentId = identity.experimentId ?? experimentId;
+    }
   } catch { /* Старые fixture не имеют receipt. */ }
   let expectations: DiagnosticExpectations | undefined;
   try {
@@ -337,10 +344,12 @@ export async function normalizeRun(directory: string): Promise<NormalizedRun> {
         );
       }
     }
-    await Deno.writeTextFile(
-      join(directory, "expectations.json"),
-      JSON.stringify(expectations, null, 2) + "\n",
-    );
+    if (!options.readOnly) {
+      await Deno.writeTextFile(
+        join(directory, "expectations.json"),
+        JSON.stringify(expectations, null, 2) + "\n",
+      );
+    }
   }
   for (const process of processes) {
     if (process.expectation && process.exit_code === null) {
@@ -366,7 +375,7 @@ export async function normalizeRun(directory: string): Promise<NormalizedRun> {
   }
   const dataValid = !quality.droppedEvents && !quality.incompleteSpans && !quality.errors.length;
   quality.coverageComplete &&= dataValid;
-  if (expectations) {
+  if (expectations && !options.readOnly) {
     try {
       const path = join(directory, "coverage.json"),
         coverage = JSON.parse(await Deno.readTextFile(path));

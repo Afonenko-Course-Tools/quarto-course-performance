@@ -80,6 +80,7 @@ export function summarizeRunRecord(record: RunRecord, normalized?: NormalizedRun
   return {
     schema_version: 2,
     runId: record.runId,
+    ...(record.importProvenance ? { importProvenance: record.importProvenance } : {}),
     dataValid: record.dataValid,
     quality: record.quality,
     operations: normalized

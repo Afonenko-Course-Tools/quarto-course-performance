@@ -4,6 +4,7 @@ import type { NormalizedRun } from "./normalize.ts";
 
 import { jsonFiles, operationTotals, writeRunArtifacts } from "../report/run.ts";
 import type { RunRecord } from "../report/types.ts";
+import { prepareHistoricalImport } from "./historical.ts";
 export { operationTotals } from "../report/run.ts";
 
 function summarizeRun(run: NormalizedRun) {
@@ -66,6 +67,34 @@ export async function writeExperimentReport(
   output: string,
 ) {
   await assertWritableExperiment(manifest, output);
+  return await writeExperimentArtifacts(manifest, runs, output);
+}
+
+export async function importHistoricalExperiment(
+  source: string,
+  output: string,
+  experimentId?: string,
+) {
+  const imported = await prepareHistoricalImport(source, output, experimentId);
+  const report = await writeExperimentArtifacts(
+    imported.manifest,
+    imported.runs,
+    imported.output,
+    imported.provenance,
+  );
+  return {
+    ...report,
+    exitCode: imported.nativeFailed ? 3 : report.dataValid ? 0 : 4,
+    outputDirectory: imported.output,
+  };
+}
+
+async function writeExperimentArtifacts(
+  manifest: ReportSourceManifest,
+  runs: Iterable<NormalizedRun> | AsyncIterable<NormalizedRun>,
+  output: string,
+  importProvenance?: unknown,
+) {
   const builds: Record<string, unknown>[] = [], coverage: Record<string, unknown>[] = [];
   try {
     for await (const item of Deno.readDir(join(output, "runs"))) {
@@ -115,9 +144,21 @@ export async function writeExperimentReport(
   }
   const data = {
     manifest,
-    summary: { schema_version: 2, experimentId: manifest.experimentId, runs: summary },
+    summary: {
+      schema_version: 2,
+      experimentId: manifest.experimentId,
+      runs: summary,
+      ...(importProvenance ? { importProvenance } : {}),
+    },
     quality: summary.map((r) => ({ run_id: r.run_id, ...r.quality })),
-    coverage,
+    coverage: importProvenance
+      ? coverage.map((receipt) => ({
+        ...receipt,
+        sourceComplete: receipt.complete ?? null,
+        complete:
+          summary.find((run) => run.run_id === receipt.run_id)?.quality.coverageComplete === true,
+      }))
+      : coverage,
     builds,
     benchmarks,
   };
@@ -134,6 +175,12 @@ export async function writeExperimentReport(
     "",
     "TypeScript измеряет wall, Lua — CPU процесса. Шкалы раздельны. Inclusive интервалы вложены и могут перекрываться: их сумма не равна длительности сборки. Async self time и node_visits недоступны без отдельных наблюдений.",
     "",
+    ...(importProvenance
+      ? [
+        "Исторический импорт: [происхождение](import-provenance.json). Исходный workspace сохранён без изменений.",
+        "",
+      ]
+      : []),
     "## Сборки и сырой материал",
     "",
     "| Сценарий | Variant | Режим | Код сборки | Wall, с | Данные |",
@@ -174,7 +221,7 @@ export async function writeExperimentReport(
     "| Запуск | Данные | Потери | Незавершённые | Ошибки |",
     "| --- | --- | ---: | ---: | ---: |",
     ...summary.map((r) =>
-      `| [${r.run_id}](runs/${r.run_id}/coverage.json) | ${
+      `| [${r.run_id}](runs/${r.run_id}/run.json) | ${
         r.data_valid ? "VALID" : "INVALID"
       } | ${r.quality.droppedEvents} | ${r.quality.incompleteSpans} | ${r.quality.errors.length} |`
     ),
@@ -197,7 +244,13 @@ export async function writeExperimentReport(
           ),
           "",
         ]),
-        `Raw: [events](runs/${r.run_id}/events/), [wall trace](runs/${r.run_id}/wall.trace.json), [Lua CPU trace](runs/${r.run_id}/lua-cpu.trace.json), [causal graph](runs/${r.run_id}/causal.json).`,
+        `Raw: ${
+          ((builds.find((b) => b.runId === r.run_id)?.artifacts as
+              | Record<string, string>
+              | undefined)?.events)
+            ? `[events](runs/${r.run_id}/events/), `
+            : ""
+        }[wall trace](runs/${r.run_id}/wall.trace.json), [Lua CPU trace](runs/${r.run_id}/lua-cpu.trace.json), [causal graph](runs/${r.run_id}/causal.json).`,
         "",
       ],
     ),

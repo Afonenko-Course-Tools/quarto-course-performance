@@ -26,7 +26,17 @@ export interface GitProvenance {
   head: string | null;
   dirty: boolean;
 }
+export interface ImportProvenance {
+  schema_version: 1;
+  adapterVersion: string;
+  sourceDirectory: string;
+  manifest: { path: string; sha256: string; schemaVersion: number | null };
+  run: { path: string; sha256: string; schemaVersion: number | null };
+  runManifest?: { path: string; sha256: string; schemaVersion: number | null };
+  sourceStatus: { buildExitCode: number; dataValid: boolean | null; signalAvailability: string };
+}
 export interface RunRecord {
+  importProvenance?: ImportProvenance;
   schema_version: 2;
   runId: string;
   request: RunRequest;
@@ -75,6 +85,7 @@ export interface OperationAggregate {
   quality: "observed-exact" | "partial";
 }
 export interface RunSummary {
+  importProvenance?: ImportProvenance;
   schema_version: 2;
   runId: string;
   dataValid: boolean;
