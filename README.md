@@ -6,13 +6,28 @@
 
 ## Установка и первый запуск
 
-В Arch Linux соберите пакет `quarto-course-perf` по
-[инструкции установки](https://github.com/Afonenko-Course-Tools/quarto-course-performance/blob/v2.0.0/docs/arch-package.md)
-из материалов
-[выпуска 2.0.0](https://github.com/Afonenko-Course-Tools/quarto-course-performance/releases/tag/v2.0.0).
-Он использует отдельный Deno, установленный пакет Quarto, GNU time и `setsid` из `util-linux`.
-Подготовленные зависимости приложения входят в пакет. Локальная инструкция доступна в
-`/usr/share/doc/quarto-course-perf/arch-package.md`.
+В Arch Linux используйте готовый рецепт из
+[quarto-course-perf-arch](https://github.com/Afonenko-Course-Tools/quarto-course-perf-arch).
+Сначала установите `base-devel`, `git` и настоящий пакет Quarto, предоставляющий `quarto` в базе
+pacman: одного исполняемого файла в `PATH` недостаточно, а `makepkg` не устанавливает зависимости из
+AUR. Затем обычным пользователем выполните:
+
+```sh
+git clone https://github.com/Afonenko-Course-Tools/quarto-course-perf-arch.git
+cd quarto-course-perf-arch
+makepkg -si
+```
+
+Пакет использует отдельный Deno, установленный Quarto, GNU time и `setsid` из `util-linux`.
+`makepkg` подготавливает npm-зависимости; генерировать рецепт или готовить их вручную не нужно.
+Для обновления в том же клоне выполните `git pull --ff-only` и повторите `makepkg -si`.
+Подробности — в [текущей Arch-инструкции](docs/arch-package.md).
+
+Установленный файл `/usr/share/doc/quarto-course-perf/arch-package.md` из выпуска приложения 2.0.0
+сохраняет историческую инструкцию и может описывать прежний маршрут. Актуальная установка и
+обновление описаны в README репозитория `quarto-course-perf-arch`; материалы
+[выпуска 2.0.0](https://github.com/Afonenko-Course-Tools/quarto-course-performance/releases/tag/v2.0.0)
+не заменяются.
 
 Перейдите в каталог, из которого обычно выполняете `quarto render`, и запустите:
 
@@ -61,7 +76,7 @@ Performance: wall=12.345s; CPU user=9.8; CPU system=1.2; peak RSS=245760 KiB; st
 [Машинные форматы](https://github.com/Afonenko-Course-Tools/quarto-course-performance/blob/v2.0.0/docs/general-use-formats.md).
 
 Для разработчика:
-[подготовка зависимостей, проверки и владельцы](https://github.com/Afonenko-Course-Tools/quarto-course-performance/blob/v2.0.0/docs/development.md).
+[подготовка зависимостей, проверки, выпуск и владельцы](docs/development.md).
 Первоначальные
 [план](https://github.com/Afonenko-Course-Tools/quarto-course-performance/blob/v2.0.0/docs/plan/README.md)
 и
