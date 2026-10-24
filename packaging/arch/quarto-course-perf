@@ -1,0 +1,2 @@
+#!/bin/sh
+exec deno run --config /usr/lib/quarto-course-perf/deno.json --lock /usr/lib/quarto-course-perf/deno.lock --frozen --node-modules-dir=manual --cached-only -A /usr/lib/quarto-course-perf/src/cli.ts "$@"

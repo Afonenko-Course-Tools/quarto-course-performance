@@ -1,7 +1,8 @@
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { copyTree, hashBytes, hashFile, treeHash } from "../sources/snapshot.ts";
 import type { PreparationReceipt } from "../config/types.ts";
-const project = new URL("../../", import.meta.url).pathname;
+import { appDenoArgs, assetPath } from "../assets.ts";
+const project = assetPath(".");
 function shellQuote(value: string) {
   return "'" + value.replaceAll("'", "'\\''") + "'";
 }
@@ -26,16 +27,20 @@ export async function prepareLaunchers(
   await Deno.mkdir(root, { recursive: true });
   const deno = await Deno.realPath(options.deno), pandoc = await Deno.realPath(options.pandoc);
   const backend = join(root, "backend");
-  const before = await hashBytes(new TextEncoder().encode(JSON.stringify([
-    await treeHash(join(project, "src")),
-    await treeHash(join(project, "bridge")),
-  ])));
-  await copyTree(join(project, "src"), join(backend, "src"));
-  await copyTree(join(project, "bridge"), join(backend, "bridge"));
-  const after = await hashBytes(new TextEncoder().encode(JSON.stringify([
-    await treeHash(join(backend, "src")),
-    await treeHash(join(backend, "bridge")),
-  ])));
+  const directories = ["src", "bridge", "node_modules"];
+  const files = ["deno.json", "deno.lock", "docs/operation-registry.json"];
+  const backendHash = async (base: string) =>
+    await hashBytes(new TextEncoder().encode(JSON.stringify([
+      ...await Promise.all(directories.map((name) => treeHash(join(base, name)))),
+      ...await Promise.all(files.map((name) => hashFile(join(base, name)))),
+    ])));
+  const before = await backendHash(project);
+  for (const name of directories) {
+    await copyTree(join(project, name), join(backend, name), { materializeFileLinks: true });
+  }
+  await Deno.mkdir(join(backend, "docs"), { recursive: true });
+  for (const name of files) await Deno.copyFile(join(project, name), join(backend, name));
+  const after = await backendHash(backend);
   if (before !== after) throw new Error("Backend изменился при подготовке");
   const dataDir = join(root, "pandoc-data");
   const receipt = await preparePandocData(
@@ -48,7 +53,7 @@ export async function prepareLaunchers(
     const path = join(root, kind);
     await Deno.writeTextFile(
       path,
-      `#!/bin/sh\nexec ${shellQuote(deno)} run --no-config --no-lock -A ${
+      `#!/bin/sh\nexec ${[deno, ...appDenoArgs(backend)].map(shellQuote).join(" ")} ${
         shellQuote(backend + "/src/launchers/tool.ts")
       } ${kind} "$@"\n`,
     );

@@ -1,3 +1,4 @@
+import { assetPath } from "../assets.ts";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { prepareLaunchers } from "../launchers/setup.ts";
@@ -27,7 +28,7 @@ export async function prepareDiagnostic(
     dataDir: join(caps.filterAdapter ? share : caps.share, "pandoc/datadir"),
   });
   preparation.push(...setup.preparation);
-  const registry = new URL("../../docs/operation-registry.json", import.meta.url).pathname;
+  const registry = assetPath("docs/operation-registry.json");
   const coverage = {
     complete: false,
     installed: { ts: true, lua: true },

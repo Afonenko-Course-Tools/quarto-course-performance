@@ -1,3 +1,4 @@
+import { appDenoArgs, assetPath } from "../assets.ts";
 import { join, relative, resolve } from "node:path";
 import type {
   Mode,
@@ -120,11 +121,8 @@ export async function executeScenario(
       resolve(resourcesPath),
       "--",
       Deno.execPath(),
-      "run",
-      "--no-config",
-      "--no-lock",
-      "-A",
-      new URL("./resource-child.ts", import.meta.url).pathname,
+      ...appDenoArgs(),
+      assetPath("src/runner/resource-child.ts"),
       resolve(statusPath),
       scenario.executable,
       ...argv,

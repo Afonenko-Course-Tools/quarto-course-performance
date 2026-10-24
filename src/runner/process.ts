@@ -1,3 +1,4 @@
+import { appDenoArgs, assetPath } from "../assets.ts";
 import { dirname, join, resolve } from "node:path";
 import type { BuildOutcome } from "../report/types.ts";
 import { recordCancellation } from "./resource-child.ts";
@@ -178,8 +179,8 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
       time = null;
     }
   }
-  const helper = new URL("./resource-child.ts", import.meta.url).pathname;
-  const deno = [Deno.execPath(), "run", "--no-config", "--no-lock", "-A", helper];
+  const helper = assetPath("src/runner/resource-child.ts");
+  const deno = [Deno.execPath(), ...appDenoArgs(), helper];
   const native = time
     ? [
       time,
