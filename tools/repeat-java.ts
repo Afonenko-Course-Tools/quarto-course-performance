@@ -1,6 +1,6 @@
 // Два рендера одной disposable copy без очистки outputs; функциональная проверка повторного запуска.
 import { join, resolve } from "node:path";
-import type { SourceManifest } from "../src/config/types.ts";
+import { liveSourceManifest } from "../src/config/types.ts";
 import { validateConfig } from "../src/config/validate.ts";
 import { prepareVariant } from "../src/sources/prepare.ts";
 import { executeScenario } from "../src/runner/execute.ts";
@@ -11,9 +11,9 @@ const config = validateConfig(
   JSON.parse(await Deno.readTextFile(new URL("../scenarios/java.json", import.meta.url))),
 );
 const scenario = config.scenarios.find((s) => s.id === "java-repeat-student")!;
-const manifest: SourceManifest = JSON.parse(
+const manifest = liveSourceManifest(JSON.parse(
   await Deno.readTextFile(join(workspace, "candidate.manifest.json")),
-);
+));
 const prepared = await prepareVariant(
   manifest,
   "candidate",
@@ -43,7 +43,9 @@ const comparisons = [];
 for (const path of paths) {
   comparisons.push({
     path,
-    ...await compareOutputs(join(snapshot, path), join(prepared.root, path)),
+    ...await compareOutputs(join(snapshot, path), join(prepared.root, path), {
+      outputPolicy: config.outputPolicy,
+    }),
   });
 }
 const result = {

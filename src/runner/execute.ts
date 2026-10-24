@@ -1,3 +1,4 @@
+import { appDenoArgs, assetPath } from "../assets.ts";
 import { join, relative, resolve } from "node:path";
 import type {
   Mode,
@@ -7,6 +8,8 @@ import type {
   Scenario,
 } from "../config/types.ts";
 import { contained } from "../sources/snapshot.ts";
+import { writeRunArtifacts } from "../report/run.ts";
+import type { NormalizedRun } from "../analysis/normalize.ts";
 import { cleanEnvironment } from "./environment.ts";
 export { cleanEnvironment } from "./environment.ts";
 export interface ExecuteOptions {
@@ -57,6 +60,10 @@ export async function executeScenario(
     JSON.stringify(prepared.manifest, null, 2) + "\n",
   );
   if (mode !== "off") {
+    await Deno.writeTextFile(
+      join(outputDirectory, "expectations.json"),
+      JSON.stringify({ schema_version: 2, processes: [] }),
+    );
     await Deno.writeTextFile(
       join(outputDirectory, "mode.json"),
       JSON.stringify({ mode, runId, experimentId: prepared.manifest.experimentId }),
@@ -114,11 +121,8 @@ export async function executeScenario(
       resolve(resourcesPath),
       "--",
       Deno.execPath(),
-      "run",
-      "--no-config",
-      "--no-lock",
-      "-A",
-      new URL("./resource-child.ts", import.meta.url).pathname,
+      ...appDenoArgs(),
+      assetPath("src/runner/resource-child.ts"),
       resolve(statusPath),
       scenario.executable,
       ...argv,
@@ -183,9 +187,10 @@ export async function executeScenario(
     }
   }
   let dataValid = mode === "off";
+  let normalized: NormalizedRun | undefined;
   if (mode !== "off") {
     const { normalizeRun } = await import("../analysis/normalize.ts");
-    const normalized = await normalizeRun(outputDirectory);
+    normalized = await normalizeRun(outputDirectory);
     dataValid = normalized.dataValid;
   }
   const result: RunResult = {
@@ -197,30 +202,51 @@ export async function executeScenario(
     wallSeconds,
     signal,
   };
-  await Deno.writeTextFile(
-    join(outputDirectory, "run.json"),
-    JSON.stringify(
-      {
-        ...result,
-        scenario: scenario.id,
-        variant: prepared.variant,
-        mode,
-        argv: [scenario.executable, ...argv],
-        cwd,
-        cachePolicy: scenario.cachePolicy,
-        courseProfile: scenario.courseProfile,
-        experimentId: prepared.manifest.experimentId,
-        resources,
-        signalAvailability: options.useHyperfine ? "unavailable" : "observed",
-        resourceScope: options.useHyperfine
-          ? "native-hyperfine-command"
-          : useTime
-          ? "tool-and-resource-supervisor"
-          : "unavailable",
-      },
-      null,
-      2,
-    ) + "\n",
-  );
+  await writeRunArtifacts(outputDirectory, {
+    schema_version: 2,
+    ...result,
+    request: {
+      cwd,
+      quarto: scenario.executable,
+      nativeArgv: argv[0] === "render" ? argv.slice(1) : argv,
+      mode,
+    },
+    outcome: {
+      code: buildExitCode,
+      signal,
+      wallSeconds,
+      cpuUserSeconds: resources.cpu_user_seconds,
+      cpuSystemSeconds: resources.cpu_system_seconds,
+      peakRssKiB: resources.peak_rss_kib,
+    },
+    quality: normalized?.quality ??
+      { droppedEvents: 0, incompleteSpans: 0, coverageComplete: false, errors: [] },
+    versions: {
+      tool: "2.0.0",
+      quarto: prepared.manifest.runtime.quarto?.version ?? "неизвестно",
+      deno: prepared.manifest.runtime.deno?.version ?? null,
+      pandoc: prepared.manifest.runtime.pandoc?.version ?? null,
+    },
+    git: null,
+    collectionDirectory: resolve(outputDirectory),
+    outputDirectory: resolve(outputDirectory),
+    artifacts: {},
+    ...{
+      scenario: scenario.id,
+      variant: prepared.variant,
+      mode,
+      argv: [scenario.executable, ...argv],
+      cwd,
+      cachePolicy: scenario.cachePolicy,
+      experimentId: prepared.manifest.experimentId,
+      resources,
+      signalAvailability: options.useHyperfine ? "unavailable" : "observed",
+      resourceScope: options.useHyperfine
+        ? "native-hyperfine-command"
+        : useTime
+        ? "tool-and-resource-supervisor"
+        : "unavailable",
+    },
+  }, normalized);
   return result;
 }

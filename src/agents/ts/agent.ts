@@ -21,6 +21,22 @@ export function installTsAgent(config: AgentConfig) {
   let sequence = 0, serial = 0, dropped = 0;
   const executorId = config.executorId ?? "ts";
   const timestamp = () => performance.now() * 1000;
+  try {
+    const directory = join(config.outputDirectory, "events", config.processId);
+    Deno.mkdirSync(directory, { recursive: true });
+    Deno.writeTextFileSync(
+      join(directory, `${executorId}.started.json`),
+      JSON.stringify({
+        schema_version: 1,
+        process_id: config.processId,
+        executor_id: executorId,
+        agent: "ts",
+        executed: true,
+      }),
+    );
+  } catch (e) {
+    errors.push(`activation: ${String(e)}`);
+  }
   function emit(
     event: Omit<
       Event,
@@ -52,6 +68,8 @@ export function installTsAgent(config: AgentConfig) {
       counters[key] = (counters[key] ?? 0) + 1;
       emit({
         event: "counter",
+        document_id: spec.document_id,
+        attributes: spec.attributes ? { ...spec.attributes } : undefined,
         kind: "ast_walk",
         origin: spec.origin ?? "manual",
         clock_domain: "none",
@@ -66,6 +84,8 @@ export function installTsAgent(config: AgentConfig) {
       parent_span_id: parent,
       operation_id: spec.id,
       symbol_id: spec.symbol_id,
+      document_id: spec.document_id,
+      attributes: spec.attributes ? { ...spec.attributes } : undefined,
       origin: spec.origin ?? "manual",
       clock_domain: "monotonic_process",
       timestamp_us: timestamp(),
@@ -79,6 +99,8 @@ export function installTsAgent(config: AgentConfig) {
       kind: spec.kind,
       span_id: id,
       operation_id: spec.id,
+      document_id: spec.document_id,
+      attributes: spec.attributes ? { ...spec.attributes } : undefined,
       origin: spec.origin ?? "manual",
       clock_domain: "monotonic_process",
       timestamp_us: timestamp(),
@@ -141,11 +163,14 @@ export function installTsAgent(config: AgentConfig) {
     wrapAsync,
     wrapWalk: wrapSync,
     childEnv(base) {
-      return {
+      const env: Record<string, string> = {
         ...base,
         COURSE_PERF_PARENT_PROCESS_ID: config.processId,
-        ...(context.getStore() ? { COURSE_PERF_PARENT_SPAN_ID: context.getStore()! } : {}),
       };
+      delete env.COURSE_PERF_PARENT_SPAN_ID;
+      const parent = context.getStore();
+      if (parent) env.COURSE_PERF_PARENT_SPAN_ID = parent;
+      return env;
     },
   };
   const calibrationBefore = timestamp(), epoch = Date.now(), calibrationAfter = timestamp();

@@ -1,9 +1,14 @@
-import { join } from "node:path";
+import { assetPath } from "../assets.ts";
+import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { prepareLaunchers } from "../launchers/setup.ts";
 import { probeQuarto } from "../adapters/quarto/capabilities.ts";
 import { prepareFilterAdapter } from "../adapters/quarto/filter-trace.ts";
 import { contained, hashFile } from "../sources/snapshot.ts";
+import type { NativeRenderRequest } from "../report/types.ts";
+import { type ProjectTarget, resolveRenderProject } from "../adapters/quarto/inspect.ts";
+import { collectPackageCoverage } from "./package-coverage.ts";
+import { validateTelemetryEnvironment } from "./environment.ts";
 import type { PreparationReceipt, PreparedVariant, Scenario } from "../config/types.ts";
 export async function prepareDiagnostic(
   scenario: Scenario,
@@ -24,9 +29,28 @@ export async function prepareDiagnostic(
     dataDir: join(caps.filterAdapter ? share : caps.share, "pandoc/datadir"),
   });
   preparation.push(...setup.preparation);
-  const registry = new URL("../../docs/operation-registry.json", import.meta.url).pathname;
+  const cwd = resolve(prepared.root, scenario.cwd);
+  const target = scenario.args[0] === "render"
+    ? await resolveRenderProject({
+      cwd,
+      quarto,
+      nativeArgv: scenario.args.slice(1).map((arg) =>
+        arg.replaceAll("{course_root}", prepared.root)
+      ),
+      mode: "summary",
+    })
+    : { projectRoot: cwd, kind: "standalone" as const };
+  const registry = assetPath("docs/operation-registry.json");
   const coverage = {
-    complete: true,
+    complete: false,
+    packageCoverage: await collectPackageCoverage(target.projectRoot, scenario.scope.extensions, [
+      workspace,
+      ...(target.outputDirectory ? [target.outputDirectory] : []),
+    ]),
+    installed: { ts: true, lua: true },
+    instrumented: { ts: true, lua: true },
+    observed: { ts: false, lua: false },
+    integrity: "pending",
     ts: [] as unknown[],
     luaModules: [] as string[],
     runtime: caps,
@@ -47,7 +71,7 @@ export async function prepareDiagnostic(
     const path = join(prepared.root, module);
     await contained(prepared.root, path);
     if (path.endsWith(".lua")) {
-      coverage.luaModules.push(module);
+      coverage.luaModules.push(path);
       continue;
     }
     if (!path.endsWith(".ts")) throw new Error("Неподдержанный scope module");
@@ -82,5 +106,54 @@ export async function prepareDiagnostic(
     },
     preparation,
     coverage,
+  };
+}
+
+/** Простое подключение использует только публичные hooks выбранного runtime. */
+export async function prepareRenderDiagnostic(
+  request: NativeRenderRequest,
+  target: ProjectTarget,
+  workspace: string,
+) {
+  if (request.mode === "off") throw new Error("Режим off не требует диагностического агента");
+  const environment = Deno.env.toObject();
+  const conflicts = validateTelemetryEnvironment(environment);
+  for (const key of ["QUARTO_DENO_EXTRA_OPTIONS", "QUARTO_DENO_V8_OPTIONS"]) {
+    if (/--(?:cpu-prof|prof|inspect)(?:[=\s-]|$)/.test(environment[key] ?? "")) conflicts.push(key);
+  }
+  if (conflicts.length) throw new Error(`Конфликт окружения измерений: ${conflicts.join(", ")}`);
+  const caps = await probeQuarto(request.quarto);
+  if (!caps.denoPreload || !caps.luaHook || request.mode === "cpu" && !caps.denoCpu) {
+    throw new Error(
+      "Выбранный runtime не поддерживает публичные Deno preload/Pandoc init или CPU profile; проверьте QUARTO_DENO/QUARTO_PANDOC",
+    );
+  }
+  const setup = await prepareLaunchers({
+    workspace,
+    deno: caps.deno,
+    pandoc: caps.pandoc,
+    dataDir: join(caps.share, "pandoc/datadir"),
+  });
+  return {
+    env: setup.env,
+    preparation: setup.preparation,
+    coverage: {
+      complete: false,
+      packageCoverage: await collectPackageCoverage(target.projectRoot, [], [
+        workspace,
+        ...(target.outputDirectory ? [target.outputDirectory] : []),
+      ]),
+      installed: { ts: true, lua: true },
+      instrumented: { ts: true, lua: true },
+      observed: { ts: false, lua: false },
+      integrity: "pending",
+      scopeKind: "semantic-registry",
+      target,
+      runtime: caps,
+      hooks: { denoPreload: true, pandocInit: true },
+      operations: {
+        "quarto.filter.run": { available: false, reason: "experiment-only-private-adapter" },
+      },
+    },
   };
 }

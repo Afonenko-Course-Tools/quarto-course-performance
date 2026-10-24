@@ -37,9 +37,18 @@ Deno.test("owner normalization executes the frozen Git blob and records its prov
     await Deno.writeTextFile(
       manifest,
       JSON.stringify({
+        schema_version: 2,
+        projectSource: "Afonenko-Course-Tools/quarto-reference-catalog",
+        replacements: [],
+        experimentId: "e",
+        packages: [],
+        runtime: {},
         sources: [{
           repository: "Afonenko-Course-Tools/quarto-reference-catalog",
           sha,
+          sourceKind: "github-baseline",
+          remoteRef: "refs/heads/main",
+          fetchedAt: "2026-10-24",
           checkoutPath: root,
         }],
       }),
@@ -53,7 +62,10 @@ Deno.test("owner normalization executes the frozen Git blob and records its prov
     assert.equal(result.receipt.sha, sha);
     assert.equal(result.receipt.path, modulePath);
     assert.match(result.receipt.sha256, /^[0-9a-f]{64}$/);
-    await Deno.writeTextFile(manifest, JSON.stringify({ sources: [] }));
+    await Deno.writeTextFile(
+      manifest,
+      JSON.stringify({ experimentId: "historical", packages: [], runtime: {}, sources: [] }),
+    );
     await assert.rejects(() => loadOwnerNormalizer(manifest), /отсутствует QRC/);
   } finally {
     await Deno.remove(root, { recursive: true });

@@ -5,7 +5,15 @@ import type { PreparedVariant, Scenario } from "../../src/config/types.ts";
 Deno.test("benchmark excludes warmups, alternates AB/BA and creates independent runs with equal clean state", async () => {
   const root = await Deno.makeTempDir();
   try {
-    const manifest = { experimentId: "e", sources: [], packages: [], runtime: {} };
+    const manifest = {
+      schema_version: 2 as const,
+      projectSource: "org/Fixture",
+      replacements: [],
+      experimentId: "e",
+      sources: [],
+      packages: [],
+      runtime: {},
+    };
     const prepared: PreparedVariant[] = [];
     for (const variant of ["clean-control", "candidate"] as const) {
       const dir = join(root, variant);
@@ -18,11 +26,9 @@ Deno.test("benchmark excludes warmups, alternates AB/BA and creates independent 
     }
     const s: Scenario = {
       id: "fixture",
-      project: "Java",
       cwd: ".",
       executable: Deno.execPath(),
       args: ["run", "-A", "fake.ts"],
-      courseProfile: "student",
       cachePolicy: "clean-output",
       mode: "off",
       scope: { modules: [], extensions: [], strict: true },
@@ -38,6 +44,43 @@ Deno.test("benchmark excludes warmups, alternates AB/BA and creates independent 
     const dirs = [];
     for await (const e of Deno.readDir(join(root, "runs"))) dirs.push(e.name);
     assert.equal(dirs.length, 8);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("benchmark uses ten pairs by default for any scenario name", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const prepared = {
+      variant: "candidate" as const,
+      root,
+      manifest: {
+        schema_version: 2 as const,
+        projectSource: "org/Course",
+        replacements: [],
+        experimentId: "e",
+        sources: [],
+        packages: [],
+        runtime: {},
+      },
+    };
+    const scenario: Scenario = {
+      id: "java-full-custom",
+      cwd: ".",
+      executable: "/usr/bin/true",
+      args: [],
+      cachePolicy: "repeat-render",
+      mode: "off",
+      scope: { modules: [], extensions: [], strict: true },
+      resources: { wall: true, cpu: false, peakRss: false },
+    };
+    const result = await benchmarkPair(scenario, prepared, prepared, {
+      seed: 42,
+      executeOptions: { outputRoot: join(root, "runs") },
+    });
+    assert.equal(result.pairs.length, 10);
+    assert.equal((await Array.fromAsync(Deno.readDir(join(root, "runs")))).length, 22);
   } finally {
     await Deno.remove(root, { recursive: true });
   }

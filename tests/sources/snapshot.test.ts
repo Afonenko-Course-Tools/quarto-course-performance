@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
-import { copyTree } from "../../src/sources/snapshot.ts";
+import { copyTree, files, treeHash } from "../../src/sources/snapshot.ts";
 
 Deno.test("prepared copies retain input times used by Quarto sitemap lastmod", async () => {
   const root = await Deno.makeTempDir({ prefix: "perf source times " });
@@ -29,6 +29,34 @@ Deno.test("prepared copies retain input times used by Quarto sitemap lastmod", a
         assert.equal((await Deno.stat(join(source, input.path))).mtime?.toISOString(), input.mtime);
       }
     }
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("source snapshot excludes old measurements without changing runtime or historical tree hash", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const source = join(root, "source");
+    await Deno.mkdir(join(source, ".quarto/course-perf/runs/old"), { recursive: true });
+    await Deno.writeTextFile(join(source, "index.qmd"), "# course");
+    const old = join(source, ".quarto/course-perf/runs/old/private.json");
+    await Deno.writeTextFile(old, "old");
+    const historical = await treeHash(source),
+      snapshot = await treeHash(source, { sourceSnapshot: true });
+    await Deno.writeTextFile(old, "changed");
+    assert.notEqual(await treeHash(source), historical);
+    assert.equal(await treeHash(source, { sourceSnapshot: true }), snapshot);
+    await copyTree(source, join(root, "copy"), { sourceSnapshot: true });
+    assert.deepEqual(
+      (await files(join(root, "copy"))).map((x) => x.slice(join(root, "copy").length)),
+      ["/index.qmd"],
+    );
+    await copyTree(source, join(root, "runtime"));
+    assert.equal(
+      await Deno.readTextFile(join(root, "runtime/.quarto/course-perf/runs/old/private.json")),
+      "changed",
+    );
   } finally {
     await Deno.remove(root, { recursive: true });
   }

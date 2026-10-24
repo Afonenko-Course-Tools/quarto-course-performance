@@ -48,6 +48,7 @@ async function input(
         executor_id: executor,
         clock_domain: executor === "lua" ? "process_cpu" : "monotonic_process",
         counters: {},
+        calibration: { time_origin_ms: 0 },
         ...summary as object,
       }),
     );
@@ -92,10 +93,16 @@ Deno.test("Lua CPU spans never enter wall trace and async self time is unavailab
     const run = await normalizeRun(root);
     assert(run.dataValid);
     const result = traces(run);
-    assert.equal(result.wall.traceEvents.length, 1);
-    assert.equal(result.luaCpu.traceEvents.length, 1);
-    assert.equal(result.wall.traceEvents[0].args.self_time, "not-available");
-    assert.equal(result.luaCpu.traceEvents[0].args.clock_domain, "process_cpu");
+    assert.equal(result.wall.traceEvents.filter((e) => e.ph === "X").length, 1);
+    assert.equal(result.luaCpu.traceEvents.filter((e) => e.ph === "X").length, 1);
+    assert.equal(
+      result.wall.traceEvents.find((e) => e.ph === "X")!.args.self_time,
+      "not-available",
+    );
+    assert.equal(
+      result.luaCpu.traceEvents.find((e) => e.ph === "X")!.args.clock_domain,
+      "process_cpu",
+    );
   } finally {
     await Deno.remove(root, { recursive: true });
   }
@@ -178,6 +185,360 @@ Deno.test("an explicitly aborted span is incomplete even when a closing row exis
     const r = await normalizeRun(root);
     assert.equal(r.dataValid, false);
     assert.equal(r.quality.incompleteSpans, 1);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("unconfirmed begin/end pairs never contribute totals or trace intervals", async () => {
+  const { operationTotals } = await import("../../src/report/run.ts");
+  for (
+    const patch of [
+      { experiment_id: "other" },
+      { run_id: "other" },
+      { process_id: "other" },
+      { executor_id: "other" },
+      { operation_id: "other" },
+      { clock_domain: "process_cpu" },
+      { timestamp_us: 0 },
+    ]
+  ) {
+    const root = await input([span("begin", 1), { ...span("end", 2), ...patch }]);
+    try {
+      const run = await normalizeRun(root);
+      assert.equal(run.events.length, 2);
+      assert.deepEqual(operationTotals(run), []);
+      assert.equal(traces(run).wall.traceEvents.filter((e) => e.ph === "X").length, 0);
+    } finally {
+      await Deno.remove(root, { recursive: true });
+    }
+  }
+  for (
+    const rows of [[span("begin", 1), span("end", 2), span("end", 3)], [
+      span("begin", 1),
+      span("begin", 2),
+      span("end", 3),
+    ], [span("begin", 1)]]
+  ) {
+    const root = await input(rows);
+    try {
+      const run = await normalizeRun(root);
+      assert.deepEqual(operationTotals(run), []);
+      assert.equal(run.events.length, rows.length);
+    } finally {
+      await Deno.remove(root, { recursive: true });
+    }
+  }
+});
+Deno.test("v2 expectations allow no-child freeze help and no-markup without inventing complete coverage", async () => {
+  for (const name of ["no-child", "freeze", "help", "no-markup"]) {
+    const root = await Deno.makeTempDir();
+    try {
+      await Deno.writeTextFile(
+        join(root, "expectations.json"),
+        JSON.stringify({
+          schema_version: 2,
+          processes: name === "no-child" || name === "freeze" ? [] : [{
+            process_id: name,
+            agent: name === "help" ? "ts" : "lua",
+            requested: true,
+            supported: true,
+            activated: false,
+            executed: false,
+          }],
+        }),
+      );
+      const run = await normalizeRun(root);
+      assert.equal(run.dataValid, true, JSON.stringify(run.quality));
+      assert.equal(run.quality.coverageComplete, false);
+    } finally {
+      await Deno.remove(root, { recursive: true });
+    }
+  }
+});
+Deno.test("explicit missing expected summary and profile remain invalid even with no observed spans", async () => {
+  for (
+    const expected of [{ summary_path: "events/p/ts.summary.json" }, {
+      profile_path: "profiles/p/cpu.cpuprofile",
+    }]
+  ) {
+    const root = await input([]);
+    try {
+      await Deno.writeTextFile(
+        join(root, "expectations.json"),
+        JSON.stringify({
+          schema_version: 2,
+          processes: [{
+            process_id: "missing",
+            agent: "ts",
+            requested: true,
+            supported: true,
+            activated: true,
+            executed: true,
+            ...expected,
+          }],
+        }),
+      );
+      const run = await normalizeRun(root);
+      assert.equal(run.dataValid, false);
+      assert(run.quality.errors.some((e) => e.includes("missing")));
+    } finally {
+      await Deno.remove(root, { recursive: true });
+    }
+  }
+});
+
+Deno.test("expectation receipts reject impossible activation and unsafe artifact paths", async () => {
+  for (
+    const patch of [
+      { supported: false },
+      { requested: false },
+      { summary_path: "../outside.json" },
+      { agent: "python" },
+      { executed: "yes" },
+    ]
+  ) {
+    const root = await input([]);
+    try {
+      await Deno.writeTextFile(
+        join(root, "expectations.json"),
+        JSON.stringify({
+          schema_version: 2,
+          processes: [{
+            process_id: "p",
+            agent: "ts",
+            requested: true,
+            supported: true,
+            activated: true,
+            executed: true,
+            ...patch,
+          }],
+        }),
+      );
+      assert.equal((await normalizeRun(root)).dataValid, false);
+    } finally {
+      await Deno.remove(root, { recursive: true });
+    }
+  }
+});
+Deno.test("operation owner attribution distinguishes recorded context from legacy derived prefix", async () => {
+  const { operationTotals } = await import("../../src/report/run.ts");
+  for (const recorded of [false, true]) {
+    const root = await input([{
+      ...span("begin", 1),
+      operation_id: "course-core.phase",
+      ...(recorded ? { attributes: { extension_id: "explicit-owner" } } : {}),
+    }, { ...span("end", 2), operation_id: "course-core.phase" }]);
+    try {
+      const run = await normalizeRun(root), total = operationTotals(run)[0];
+      assert.equal(total.extension_id, recorded ? "explicit-owner" : "course-core");
+      assert.equal(total.extension_attribution, recorded ? "recorded" : "derived");
+      assert.equal(run.events[0].attributes?.extension_id, recorded ? "explicit-owner" : undefined);
+    } finally {
+      await Deno.remove(root, { recursive: true });
+    }
+  }
+});
+
+Deno.test("Lua namespace expectations require every started executor summary after relocation", async () => {
+  const root = await input([]), moved = root + "-moved";
+  try {
+    await Deno.writeTextFile(
+      join(root, "expectations.json"),
+      JSON.stringify({
+        schema_version: 2,
+        processes: [{
+          process_id: "p",
+          agent: "lua",
+          requested: true,
+          supported: true,
+          activated: true,
+          executed: true,
+          summary_path: "events/p/",
+        }],
+      }),
+    );
+    const summary = {
+      schema_version: 1,
+      experiment_id: "e",
+      run_id: "r",
+      process_id: "p",
+      executor_id: "lua-one",
+      clock_domain: "process_cpu",
+      counters: {},
+      data_valid: true,
+      dropped_events: 0,
+      incomplete_spans: 0,
+    };
+    await Deno.writeTextFile(join(root, "events/p/lua-one.summary.json"), JSON.stringify(summary));
+    for (const executor_id of ["lua-one", "lua-two"]) {
+      await Deno.writeTextFile(
+        join(root, `events/p/${executor_id}.started.json`),
+        JSON.stringify({
+          schema_version: 1,
+          process_id: "p",
+          agent: "lua",
+          executor_id,
+          executed: true,
+        }),
+      );
+    }
+    await Deno.rename(root, moved);
+    const lost = await normalizeRun(moved);
+    assert.equal(lost.dataValid, false);
+    assert(lost.quality.errors.some((e) => e.includes("lua-two")));
+    await Deno.writeTextFile(
+      join(moved, "events/p/lua-two.summary.json"),
+      JSON.stringify({ ...summary, executor_id: "lua-two" }),
+    );
+    assert.equal((await normalizeRun(moved)).dataValid, true);
+    await Deno.remove(join(moved, "expectations.json"));
+    await Deno.remove(join(moved, "events/p/lua-two.summary.json"));
+    assert.equal((await normalizeRun(moved)).dataValid, false);
+  } finally {
+    await Deno.remove(moved, { recursive: true }).catch(() => {});
+    await Deno.remove(root, { recursive: true }).catch(() => {});
+  }
+});
+Deno.test("coverage separates installed instrumentation observations and integrity", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(
+      join(root, "expectations.json"),
+      JSON.stringify({ schema_version: 2, processes: [] }),
+    );
+    await Deno.writeTextFile(
+      join(root, "coverage.json"),
+      JSON.stringify({
+        complete: false,
+        installed: { ts: true, lua: true },
+        instrumented: { ts: true, lua: true },
+        observed: { ts: false, lua: false },
+        integrity: "pending",
+      }),
+    );
+    const run = await normalizeRun(root);
+    assert(run.dataValid);
+    const c = JSON.parse(await Deno.readTextFile(join(root, "coverage.json")));
+    assert.deepEqual(c.installed, { ts: true, lua: true });
+    assert.deepEqual(c.instrumented, { ts: false, lua: false });
+    assert.deepEqual(c.observed, { ts: false, lua: false });
+    assert.equal(c.integrity, "valid");
+    assert.equal(c.complete, false);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("observed executor start activates an unanticipated Lua boundary and still requires summary", async () => {
+  const root = await input([]);
+  try {
+    await Deno.writeTextFile(
+      join(root, "expectations.json"),
+      JSON.stringify({
+        schema_version: 2,
+        processes: [{
+          process_id: "p",
+          agent: "lua",
+          requested: true,
+          supported: true,
+          activated: false,
+          executed: false,
+        }],
+      }),
+    );
+    await Deno.writeTextFile(
+      join(root, "events/p/lua-known.started.json"),
+      JSON.stringify({
+        schema_version: 1,
+        process_id: "p",
+        executor_id: "lua-known",
+        agent: "lua",
+        executed: true,
+      }),
+    );
+    const run = await normalizeRun(root);
+    assert.equal(run.dataValid, false);
+    const e = JSON.parse(await Deno.readTextFile(join(root, "expectations.json"))).processes[0];
+    assert.equal(e.executed, true);
+    assert.equal(e.activated, true);
+    assert.equal(e.summary_path, "events/p/");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+Deno.test("mixed old and new bridge calls never label derived owner attribution as recorded", async () => {
+  const { operationTotals } = await import("../../src/report/run.ts");
+  const root = await input([
+    {
+      ...span("begin", 1, "recorded"),
+      operation_id: "course-core.phase",
+      attributes: { extension_id: "course-core" },
+    },
+    { ...span("end", 2, "recorded"), operation_id: "course-core.phase" },
+    { ...span("begin", 3, "legacy"), operation_id: "course-core.phase" },
+    { ...span("end", 4, "legacy"), operation_id: "course-core.phase" },
+  ]);
+  try {
+    const totals = operationTotals(await normalizeRun(root));
+    assert.deepEqual(totals.map((t) => [t.extension_attribution, t.completed]).sort(), [[
+      "derived",
+      1,
+    ], ["recorded", 1]]);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("invalid raw mixed clocks remain separate through common derived callers", async () => {
+  const rows = [
+    { ...span("begin", 1, "wall"), timestamp_us: 0 },
+    { ...span("begin", 2, "cpu", "process_cpu"), executor_id: "ts", timestamp_us: 1 },
+    { ...span("end", 3, "cpu", "process_cpu"), executor_id: "ts", timestamp_us: 9 },
+    { ...span("end", 4, "wall"), timestamp_us: 10 },
+  ];
+  const root = await input(rows);
+  try {
+    const normalized = await normalizeRun(root);
+    assert.equal(normalized.dataValid, false);
+    assert.equal(normalized.quality.errors.length, 2);
+    assert(normalized.quality.errors.every((e) => e.includes("executor summary")));
+    assert.equal(normalized.events.length, 4);
+    const bundle = traces(normalized);
+    assert.deepEqual(bundle.wall.traceEvents.filter((e) => e.ph === "X").map((e) => e.name), [
+      "wall",
+    ]);
+    assert.deepEqual(bundle.luaCpu.traceEvents.filter((e) => e.ph === "X").map((e) => e.name), [
+      "cpu",
+    ]);
+    const { operationTotals } = await import("../../src/report/run.ts");
+    assert.deepEqual(operationTotals(normalized).map((t) => [t.clock, t.inclusive_us]), [[
+      "monotonic_process",
+      10,
+    ], ["process_cpu", 8]]);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+Deno.test("raw parent cycle quality prevents apparent ancestry but keeps interval evidence", async () => {
+  const rows = [
+    { ...span("begin", 1, "a"), parent_span_id: "b", timestamp_us: 0 },
+    { ...span("begin", 2, "b"), parent_span_id: "a", timestamp_us: 5 },
+    { ...span("begin", 3, "c"), parent_span_id: "b", timestamp_us: 6 },
+    { ...span("end", 4, "c"), timestamp_us: 9 },
+    { ...span("end", 5, "b"), timestamp_us: 10 },
+    { ...span("end", 6, "a"), timestamp_us: 20 },
+  ];
+  const root = await input(rows);
+  try {
+    const normalized = await normalizeRun(root);
+    assert.equal(normalized.dataValid, false);
+    assert.equal(normalized.quality.errors.length, 1);
+    assert.match(normalized.quality.errors[0], /Цикл parent spans/);
+    const exported = traces(normalized).wall.traceEvents;
+    assert.equal(exported.filter((e) => e.ph === "X").length, 3);
+    assert.equal(new Set(exported.filter((e) => e.ph === "X").map((e) => e.tid)).size, 3);
+    assert.equal(exported.filter((e) => e.ph === "s" || e.ph === "f").length, 0);
   } finally {
     await Deno.remove(root, { recursive: true });
   }

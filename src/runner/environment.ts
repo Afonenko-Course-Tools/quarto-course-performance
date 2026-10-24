@@ -20,3 +20,17 @@ export function cleanEnvironment(base: Record<string, string>): Record<string, s
   }
   return result;
 }
+
+/** Конфликты измерений проверяются отдельно, функциональное окружение не меняется. */
+export function validateTelemetryEnvironment(env: Record<string, string>): string[] {
+  return Object.keys(env).filter((key) =>
+    key.startsWith("COURSE_PERF_") || [
+      "COURSE_BUILD_TRACE",
+      "QUARTO_REPORT_PERFORMANCE_METRICS",
+      "QUARTO_REPORT_PERFORMANCE_METRICS_FILE",
+      "QUARTO_PROFILER_OUTPUT",
+      "QUARTO_COMBINED_LUA_PROFILE",
+      "QUARTO_TS_PROFILE",
+    ].includes(key)
+  );
+}

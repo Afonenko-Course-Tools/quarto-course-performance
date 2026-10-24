@@ -1,5 +1,5 @@
 import { join, resolve } from "node:path";
-import type { SourceManifest, Variant } from "../config/types.ts";
+import { liveSourceManifest, type SourceManifest, type Variant } from "../config/types.ts";
 import { git } from "./resolve.ts";
 import { verifySources } from "./prepare.ts";
 import { hashFile } from "./snapshot.ts";
@@ -12,18 +12,8 @@ export interface FreezeInputs {
 }
 /** Не перезаписывает ранее закреплённый эксперимент. Пути — доверенные локальные checkouts. */
 export async function freezeVariants(inputs: FreezeInputs, workspace: string, quarto = "quarto") {
-  const baseline: SourceManifest = JSON.parse(await Deno.readTextFile(inputs.baseline));
+  const baseline = liveSourceManifest(JSON.parse(await Deno.readTextFile(inputs.baseline)));
   const caps = await probeQuarto(quarto), runtime: SourceManifest["runtime"] = { ...caps.runtime };
-  const hyperfine = await new Deno.Command("which", { args: ["hyperfine"], stdout: "piped" })
-    .output();
-  if (!hyperfine.success) throw new Error("Hyperfine не найден");
-  const path = new TextDecoder().decode(hyperfine.stdout).trim();
-  const version = await new Deno.Command(path, { args: ["--version"], stdout: "piped" }).output();
-  runtime.hyperfine = {
-    path,
-    version: new TextDecoder().decode(version.stdout).trim(),
-    hash: await hashFile(path),
-  };
   if (inputs.runtimeRegistry) {
     const path = resolve(inputs.runtimeRegistry.path);
     runtime.runtimeRegistry = { ...inputs.runtimeRegistry, path, hash: await hashFile(path) };
@@ -54,7 +44,15 @@ export async function freezeVariants(inputs: FreezeInputs, workspace: string, qu
         }),
       });
     }
-    const manifest: SourceManifest = { experimentId, sources, packages: [], runtime };
+    const manifest: SourceManifest = {
+      schema_version: 2,
+      projectSource: baseline.projectSource,
+      replacements: baseline.replacements,
+      experimentId,
+      sources,
+      packages: [],
+      runtime,
+    };
     await verifySources(manifest);
     manifests[variant] = manifest;
   }

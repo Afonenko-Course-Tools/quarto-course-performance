@@ -1,5 +1,6 @@
+import type { PerformanceConfig } from "../config/validate.ts";
 import { join } from "node:path";
-import type { SourceManifest, SourceRequest } from "../config/types.ts";
+import { liveSourceManifest, type SourceManifest, type SourceRequest } from "../config/types.ts";
 export async function git(args: string[]): Promise<string> {
   const out = await new Deno.Command("git", { args, stdout: "piped", stderr: "piped" }).output();
   if (!out.success) throw new Error(new TextDecoder().decode(out.stderr));
@@ -19,13 +20,16 @@ export function selectRemoteRef(output: string, request: SourceRequest) {
   return { sha: matches[0][0], remoteRef };
 }
 export async function resolveSources(
-  requests: SourceRequest[],
+  config: Pick<PerformanceConfig, "sources" | "projectSource" | "replacements">,
   workspace: string,
 ): Promise<SourceManifest> {
+  const requests = config.sources;
   const path = join(workspace, "manifest.json");
   try {
-    const frozen: SourceManifest = JSON.parse(await Deno.readTextFile(path));
+    const frozen = liveSourceManifest(JSON.parse(await Deno.readTextFile(path)));
     if (
+      frozen.projectSource !== config.projectSource ||
+      JSON.stringify(frozen.replacements) !== JSON.stringify(config.replacements) ||
       JSON.stringify(frozen.sources.map((s) => s.repository).sort()) !==
         JSON.stringify(requests.map((s) => s.repository).sort()) ||
       requests.some((r) =>
@@ -39,6 +43,9 @@ export async function resolveSources(
   }
   await Deno.mkdir(workspace, { recursive: true });
   const manifest: SourceManifest = {
+    schema_version: 2,
+    projectSource: config.projectSource,
+    replacements: config.replacements,
     experimentId: crypto.randomUUID(),
     sources: [],
     packages: [],

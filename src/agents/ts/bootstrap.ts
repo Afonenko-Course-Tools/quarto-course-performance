@@ -12,6 +12,9 @@ if (mode && mode !== "off") {
       mode,
     });
     addEventListener("unload", () => agent.flush());
+    // Fatal ошибки runtime не вызывают unload; штатная обработка ошибки сохраняется.
+    addEventListener("error", () => agent.flush());
+    addEventListener("unhandledrejection", () => agent.flush());
     const exit = Deno.exit;
     Deno.exit = ((code?: number): never => {
       agent.flush();

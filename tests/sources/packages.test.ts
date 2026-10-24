@@ -40,6 +40,14 @@ Deno.test("installs_all_subproject_copies and records identical owner hashes", a
       repository: "org/owner",
       sha: "a".repeat(40),
       checkoutPath: join(root, "owner"),
+    }], [{
+      repository: "org/owner",
+      extensionId: "core",
+      destinations: [
+        "_extensions/org/core",
+        "child one/_extensions/org/core",
+        "child two/_extensions/org/core",
+      ],
     }]);
     assert.equal(receipts.length, 1);
     assert.equal(receipts[0].destinationPaths.length, 3);
@@ -67,6 +75,10 @@ Deno.test("rejects symlink escape before replacing any installation", async () =
           repository: "org/owner",
           sha: "a".repeat(40),
           checkoutPath: join(root, "owner"),
+        }], [{
+          repository: "org/owner",
+          extensionId: "core",
+          destinations: ["_extensions/org/core"],
         }]),
       /symlink|символическ/i,
     );
@@ -74,6 +86,100 @@ Deno.test("rejects symlink escape before replacing any installation", async () =
       await Deno.readTextFile(join(root, "outside/org/core/_extension.yml")),
       "original",
     );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("explicit replacements preserve third party packages and validate all destinations before mutation", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    for (
+      const path of [
+        "owner/_extensions/core",
+        "course/_extensions/org/core",
+        "course/_extensions/third/extra",
+      ]
+    ) {
+      await Deno.mkdir(join(root, path), { recursive: true });
+      await Deno.writeTextFile(join(root, path, "_extension.yml"), path);
+    }
+    const course = join(root, "course"),
+      owners = [{
+        repository: "org/owner",
+        sha: "a".repeat(40),
+        checkoutPath: join(root, "owner"),
+      }];
+    const mapping = {
+      repository: "org/owner",
+      extensionId: "core",
+      destinations: ["_extensions/org/core"],
+    };
+    assert.deepEqual(await installPackages(course, owners, []), []);
+    for (
+      const invalid of [[mapping, mapping], [mapping, {
+        ...mapping,
+        destinations: ["../owner/_extensions/core"],
+      }], [mapping, { ...mapping, destinations: ["_extensions/org/core/child"] }]]
+    ) {
+      await assert.rejects(() => installPackages(course, owners, invalid));
+      assert.equal(
+        await Deno.readTextFile(join(course, "_extensions/org/core/_extension.yml")),
+        "course/_extensions/org/core",
+      );
+    }
+    await Deno.mkdir(join(root, "outside"));
+    await Deno.writeTextFile(join(root, "outside/_extension.yml"), "outside");
+    await Deno.symlink(join(root, "outside"), join(course, "_extensions/linked"));
+    await assert.rejects(
+      () =>
+        installPackages(course, owners, [mapping, {
+          ...mapping,
+          destinations: ["_extensions/linked"],
+        }]),
+      /символическ/i,
+    );
+    assert.equal(
+      await Deno.readTextFile(join(course, "_extensions/org/core/_extension.yml")),
+      "course/_extensions/org/core",
+    );
+    await installPackages(course, owners, [mapping]);
+    assert.equal(
+      await Deno.readTextFile(join(course, "_extensions/third/extra/_extension.yml")),
+      "course/_extensions/third/extra",
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("new package receipts and replacement copies exclude prior source measurements", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const source = join(root, "owner/_extensions/core"), course = join(root, "course");
+    await Deno.mkdir(join(source, ".quarto/course-perf"), { recursive: true });
+    await Deno.writeTextFile(join(source, "_extension.yml"), "version: 2");
+    await Deno.writeTextFile(join(source, ".quarto/course-perf/old.json"), "old measurement");
+    await Deno.mkdir(join(course, "_extensions/core"), { recursive: true });
+    await Deno.writeTextFile(join(course, "_extensions/core/_extension.yml"), "version: 1");
+    const owners = [{
+        repository: "org/owner",
+        sha: "a".repeat(40),
+        checkoutPath: join(root, "owner"),
+      }],
+      replacements = [{
+        repository: "org/owner",
+        extensionId: "core",
+        destinations: ["_extensions/core"],
+      }];
+    const first = await installPackages(course, owners, replacements);
+    await assert.rejects(
+      () => Deno.stat(join(course, "_extensions/core/.quarto/course-perf")),
+      Deno.errors.NotFound,
+    );
+    await Deno.writeTextFile(join(source, ".quarto/course-perf/old.json"), "new measurement");
+    const second = await installPackages(course, owners, replacements);
+    assert.equal(first[0].packageHash, second[0].packageHash);
   } finally {
     await Deno.remove(root, { recursive: true });
   }

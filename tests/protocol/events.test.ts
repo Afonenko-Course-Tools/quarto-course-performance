@@ -25,3 +25,25 @@ Deno.test("counter is a delta; missing clock, negative or unobserved counts are 
     ]
   ) assert.throws(() => validateEvent({ ...event, ...change }));
 });
+
+Deno.test("raw Event rejects metadata versions and never infers an absent version", () => {
+  for (const schema_version of [undefined, null, "1", 2, 3]) {
+    assert.throws(() => validateEvent({ ...event, schema_version }));
+  }
+  assert.equal(validateEvent(event).schema_version, 1);
+});
+
+Deno.test("optional ABI 1 context preserves primitive attributes and rejects invalid context", () => {
+  const recorded = validateEvent({
+    ...event,
+    document_id: "doc.qmd",
+    attributes: { extension_id: "owner", n: 1, b: true, nil: null },
+  });
+  assert.equal(recorded.document_id, "doc.qmd");
+  assert.equal(recorded.schema_version, 1);
+  for (
+    const patch of [{ document_id: 7 }, { document_id: "" }, { attributes: [] }, {
+      attributes: { bad: {} },
+    }, { attributes: { bad: NaN } }]
+  ) assert.throws(() => validateEvent({ ...event, ...patch }));
+});

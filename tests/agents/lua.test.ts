@@ -94,7 +94,7 @@ Deno.test("Lua call/return hook traces selected module recursion and tail calls"
   const { result } = await fixture(
     `local install=dofile(${JSON.stringify(project + "src/agents/lua/agent.lua")})
 local a=install{experimentId='e',runId='r',processId='p',executorId='lua',outputDirectory=os.getenv('COURSE_PERF_OUTPUT_DIR'),mode='trace'}
-a.start_trace({'fixture.lua'})
+a.start_trace({debug.getinfo(1,'S').source})
 local function recur(n) if n==0 then return 0 end return recur(n-1) end
 assert(recur(3)==0)
 a.stop_trace();a.flush();return {}`,
@@ -121,7 +121,7 @@ Deno.test("Lua hook unwinds caught callback errors without leaving successful or
     `local agent=dofile(${
       JSON.stringify(project + "src/agents/lua/agent.lua")
     }){experimentId='e',runId='r',processId='p',executorId='lua',outputDirectory=os.getenv('COURSE_PERF_OUTPUT_DIR'),mode='trace'}
-agent.start_trace({'fixture.lua'})
+agent.start_trace({debug.getinfo(1,'S').source})
 local err={bad=true};local function leaf()error(err)end;local function outer()leaf()end
 local ok,value=pcall(outer);assert(not ok and value==err)
 agent.stop_trace();agent.flush();return {}`,
@@ -143,7 +143,7 @@ local outer=m.wrap_sync({id='outer',kind='phase'},function()
  local wrapped=coroutine.wrap(child);values=table.pack(wrapped());assert(values.n==4 and values[1]==1 and values[3]==3)
 end)
 outer()
-agent.start_trace({'fixture.lua'})
+agent.start_trace({debug.getinfo(1,'S').source})
 local wrapped=coroutine.wrap(function()coroutine.yield(7);return 8 end)
 local _,thread=debug.getupvalue(wrapped,1)
 assert(wrapped()==7)
@@ -167,7 +167,7 @@ local agent=dofile(${
 local err={tail=true}
 local function leaf() error(err) end
 local function outer() return leaf() end
-agent.start_trace({'fixture.lua'})
+agent.start_trace({debug.getinfo(1,'S').source})
 local ok,value=pcall(outer);assert(not ok and value==err)
 agent.stop_trace();agent.flush();return {}`,
     "trace",
@@ -194,4 +194,105 @@ agent.flush();return {}`);
   assert.equal(counters["calls.owner.filter.handler.Str"], undefined);
   assert.equal(counters["calls.owner.filter.handler.Pandoc"], 1);
   assert.equal(counters["calls.course-navigation.shortcodes.handler.nav"], 1);
+});
+
+Deno.test("Lua reads public document at call time and records facade extension without leaking context", async () => {
+  const { events } = await fixture(`
+local a=dofile(${
+    JSON.stringify(project + "src/agents/lua/agent.lua")
+  }){experimentId='e',runId='r',processId='p',executorId='lua',outputDirectory=os.getenv('COURSE_PERF_OUTPUT_DIR'),mode='summary'}
+local m=dofile(${JSON.stringify(project + "bridge/bridge.lua")}).create_metrics('owner',1)
+quarto={doc={input_file='before.qmd'}}
+local spec={id='document',kind='phase',attributes={custom=7}}
+local f=m.wrap_sync(spec,function()return 42 end)
+quarto.doc.input_file='a.qmd';assert(f()==42)
+quarto.doc.input_file='b.qmd';f()
+quarto=nil;f()
+a.metrics.wrap_sync({id='old-bridge',kind='phase'},function()end)()
+assert(spec.attributes.extension_id==nil)
+a.flush();return {}`);
+  const all = events as unknown as Record<string, unknown>[];
+  const begins = all.filter((e) => e.event === "begin");
+  assert.deepEqual(begins.map((e) => e.document_id), ["a.qmd", "b.qmd", undefined, undefined]);
+  assert.deepEqual(begins[0].attributes, { custom: 7, extension_id: "owner" });
+  assert.equal(begins[3].attributes, undefined);
+});
+Deno.test("Lua trace excludes a substring match and accepts normalized file identity", async () => {
+  const { events } = await fixture(
+    `
+local a=dofile(${
+      JSON.stringify(project + "src/agents/lua/agent.lua")
+    }){experimentId='e',runId='r',processId='p',executorId='lua',outputDirectory=os.getenv('COURSE_PERF_OUTPUT_DIR'),mode='trace'}
+local source=debug.getinfo(1,'S').source
+local sibling=assert(load('return function() return 9 end',source..'.other'))()
+local own=assert(load('return function() return 7 end',source))()
+a.start_trace({(source:gsub('fixture.lua$','./fixture.lua'))})
+assert(sibling()==9);assert(own()==7)
+a.stop_trace();a.flush();return {}`,
+    "trace",
+  );
+  const begins = events.filter((e) => e.event === "begin");
+  assert.equal(begins.length, 1);
+});
+
+Deno.test("Lua ABI 1 newer facade tolerates older metrics and full child env removes a ghost parent", async () => {
+  await fixture(`
+local seen
+local wrap=function(spec,fn)seen=spec;return fn end
+__course_performance_agent_v1={abiVersion=1,metrics={wrap_sync=wrap,wrap_walk=wrap,child_env=function(base)return base end}}
+local m=dofile(${JSON.stringify(project + "bridge/bridge.lua")}).create_metrics('legacy',1)
+assert(m.wrap_sync({id='old',kind='phase'},function()return 7 end)()==7)
+assert(seen.attributes.extension_id=='legacy')
+local a=dofile(${
+    JSON.stringify(project + "src/agents/lua/agent.lua")
+  }){experimentId='e',runId='r',processId='current',executorId='lua',outputDirectory=os.getenv('COURSE_PERF_OUTPUT_DIR'),mode='summary'}
+local env=pandoc.system.environment();env.COURSE_PERF_PARENT_SPAN_ID='stale';env.FUNCTIONAL='yes'
+pandoc.system.with_environment(env,function()
+ local full=pandoc.system.environment();local child=a.metrics.child_env(full)
+ assert(full.COURSE_PERF_PARENT_SPAN_ID=='stale');assert(child.COURSE_PERF_PARENT_PROCESS_ID=='current')
+ pandoc.system.with_environment(child,function()assert(os.getenv('COURSE_PERF_PARENT_SPAN_ID')==nil);assert(os.getenv('FUNCTIONAL')=='yes')end)
+ assert(os.getenv('COURSE_PERF_PARENT_SPAN_ID')=='stale')
+end)
+return {}`);
+});
+Deno.test("Lua suspended document calls retain the document seen on each call", async () => {
+  const { events } = await fixture(`
+local a=dofile(${
+    JSON.stringify(project + "src/agents/lua/agent.lua")
+  }){experimentId='e',runId='r',processId='p',executorId='lua',outputDirectory=os.getenv('COURSE_PERF_OUTPUT_DIR'),mode='summary'}
+local m=dofile(${JSON.stringify(project + "bridge/bridge.lua")}).create_metrics('owner',1)
+quarto={doc={}}
+local f=m.wrap_sync({id='phase',kind='phase'},function()coroutine.yield();return 42 end)
+local a1,a2=coroutine.create(f),coroutine.create(f)
+quarto.doc.input_file='a.qmd';assert(coroutine.resume(a1))
+quarto.doc.input_file='b.qmd';assert(coroutine.resume(a2))
+quarto.doc.input_file=nil;assert(coroutine.resume(a1));assert(coroutine.resume(a2))
+a.flush();return {}`);
+  const all = events as unknown as Record<string, unknown>[];
+  assert.deepEqual(all.map((e) => [e.event, e.document_id]), [
+    ["begin", "a.qmd"],
+    ["begin", "b.qmd"],
+    ["end", "a.qmd"],
+    ["end", "b.qmd"],
+  ]);
+});
+Deno.test("Lua walk deltas and trace callbacks retain recorded extension and public document", async () => {
+  const { events } = await fixture(
+    `
+local a=dofile(${
+      JSON.stringify(project + "src/agents/lua/agent.lua")
+    }){experimentId='e',runId='r',processId='p',executorId='lua',outputDirectory=os.getenv('COURSE_PERF_OUTPUT_DIR'),mode='trace'}
+local m=dofile(${JSON.stringify(project + "bridge/bridge.lua")}).create_metrics('owner',1)
+quarto={doc={input_file='doc.qmd'}}
+local walk=m.wrap_walk({id='walk',kind='ast_walk',scope='fragment'},function(doc,filter)return doc:walk(filter)end)
+walk(pandoc.Pandoc{pandoc.Para{pandoc.Str('x')}},{Str=function(s)return s end})
+a.flush();return {}`,
+    "trace",
+  );
+  const all = events as unknown as Record<string, unknown>[];
+  assert.equal(all.length, 5);
+  for (const e of all) {
+    assert.equal(e.document_id, "doc.qmd");
+    assert.equal((e.attributes as Record<string, unknown>).extension_id, "owner");
+  }
 });

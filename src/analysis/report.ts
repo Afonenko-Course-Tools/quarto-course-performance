@@ -1,41 +1,12 @@
 import { join } from "node:path";
-import type { SourceManifest } from "../config/types.ts";
+import type { ReportSourceManifest } from "../config/types.ts";
 import type { NormalizedRun } from "./normalize.ts";
-import { traces } from "../report/perfetto.ts";
 
-export function operationTotals(run: NormalizedRun) {
-  const begins = new Map(run.events.filter((e) => e.event === "begin").map((e) => [e.span_id, e]));
-  const totals = new Map<
-    string,
-    {
-      operation: string;
-      clock: string;
-      completed: number;
-      errors: number;
-      inclusive_us: number;
-      self_us: null;
-    }
-  >();
-  for (const end of run.events.filter((e) => e.event === "end")) {
-    const begin = begins.get(end.span_id);
-    if (!begin || end.timestamp_us! < begin.timestamp_us!) continue;
-    const key = `${end.clock_domain}/${end.operation_id}`;
-    const total = totals.get(key) ??
-      {
-        operation: end.operation_id!,
-        clock: end.clock_domain,
-        completed: 0,
-        errors: 0,
-        inclusive_us: 0,
-        self_us: null,
-      };
-    total.completed++;
-    total.errors += end.status === "error" ? 1 : 0;
-    total.inclusive_us += end.timestamp_us! - begin.timestamp_us!;
-    totals.set(key, total);
-  }
-  return [...totals.values()].sort((a, b) => b.inclusive_us - a.inclusive_us);
-}
+import { jsonFiles, operationTotals, writeRunArtifacts } from "../report/run.ts";
+import type { RunRecord } from "../report/types.ts";
+import { prepareHistoricalImport } from "./historical.ts";
+export { operationTotals } from "../report/run.ts";
+
 function summarizeRun(run: NormalizedRun) {
   return {
     run_id: run.runId,
@@ -57,33 +28,86 @@ function summarizeRun(run: NormalizedRun) {
   };
 }
 
-async function jsonFiles(directory: string, suffix: string, retainFileName = false) {
-  const result: Record<string, unknown>[] = [];
+/** Refuse in-place historical imports before normalization or any output write. */
+export async function assertWritableExperiment(
+  manifest: ReportSourceManifest,
+  output: string,
+): Promise<void> {
+  const historical = () =>
+    new Error("Исторические metadata доступны read-only; in-place report/verify не поддерживается");
+  if (manifest.schema_version !== 2) throw historical();
   try {
-    for await (const file of Deno.readDir(directory)) {
-      if (file.isFile && file.name.endsWith(suffix)) {
-        const record = JSON.parse(await Deno.readTextFile(join(directory, file.name)));
-        result.push(retainFileName ? { ...record, file_name: file.name } : record);
+    const aggregate = JSON.parse(await Deno.readTextFile(join(output, "summary.json")));
+    if (!aggregate || aggregate.schema_version !== 2 || !Array.isArray(aggregate.runs)) {
+      throw historical();
+    }
+  } catch (error) {
+    if (!(error instanceof Deno.errors.NotFound)) throw error;
+  }
+  try {
+    for await (const item of Deno.readDir(join(output, "runs"))) {
+      if (!item.isDirectory) continue;
+      try {
+        const metadata = JSON.parse(
+          await Deno.readTextFile(join(output, "runs", item.name, "run.json")),
+        );
+        if (!metadata || metadata.schema_version !== 2) throw historical();
+      } catch (error) {
+        if (!(error instanceof Deno.errors.NotFound)) throw error;
       }
     }
-  } catch (e) {
-    if (!(e instanceof Deno.errors.NotFound)) throw e;
+  } catch (error) {
+    if (!(error instanceof Deno.errors.NotFound)) throw error;
   }
-  return result;
 }
+
 export async function writeExperimentReport(
-  manifest: SourceManifest,
+  manifest: ReportSourceManifest,
   runs: Iterable<NormalizedRun> | AsyncIterable<NormalizedRun>,
   output: string,
 ) {
-  await Deno.mkdir(output, { recursive: true });
+  await assertWritableExperiment(manifest, output);
+  return await writeExperimentArtifacts(manifest, runs, output);
+}
+
+export async function importHistoricalExperiment(
+  source: string,
+  output: string,
+  experimentId?: string,
+) {
+  const imported = await prepareHistoricalImport(source, output, experimentId);
+  const report = await writeExperimentArtifacts(
+    imported.manifest,
+    imported.runs,
+    imported.output,
+    imported.provenance,
+  );
+  return {
+    ...report,
+    exitCode: imported.nativeFailed ? 3 : report.dataValid ? 0 : 4,
+    outputDirectory: imported.output,
+  };
+}
+
+async function writeExperimentArtifacts(
+  manifest: ReportSourceManifest,
+  runs: Iterable<NormalizedRun> | AsyncIterable<NormalizedRun>,
+  output: string,
+  importProvenance?: unknown,
+) {
   const builds: Record<string, unknown>[] = [], coverage: Record<string, unknown>[] = [];
   try {
     for await (const item of Deno.readDir(join(output, "runs"))) {
       if (!item.isDirectory) continue;
       const dir = join(output, "runs", item.name);
       try {
-        builds.push(JSON.parse(await Deno.readTextFile(join(dir, "run.json"))));
+        const metadata = JSON.parse(await Deno.readTextFile(join(dir, "run.json")));
+        if (!metadata || metadata.schema_version !== 2) {
+          throw new Error(
+            "Исторические metadata доступны read-only; in-place report/verify не поддерживается",
+          );
+        }
+        builds.push(metadata);
       } catch (e) {
         if (!(e instanceof Deno.errors.NotFound)) throw e;
         builds.push({ runId: item.name, status: "INCOMPLETE" });
@@ -100,42 +124,55 @@ export async function writeExperimentReport(
   } catch (e) {
     if (!(e instanceof Deno.errors.NotFound)) throw e;
   }
+  await Deno.mkdir(output, { recursive: true });
   const benchmarks = await jsonFiles(join(output, "benchmarks"), ".json", true);
   const summary: ReturnType<typeof summarizeRun>[] = [];
   for await (const run of runs) {
     summary.push(summarizeRun(run));
     const path = join(output, "runs", run.runId);
     await Deno.mkdir(path, { recursive: true });
-    const trace = traces(run);
-    await Deno.writeTextFile(join(path, "wall.trace.json"), JSON.stringify(trace.wall));
-    await Deno.writeTextFile(join(path, "lua-cpu.trace.json"), JSON.stringify(trace.luaCpu));
-    const processes = await jsonFiles(join(path, "processes"), ".json");
-    await Deno.writeTextFile(
-      join(path, "causal.json"),
-      JSON.stringify(
-        {
-          run_id: run.runId,
-          data_valid: run.dataValid,
-          processes,
-          spans: run.events.filter((e) => e.event === "begin").map((e) => ({
-            span_id: e.span_id,
-            parent_span_id: e.parent_span_id ?? null,
-            process_id: e.process_id,
-            executor_id: e.executor_id,
-            operation_id: e.operation_id,
-            clock_domain: e.clock_domain,
-          })),
-        },
-        null,
-        2,
-      ) + "\n",
-    );
+    const build = builds.find((b) => b.runId === run.runId);
+    if (!build || build.schema_version !== 2) {
+      throw new Error(`Отсутствуют текущие metadata запуска: ${run.runId}`);
+    }
+    const record = {
+      ...build,
+      dataValid: run.dataValid,
+      quality: run.quality,
+    } as unknown as RunRecord;
+    await writeRunArtifacts(path, record, run);
+    // Lazy normalization обновляет quality/coverage во время итерации runs.
+    // Агрегаты получают тот же итоговый record, что сохранён per-run writer.
+    builds[builds.indexOf(build)] = JSON.parse(await Deno.readTextFile(join(path, "run.json")));
+    try {
+      const current = {
+        run_id: run.runId,
+        ...JSON.parse(await Deno.readTextFile(join(path, "coverage.json"))),
+      };
+      const index = coverage.findIndex((item) => item.run_id === run.runId);
+      if (index < 0) coverage.push(current);
+      else coverage[index] = current;
+    } catch (error) {
+      if (!(error instanceof Deno.errors.NotFound)) throw error;
+    }
   }
   const data = {
     manifest,
-    summary,
+    summary: {
+      schema_version: 2,
+      experimentId: manifest.experimentId,
+      runs: summary,
+      ...(importProvenance ? { importProvenance } : {}),
+    },
     quality: summary.map((r) => ({ run_id: r.run_id, ...r.quality })),
-    coverage,
+    coverage: importProvenance
+      ? coverage.map((receipt) => ({
+        ...receipt,
+        sourceComplete: receipt.complete ?? null,
+        complete:
+          summary.find((run) => run.run_id === receipt.run_id)?.quality.coverageComplete === true,
+      }))
+      : coverage,
     builds,
     benchmarks,
   };
@@ -152,6 +189,12 @@ export async function writeExperimentReport(
     "",
     "TypeScript измеряет wall, Lua — CPU процесса. Шкалы раздельны. Inclusive интервалы вложены и могут перекрываться: их сумма не равна длительности сборки. Async self time и node_visits недоступны без отдельных наблюдений.",
     "",
+    ...(importProvenance
+      ? [
+        "Исторический импорт: [происхождение](import-provenance.json). Исходный workspace сохранён без изменений.",
+        "",
+      ]
+      : []),
     "## Сборки и сырой материал",
     "",
     "| Сценарий | Variant | Режим | Код сборки | Wall, с | Данные |",
@@ -168,28 +211,31 @@ export async function writeExperimentReport(
     "",
     "## Парные off измерения",
     "",
-    "| Сценарий | Контроль / candidate | Пар | Median ratio | 95% CI | Статус |",
-    "| --- | --- | ---: | ---: | --- | --- |",
+    "| Сценарий | Контроль / candidate | Пар | Порог ratio | Median ratio | 95% CI | Статус |",
+    "| --- | --- | ---: | ---: | ---: | --- | --- |",
     ...benchmarks.filter((b) => b.complete === true).map((b) => {
       const c = b.comparison as {
         pairs: number;
+        maxSlowdownRatio?: number;
         medianRatio: number;
         interval95: number[];
         status: string;
       };
       return `| [${b.scenario}](benchmarks/${b.file_name}) | ${b.left} / ${b.right} | ${c.pairs} | ${
-        c.medianRatio.toFixed(5)
-      } | ${c.interval95.map((n) => n.toFixed(5)).join("–")} | ${c.status} |`;
+        c.maxSlowdownRatio?.toFixed(5) ?? "не сохранён"
+      } | ${c.medianRatio.toFixed(5)} | ${
+        c.interval95.map((n) => n.toFixed(5)).join("–")
+      } | ${c.status} |`;
     }),
     "",
-    "Порог: верхняя граница ≤1.01 — PASS; нижняя >1.01 — FAIL; пересечение — INCONCLUSIVE. Bootstrap median парных ratios: 10 000 resamples, seed хранится в raw series. Прогревы исключены. Незавершённая серия не даёт acceptance.",
+    "Верхняя граница ≤ порога серии — PASS; нижняя > порога серии — FAIL; пересечение — INCONCLUSIVE. Порог берётся из сохранённой политики соответствующей серии. Bootstrap median парных ratios: 10 000 resamples, seed хранится в raw series. Прогревы исключены. Незавершённая серия не даёт acceptance.",
     "",
     "## Качество и покрытие",
     "",
     "| Запуск | Данные | Потери | Незавершённые | Ошибки |",
     "| --- | --- | ---: | ---: | ---: |",
     ...summary.map((r) =>
-      `| [${r.run_id}](runs/${r.run_id}/coverage.json) | ${
+      `| [${r.run_id}](runs/${r.run_id}/run.json) | ${
         r.data_valid ? "VALID" : "INVALID"
       } | ${r.quality.droppedEvents} | ${r.quality.incompleteSpans} | ${r.quality.errors.length} |`
     ),
@@ -212,7 +258,7 @@ export async function writeExperimentReport(
           ),
           "",
         ]),
-        `Raw: [events](runs/${r.run_id}/events/), [wall trace](runs/${r.run_id}/wall.trace.json), [Lua CPU trace](runs/${r.run_id}/lua-cpu.trace.json), [causal graph](runs/${r.run_id}/causal.json).`,
+        `[Материалы запуска и просмотр измерений](runs/${encodeURIComponent(r.run_id)}/report.md).`,
         "",
       ],
     ),

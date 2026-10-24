@@ -1,5 +1,10 @@
 import { strict as assert } from "node:assert";
-import { compareOutputs, normalizeOutput } from "../../src/analysis/outputs.ts";
+import {
+  compareOutputs,
+  normalizeOutput as historicalNormalizeOutput,
+} from "../../src/analysis/outputs.ts";
+const normalizeOutput = (path: string, text: string) =>
+  historicalNormalizeOutput(path, text, "java-pilot-core-qrc-v1");
 Deno.test("output comparison retains teaching text, solutions, target links and unrelated timestamps", () => {
   const before = '<p>Задача</p><a href="a.html#target">Ответ 4</a>';
   for (
@@ -26,6 +31,7 @@ Deno.test("output comparison applies an explicit owner adapter only to HTML, wit
     assert.equal((await compareOutputs(left, right)).equivalent, false);
     const calls: string[] = [];
     const adapted = await compareOutputs(left, right, {
+      outputPolicy: "java-pilot-core-qrc-v1",
       leftSourceRoot: "/left",
       rightSourceRoot: "/right",
       normalizeHtml: (html, sourceRoot) => {
@@ -38,7 +44,10 @@ Deno.test("output comparison applies an explicit owner adapter only to HTML, wit
     await Deno.writeTextFile(left + "/data.json", '{"root":"/left"}');
     await Deno.writeTextFile(right + "/data.json", '{"root":"/right"}');
     assert.equal(
-      (await compareOutputs(left, right, { normalizeHtml: () => "same" })).equivalent,
+      (await compareOutputs(left, right, {
+        outputPolicy: "java-pilot-core-qrc-v1",
+        normalizeHtml: () => "same",
+      })).equivalent,
       false,
     );
   } finally {
@@ -119,4 +128,65 @@ Deno.test("historical Core exercise metadata order is canonicalized", () => {
       dup.replace("first", "TEMP").replace("second", "first").replace("TEMP", "second"),
     ),
   );
+});
+
+Deno.test("strict default preserves HTML attribute order and ignores historical adapter unless opted in", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const left = root + "/left", right = root + "/right";
+    await Deno.mkdir(left);
+    await Deno.mkdir(right);
+    const a = '<div id="exr-a" target="x" data-course-time="2">';
+    const b = '<div id="exr-a" data-course-time="2" target="x">';
+    await Deno.writeTextFile(left + "/index.html", a);
+    await Deno.writeTextFile(right + "/index.html", b);
+    assert.equal((await compareOutputs(left, right)).equivalent, false);
+    assert.equal(
+      (await compareOutputs(left, right, { normalizeHtml: () => "same" })).equivalent,
+      false,
+    );
+    assert.equal(
+      (await compareOutputs(left, right, { outputPolicy: "java-pilot-core-qrc-v1" })).equivalent,
+      true,
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("strict output comparison keeps ZIP container bytes literal", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    await Deno.mkdir(root + "/left");
+    await Deno.mkdir(root + "/right");
+    await Deno.writeTextFile(root + "/left/a.zip", "container A");
+    await Deno.writeTextFile(root + "/right/a.zip", "container B");
+    assert.equal((await compareOutputs(root + "/left", root + "/right")).equivalent, false);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("strict comparison distinguishes different invalid UTF-8 HTML bytes", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    await Deno.mkdir(root + "/left");
+    await Deno.mkdir(root + "/right");
+    await Deno.writeFile(
+      root + "/left/index.html",
+      new Uint8Array([60, 112, 62, 0x80, 60, 47, 112, 62]),
+    );
+    await Deno.writeFile(
+      root + "/right/index.html",
+      new Uint8Array([60, 112, 62, 0x81, 60, 47, 112, 62]),
+    );
+    assert.equal((await compareOutputs(root + "/left", root + "/right")).equivalent, false);
+    assert.equal(
+      (await compareOutputs(root + "/left", root + "/right", { outputPolicy: "strict" }))
+        .equivalent,
+      false,
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
 });

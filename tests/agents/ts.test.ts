@@ -192,3 +192,165 @@ Deno.test("calibration uncertainty includes a stalled epoch-clock read", async (
     await Deno.remove(root, { recursive: true });
   }
 });
+
+Deno.test("ABI 1 records explicit context without leaking parallel document IDs and removes stale child parent", async () => {
+  const root = await Deno.makeTempDir();
+  Deno.env.set("COURSE_PERF_MODE", "summary");
+  try {
+    const agent = installTsAgent({
+      experimentId: "e",
+      runId: "r",
+      processId: "current",
+      outputDirectory: root,
+      mode: "summary",
+    });
+    const m = createMetrics("owner");
+    const spec = {
+      id: "phase",
+      kind: "phase" as const,
+      document_id: "a.qmd",
+      attributes: { custom: 7, extension_id: "wrong" },
+    };
+    const a = m.wrapAsync(spec, async () => {
+      await new Promise((r) => setTimeout(r, 5));
+    });
+    const b = m.wrapAsync({ ...spec, document_id: "b.qmd" }, async () => {});
+    await Promise.all([a(), b()]);
+    m.wrapSync({ id: "no-document", kind: "phase" }, () => {})();
+    agent.metrics.wrapSync({ id: "old-bridge", kind: "phase" }, () => {})();
+    const begins = agent.events.filter((e) => e.event === "begin");
+    assert.deepEqual(begins.map((e) => e.document_id), ["a.qmd", "b.qmd", undefined, undefined]);
+    assert.deepEqual(begins[0].attributes, { custom: 7, extension_id: "owner" });
+    assert.equal(begins[3].attributes, undefined);
+    assert.equal(spec.attributes.extension_id, "wrong");
+    const ambient = Deno.env.get("COURSE_PERF_PARENT_SPAN_ID");
+    Deno.env.set("COURSE_PERF_PARENT_SPAN_ID", "ambient-ghost");
+    const base = {
+      ...Deno.env.toObject(),
+      FUNCTIONAL: "yes",
+      COURSE_PERF_PARENT_SPAN_ID: "stale",
+      COURSE_PERF_PARENT_PROCESS_ID: "stale-process",
+    };
+    const env = m.childEnv(base);
+    assert.equal(env.COURSE_PERF_PARENT_SPAN_ID, undefined);
+    assert.equal(env.COURSE_PERF_PARENT_PROCESS_ID, "current");
+    assert.equal(base.COURSE_PERF_PARENT_SPAN_ID, "stale");
+    const child = await new Deno.Command(Deno.execPath(), {
+      args: [
+        "eval",
+        "console.log(JSON.stringify([Deno.env.get('COURSE_PERF_PARENT_SPAN_ID'),Deno.env.get('FUNCTIONAL')]))",
+      ],
+      env,
+      clearEnv: true,
+      stdout: "piped",
+    }).output();
+    if (ambient === undefined) Deno.env.delete("COURSE_PERF_PARENT_SPAN_ID");
+    else Deno.env.set("COURSE_PERF_PARENT_SPAN_ID", ambient);
+    assert.deepEqual(JSON.parse(new TextDecoder().decode(child.stdout)), [null, "yes"]);
+    for (const e of agent.events.filter((e) => e.event === "end")) {
+      assert(e.document_id === "a.qmd" || e.document_id === "b.qmd" || e.document_id === undefined);
+    }
+  } finally {
+    Deno.env.delete("COURSE_PERF_MODE");
+    Reflect.deleteProperty(globalThis, Symbol.for("course.performance.agent.v1"));
+    await Deno.remove(root, { recursive: true });
+  }
+});
+Deno.test("walk counter deltas carry the same recorded context as the operation", async () => {
+  const root = await Deno.makeTempDir();
+  Deno.env.set("COURSE_PERF_MODE", "summary");
+  try {
+    const a = installTsAgent({
+      experimentId: "e",
+      runId: "r",
+      processId: "p",
+      outputDirectory: root,
+      mode: "summary",
+    });
+    createMetrics("owner").wrapWalk({
+      id: "walk",
+      kind: "ast_walk",
+      scope: "fragment",
+      document_id: "doc.qmd",
+    }, () => {})();
+    assert.equal(a.events.length, 3);
+    for (const e of a.events) {
+      assert.equal(e.document_id, "doc.qmd");
+      assert.equal(e.attributes?.extension_id, "owner");
+    }
+  } finally {
+    Deno.env.delete("COURSE_PERF_MODE");
+    Reflect.deleteProperty(globalThis, Symbol.for("course.performance.agent.v1"));
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("bootstrap sync-flushes fatal throw, rejected await and timer errors without changing native failure", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const bridge = new URL("../../bridge/bridge.ts", import.meta.url).href,
+      bootstrap = new URL("../../src/agents/ts/bootstrap.ts", import.meta.url).pathname;
+    const prefix = `import {createMetrics} from ${
+      JSON.stringify(bridge)
+    };const m=createMetrics('test');m.wrapSync({id:'complete',kind:'phase'},()=>42)();void m.wrapAsync({id:'pending',kind:'phase'},()=>new Promise(()=>{}))();\n`;
+    for (
+      const [name, code] of [["throw", "throw new Error('FATAL_MARKER')"], [
+        "await",
+        "await Promise.reject(new Error('FATAL_MARKER'))",
+      ], ["timer", "setTimeout(()=>{throw new Error('FATAL_MARKER')},0)"]]
+    ) {
+      const entry = join(root, name + ".ts");
+      await Deno.writeTextFile(entry, prefix + code);
+      const base = { ...Deno.env.toObject(), COURSE_PERF_MODE: "off" };
+      const native = await new Deno.Command(Deno.execPath(), {
+        args: ["run", "--no-config", "--no-lock", "-A", entry],
+        env: base,
+        clearEnv: true,
+        stdout: "piped",
+        stderr: "piped",
+      }).output();
+      assert.equal(native.code, 1);
+      const output = join(root, name),
+        out = await new Deno.Command(Deno.execPath(), {
+          args: ["run", "--no-config", "--no-lock", "-A", "--preload", bootstrap, entry],
+          env: {
+            ...base,
+            COURSE_PERF_MODE: "trace",
+            COURSE_PERF_RUN_ID: "r",
+            COURSE_PERF_EXPERIMENT_ID: "e",
+            COURSE_PERF_PROCESS_ID: "p",
+            COURSE_PERF_OUTPUT_DIR: output,
+          },
+          clearEnv: true,
+          stdout: "piped",
+          stderr: "piped",
+        }).output();
+      assert.equal(out.code, native.code);
+      assert.equal(out.signal, native.signal);
+      assert.deepEqual(out.stderr, native.stderr);
+      assert.deepEqual(out.stdout, native.stdout);
+      const summary = JSON.parse(await Deno.readTextFile(join(output, "events/p/ts.summary.json")));
+      assert.equal(summary.schema_version, 1);
+      assert.equal(summary.incomplete_spans, 1);
+      assert.equal(summary.data_valid, false);
+      const events = (await Deno.readTextFile(join(output, "events/p/ts.jsonl"))).trim().split("\n")
+        .map((x) => JSON.parse(x));
+      assert.equal(
+        events.filter((e) =>
+          e.operation_id === "complete" && e.event === "end" && e.status === "ok"
+        ).length,
+        1,
+      );
+      assert.equal(
+        events.filter((e) => e.operation_id === "pending" && e.event === "begin").length,
+        1,
+      );
+      assert.equal(
+        events.filter((e) => e.operation_id === "pending" && e.event === "end").length,
+        0,
+      );
+    }
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

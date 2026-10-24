@@ -1,10 +1,10 @@
 // Используется именно Git blob закреплённой версии владельца, а не текущий dirty checkout.
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { SourceManifest } from "../src/config/types.ts";
+import { importSourceManifest } from "../src/config/types.ts";
 import { hashFile } from "../src/sources/snapshot.ts";
 export async function loadOwnerNormalizer(manifestPath: string) {
-  const manifest: SourceManifest = JSON.parse(await Deno.readTextFile(manifestPath));
+  const manifest = importSourceManifest(JSON.parse(await Deno.readTextFile(manifestPath)), true);
   const source = manifest.sources.find((s) => s.repository.endsWith("/quarto-reference-catalog"));
   if (!source) throw new Error("В manifest отсутствует QRC");
   const path = "_extensions/reference-catalog/infrastructure/metadata.ts";

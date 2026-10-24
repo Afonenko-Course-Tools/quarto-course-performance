@@ -1,0 +1,1155 @@
+{
+  "schema_version": 1,
+  "status": "LOCAL_GATES_PASS",
+  "recordedUTC": "2026-10-24T12:42:08.007109+00:00",
+  "toolVersion": "2.0.0",
+  "qaExecutionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e",
+  "runtimeSuiteAndPackageCommit": "0da9e0d2c87304e9c7d802764a1d4785b56bd434",
+  "sourceCorrespondence": {
+    "src": {
+      "suiteAndPackage": "1ce14e43605c3e9a4b688235792c4fdf42d787b8",
+      "javaAndQa": "1ce14e43605c3e9a4b688235792c4fdf42d787b8"
+    },
+    "bridge": {
+      "suiteAndPackage": "935533fc4418967352a7f29cbfbe574dec5016d9",
+      "javaAndQa": "935533fc4418967352a7f29cbfbe574dec5016d9"
+    },
+    "deno.json": {
+      "suiteAndPackage": "2fec7adf5fc84283811cd52b7be812771a0fc20e",
+      "javaAndQa": "2fec7adf5fc84283811cd52b7be812771a0fc20e"
+    },
+    "deno.lock": {
+      "suiteAndPackage": "9cec0137d1615bab09df842dab7846209822a400",
+      "javaAndQa": "9cec0137d1615bab09df842dab7846209822a400"
+    },
+    "docs/operation-registry.json": {
+      "suiteAndPackage": "146c531ee68025755363611ca1cf52e2ff3f4ba4",
+      "javaAndQa": "146c531ee68025755363611ca1cf52e2ff3f4ba4"
+    }
+  },
+  "java": {
+    "repository": "BSU-RFCT-Afonenko-Courses/Java",
+    "commit": "4a427b7207cb0ea7138034087100c372bec410ab",
+    "sourceTreeBeforeSHA256": "ba9a662c778ed632f976f453d2a20490aca4ff5d7d0e0e9b40b0b7cc36e2660b",
+    "sourceTreeAfterSHA256": "ba9a662c778ed632f976f453d2a20490aca4ff5d7d0e0e9b40b0b7cc36e2660b",
+    "sourceUnchanged": true,
+    "targets": [
+      ".",
+      "tasks",
+      "slides"
+    ],
+    "sourceQmdCount": 3,
+    "sourceArchiveSHA256": "e17db9e8081087a2ae18587ccd839d682612152e161ea05e53215d8efe8c28e5"
+  },
+  "toolchain": {
+    "primary": {
+      "quarto": "1.11.6",
+      "deno": "2.7.14",
+      "pandoc": "3.10",
+      "java": "25.0.5",
+      "gradle": "9.1.0"
+    },
+    "installedCompatibility": {
+      "quarto": "1.11.6",
+      "deno": "2.9.8"
+    }
+  },
+  "installedJavaPackages": [
+    {
+      "repository": "Afonenko-Course-Tools/quarto-course",
+      "commit": "5267d1663f3c44ce4a1c24cfde5737f2bc963a56",
+      "tag": "v8.2.3",
+      "version": "8.2.3",
+      "scopes": [
+        ".",
+        "tasks",
+        "slides"
+      ],
+      "extension": "course-core",
+      "packageFileCount": 70
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-course",
+      "commit": "5267d1663f3c44ce4a1c24cfde5737f2bc963a56",
+      "tag": "v8.2.3",
+      "version": "8.2.3",
+      "scopes": [
+        ".",
+        "tasks",
+        "slides"
+      ],
+      "extension": "course-presentation",
+      "packageFileCount": 13
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-course",
+      "commit": "5267d1663f3c44ce4a1c24cfde5737f2bc963a56",
+      "tag": "v8.2.3",
+      "version": "8.2.3",
+      "scopes": [
+        "slides"
+      ],
+      "extension": "course-navigation",
+      "packageFileCount": 12
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-project-publish",
+      "commit": "a0fc543fb461d90b9f467dbe8b6a0b286a39311a",
+      "tag": "v5.1.4",
+      "version": "5.1.4",
+      "scopes": [
+        "."
+      ],
+      "extension": "course-site",
+      "packageFileCount": 16
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-reference-catalog",
+      "commit": "989448d2afa4df7db882b0874c88808a00ae52c2",
+      "tag": "v3.1.1",
+      "version": "3.1.1",
+      "scopes": [
+        ".",
+        "tasks",
+        "slides"
+      ],
+      "extension": "reference-catalog",
+      "packageFileCount": 91
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-course-prairielearn",
+      "commit": "741ca5b172b456ee843f64c2b7626618e348f56c",
+      "tag": "v8.2.2",
+      "version": "8.2.2",
+      "scopes": [
+        "tasks"
+      ],
+      "extension": "course-prairielearn",
+      "packageFileCount": 37
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-project-download",
+      "commit": "10cb38f2ba5c88e585a0ff6800adf5fc2b77597e",
+      "tag": "v3.2.2",
+      "version": "3.2.2",
+      "scopes": [
+        ".",
+        "tasks"
+      ],
+      "extension": "project-download",
+      "packageFileCount": 14
+    }
+  ],
+  "installedPackageFileCheck": {
+    "status": "PASS",
+    "files": 615,
+    "scopes": 14
+  },
+  "checks": [
+    {
+      "label": "root-native-off-student-carried-forward",
+      "status": "PASS",
+      "nativeExecutionCommit": "f3da2c3971c691082c466b17e27e04c10de95e53",
+      "comparisonExecutionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e",
+      "comparisons": [
+        {
+          "path": "_site-student",
+          "equivalent": true,
+          "files": 133,
+          "html": 4,
+          "zip": 2,
+          "exceptions": [
+            "sitemap.xml"
+          ],
+          "dynamic": [],
+          "leftFilesSHA256": "c60b78483eab9868a25d5666f76856ef4b02d003b5fd0425c536db441ed648ed",
+          "rightFilesSHA256": "c60b78483eab9868a25d5666f76856ef4b02d003b5fd0425c536db441ed648ed"
+        },
+        {
+          "path": "tasks/_output/student",
+          "equivalent": true,
+          "files": 27,
+          "html": 1,
+          "zip": 2,
+          "exceptions": [
+            "sitemap.xml"
+          ],
+          "dynamic": [],
+          "leftFilesSHA256": "7fac5babb1d4960be2e924c4bcf1ebf3e7f06fccf86d14f8d35023527aa26cab",
+          "rightFilesSHA256": "7fac5babb1d4960be2e924c4bcf1ebf3e7f06fccf86d14f8d35023527aa26cab"
+        },
+        {
+          "path": "slides/_output/student",
+          "equivalent": true,
+          "files": 81,
+          "html": 2,
+          "zip": 0,
+          "exceptions": [
+            "sitemap.xml"
+          ],
+          "dynamic": [],
+          "leftFilesSHA256": "2576300b867365cf39b3e8e2e96885cbe026b314618fdef6724a12abee77045d",
+          "rightFilesSHA256": "2576300b867365cf39b3e8e2e96885cbe026b314618fdef6724a12abee77045d"
+        }
+      ]
+    },
+    {
+      "label": "root-native-off-full-carried-forward",
+      "status": "PASS",
+      "nativeExecutionCommit": "f3da2c3971c691082c466b17e27e04c10de95e53",
+      "comparisonExecutionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e",
+      "comparisons": [
+        {
+          "path": "_site-full",
+          "equivalent": true,
+          "files": 133,
+          "html": 4,
+          "zip": 2,
+          "exceptions": [
+            "sitemap.xml"
+          ],
+          "dynamic": [],
+          "leftFilesSHA256": "5daa65fd8800a217ecfa3c5e0f9ace8bdee866e460d79dc2f979a90dcf5da700",
+          "rightFilesSHA256": "5daa65fd8800a217ecfa3c5e0f9ace8bdee866e460d79dc2f979a90dcf5da700"
+        },
+        {
+          "path": "tasks/_output/full",
+          "equivalent": true,
+          "files": 27,
+          "html": 1,
+          "zip": 2,
+          "exceptions": [
+            "sitemap.xml"
+          ],
+          "dynamic": [],
+          "leftFilesSHA256": "5e600c5e118d6b40d7369ec67c9e59ccc083a0de27c0d770c27d87a10784875d",
+          "rightFilesSHA256": "5e600c5e118d6b40d7369ec67c9e59ccc083a0de27c0d770c27d87a10784875d"
+        },
+        {
+          "path": "slides/_output/full",
+          "equivalent": true,
+          "files": 81,
+          "html": 2,
+          "zip": 0,
+          "exceptions": [
+            "sitemap.xml"
+          ],
+          "dynamic": [],
+          "leftFilesSHA256": "61b8f96b5488a74ddb84206a70f122685a223a7ceebfd7315e0396ff5284c4a7",
+          "rightFilesSHA256": "61b8f96b5488a74ddb84206a70f122685a223a7ceebfd7315e0396ff5284c4a7"
+        }
+      ]
+    },
+    {
+      "label": "root-summary-student",
+      "status": "PASS",
+      "runId": "83de2e9f-05e6-462b-9b02-33cf5df2ccfc",
+      "outcome": {
+        "code": 0,
+        "signal": null,
+        "wallSeconds": 229.878572029,
+        "cpuUserSeconds": 255.53,
+        "cpuSystemSeconds": 30.8,
+        "peakRssKiB": 280856,
+        "escalated": false,
+        "stdioMode": "separate"
+      },
+      "events": 10312,
+      "executors": 221,
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e"
+    },
+    {
+      "label": "root-native-summary-student",
+      "status": "PASS",
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e",
+      "comparisons": [
+        {
+          "path": "_site-student",
+          "equivalent": true,
+          "files": 133,
+          "html": 4,
+          "zip": 2,
+          "exceptions": [
+            "sitemap.xml"
+          ],
+          "dynamic": [],
+          "leftFilesSHA256": "c60b78483eab9868a25d5666f76856ef4b02d003b5fd0425c536db441ed648ed",
+          "rightFilesSHA256": "c60b78483eab9868a25d5666f76856ef4b02d003b5fd0425c536db441ed648ed"
+        },
+        {
+          "path": "tasks/_output/student",
+          "equivalent": true,
+          "files": 27,
+          "html": 1,
+          "zip": 2,
+          "exceptions": [
+            "sitemap.xml"
+          ],
+          "dynamic": [],
+          "leftFilesSHA256": "7fac5babb1d4960be2e924c4bcf1ebf3e7f06fccf86d14f8d35023527aa26cab",
+          "rightFilesSHA256": "7fac5babb1d4960be2e924c4bcf1ebf3e7f06fccf86d14f8d35023527aa26cab"
+        },
+        {
+          "path": "slides/_output/student",
+          "equivalent": true,
+          "files": 81,
+          "html": 2,
+          "zip": 0,
+          "exceptions": [
+            "sitemap.xml"
+          ],
+          "dynamic": [],
+          "leftFilesSHA256": "2576300b867365cf39b3e8e2e96885cbe026b314618fdef6724a12abee77045d",
+          "rightFilesSHA256": "2576300b867365cf39b3e8e2e96885cbe026b314618fdef6724a12abee77045d"
+        }
+      ]
+    },
+    {
+      "label": "cwd-slides-native-carried-forward",
+      "status": "PASS",
+      "nativeExecutionCommit": "f3da2c3971c691082c466b17e27e04c10de95e53",
+      "comparisonExecutionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e"
+    },
+    {
+      "label": "cwd-slides-summary",
+      "status": "PASS",
+      "runId": "d9facd33-452f-404d-963d-368a318db729",
+      "outcome": {
+        "code": 0,
+        "signal": null,
+        "wallSeconds": 49.56298911499999,
+        "cpuUserSeconds": 57.06,
+        "cpuSystemSeconds": 6.96,
+        "peakRssKiB": 192352,
+        "escalated": false,
+        "stdioMode": "separate"
+      },
+      "events": 1716,
+      "executors": 55,
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e"
+    },
+    {
+      "label": "cwd-slides",
+      "status": "PASS",
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e",
+      "comparisons": [
+        {
+          "path": "slides/_output/student",
+          "equivalent": true,
+          "files": 81,
+          "html": 2,
+          "zip": 0,
+          "exceptions": [
+            "sitemap.xml"
+          ],
+          "dynamic": [],
+          "leftFilesSHA256": "2576300b867365cf39b3e8e2e96885cbe026b314618fdef6724a12abee77045d",
+          "rightFilesSHA256": "2576300b867365cf39b3e8e2e96885cbe026b314618fdef6724a12abee77045d"
+        }
+      ]
+    },
+    {
+      "label": "target-slides-directory-summary",
+      "status": "PASS",
+      "runId": "64b83186-57c9-4a47-a83f-bbf3b4723f28",
+      "outcome": {
+        "code": 0,
+        "signal": null,
+        "wallSeconds": 51.303201191,
+        "cpuUserSeconds": 57.67,
+        "cpuSystemSeconds": 7.2,
+        "peakRssKiB": 193884,
+        "escalated": false,
+        "stdioMode": "separate"
+      },
+      "events": 1716,
+      "executors": 55,
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e"
+    },
+    {
+      "label": "target-slides-directory",
+      "status": "PASS",
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e",
+      "comparisons": [
+        {
+          "path": "slides/_output/student",
+          "equivalent": true,
+          "files": 81,
+          "html": 2,
+          "zip": 0,
+          "exceptions": [
+            "sitemap.xml"
+          ],
+          "dynamic": [],
+          "leftFilesSHA256": "2576300b867365cf39b3e8e2e96885cbe026b314618fdef6724a12abee77045d",
+          "rightFilesSHA256": "2576300b867365cf39b3e8e2e96885cbe026b314618fdef6724a12abee77045d"
+        }
+      ]
+    },
+    {
+      "label": "target-slides-file-summary",
+      "status": "PASS",
+      "runId": "698cf9c9-6d26-4476-8c4a-1fb873b99090",
+      "outcome": {
+        "code": 0,
+        "signal": null,
+        "wallSeconds": 51.569973622999996,
+        "cpuUserSeconds": 58.34,
+        "cpuSystemSeconds": 7.06,
+        "peakRssKiB": 193948,
+        "escalated": false,
+        "stdioMode": "separate"
+      },
+      "events": 1716,
+      "executors": 55,
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e"
+    },
+    {
+      "label": "target-slides-file",
+      "status": "PASS",
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e",
+      "comparisons": [
+        {
+          "path": "slides/_output/student",
+          "equivalent": true,
+          "files": 81,
+          "html": 2,
+          "zip": 0,
+          "exceptions": [
+            "sitemap.xml"
+          ],
+          "dynamic": [],
+          "leftFilesSHA256": "2576300b867365cf39b3e8e2e96885cbe026b314618fdef6724a12abee77045d",
+          "rightFilesSHA256": "2576300b867365cf39b3e8e2e96885cbe026b314618fdef6724a12abee77045d"
+        }
+      ]
+    },
+    {
+      "label": "cwd-tasks-summary",
+      "status": "PASS",
+      "runId": "a307dc91-40f7-423a-96ae-f3ed22fb4ebf",
+      "outcome": {
+        "code": 0,
+        "signal": null,
+        "wallSeconds": 93.887190607,
+        "cpuUserSeconds": 104.25,
+        "cpuSystemSeconds": 12.25,
+        "peakRssKiB": 267916,
+        "escalated": false,
+        "stdioMode": "separate"
+      },
+      "events": 3768,
+      "executors": 82,
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e"
+    },
+    {
+      "label": "cwd-tasks",
+      "status": "PASS",
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e",
+      "comparisons": [
+        {
+          "path": "tasks/_output/student",
+          "equivalent": true,
+          "files": 27,
+          "html": 1,
+          "zip": 2,
+          "exceptions": [
+            "sitemap.xml"
+          ],
+          "dynamic": [],
+          "leftFilesSHA256": "7fac5babb1d4960be2e924c4bcf1ebf3e7f06fccf86d14f8d35023527aa26cab",
+          "rightFilesSHA256": "7fac5babb1d4960be2e924c4bcf1ebf3e7f06fccf86d14f8d35023527aa26cab"
+        }
+      ]
+    },
+    {
+      "label": "cwd-tasks-projects-summary",
+      "status": "PASS",
+      "runId": "c47a11d2-cd70-4e97-a072-bc81f9925fdc",
+      "outcome": {
+        "code": 0,
+        "signal": null,
+        "wallSeconds": 96.89054995800001,
+        "cpuUserSeconds": 105.48,
+        "cpuSystemSeconds": 12.78,
+        "peakRssKiB": 272188,
+        "escalated": false,
+        "stdioMode": "separate"
+      },
+      "events": 3768,
+      "executors": 82,
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e"
+    },
+    {
+      "label": "cwd-tasks-projects",
+      "status": "PASS",
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e",
+      "comparisons": [
+        {
+          "path": "tasks/_output/student",
+          "equivalent": true,
+          "files": 27,
+          "html": 1,
+          "zip": 2,
+          "exceptions": [
+            "sitemap.xml"
+          ],
+          "dynamic": [],
+          "leftFilesSHA256": "7fac5babb1d4960be2e924c4bcf1ebf3e7f06fccf86d14f8d35023527aa26cab",
+          "rightFilesSHA256": "7fac5babb1d4960be2e924c4bcf1ebf3e7f06fccf86d14f8d35023527aa26cab"
+        }
+      ]
+    },
+    {
+      "label": "slides-cpu",
+      "status": "PASS",
+      "runId": "e8f587ee-2402-4686-a387-cb9ee886ebaf",
+      "outcome": {
+        "code": 0,
+        "signal": null,
+        "wallSeconds": 77.540018222,
+        "cpuUserSeconds": 88.31,
+        "cpuSystemSeconds": 11.22,
+        "peakRssKiB": 213424,
+        "escalated": false,
+        "stdioMode": "separate"
+      },
+      "events": 1716,
+      "executors": 55,
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e"
+    },
+    {
+      "label": "slides-native-cpu",
+      "status": "PASS",
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e",
+      "comparisons": [
+        {
+          "path": "slides/_output/student",
+          "equivalent": true,
+          "files": 81,
+          "html": 2,
+          "zip": 0,
+          "exceptions": [
+            "sitemap.xml"
+          ],
+          "dynamic": [],
+          "leftFilesSHA256": "2576300b867365cf39b3e8e2e96885cbe026b314618fdef6724a12abee77045d",
+          "rightFilesSHA256": "2576300b867365cf39b3e8e2e96885cbe026b314618fdef6724a12abee77045d"
+        }
+      ]
+    },
+    {
+      "label": "isolated-trace",
+      "status": "PASS",
+      "runId": "3c5202d3-a4b1-4f85-a447-3d63c62ef957",
+      "events": 13362,
+      "executors": 221,
+      "recorded": [
+        "reference-catalog",
+        "auto",
+        "course-core",
+        "course-presentation",
+        "course-navigation",
+        "course-site",
+        "project-download",
+        "course-prairielearn"
+      ],
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e",
+      "executedSelectedFunctions": 12,
+      "packages": []
+    },
+    {
+      "label": "isolated-trace-outputs",
+      "status": "PASS",
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e",
+      "comparisons": [
+        {
+          "path": "_site-student",
+          "equivalent": true,
+          "files": 133,
+          "html": 4,
+          "zip": 2,
+          "exceptions": [
+            "sitemap.xml"
+          ],
+          "dynamic": [],
+          "leftFilesSHA256": "c60b78483eab9868a25d5666f76856ef4b02d003b5fd0425c536db441ed648ed",
+          "rightFilesSHA256": "c60b78483eab9868a25d5666f76856ef4b02d003b5fd0425c536db441ed648ed"
+        },
+        {
+          "path": "tasks/_output/student",
+          "equivalent": true,
+          "files": 27,
+          "html": 1,
+          "zip": 2,
+          "exceptions": [
+            "sitemap.xml"
+          ],
+          "dynamic": [],
+          "leftFilesSHA256": "7fac5babb1d4960be2e924c4bcf1ebf3e7f06fccf86d14f8d35023527aa26cab",
+          "rightFilesSHA256": "7fac5babb1d4960be2e924c4bcf1ebf3e7f06fccf86d14f8d35023527aa26cab"
+        },
+        {
+          "path": "slides/_output/student",
+          "equivalent": true,
+          "files": 81,
+          "html": 2,
+          "zip": 0,
+          "exceptions": [
+            "sitemap.xml"
+          ],
+          "dynamic": [],
+          "leftFilesSHA256": "2576300b867365cf39b3e8e2e96885cbe026b314618fdef6724a12abee77045d",
+          "rightFilesSHA256": "2576300b867365cf39b3e8e2e96885cbe026b314618fdef6724a12abee77045d"
+        }
+      ]
+    },
+    {
+      "label": "explicit-replacement",
+      "status": "PASS",
+      "runId": "ee0dc902-cf0c-42c9-ae7d-92fb6de652dd",
+      "events": 13362,
+      "executors": 221,
+      "recorded": [
+        "course-core",
+        "course-presentation",
+        "reference-catalog",
+        "course-navigation",
+        "course-prairielearn",
+        "project-download",
+        "auto",
+        "course-site"
+      ],
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e",
+      "executedSelectedFunctions": 12,
+      "packages": [
+        {
+          "repository": "Afonenko-Course-Tools/quarto-reference-catalog",
+          "ownerSha": "b20d8934168e808cdb333e58179fbcd25e47bea8",
+          "extensionId": "reference-catalog",
+          "packageHash": "7d1e55a6a2a35a1c9110fe08bd42aafe33eadddd0a1ab9a2e54a1e5e75b44175"
+        }
+      ]
+    },
+    {
+      "label": "explicit-replacement-outputs",
+      "status": "PASS",
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e",
+      "comparisons": [
+        {
+          "path": "_site-student",
+          "equivalent": true,
+          "files": 133,
+          "html": 4,
+          "zip": 2,
+          "exceptions": [
+            "sitemap.xml"
+          ],
+          "dynamic": [],
+          "leftFilesSHA256": "c60b78483eab9868a25d5666f76856ef4b02d003b5fd0425c536db441ed648ed",
+          "rightFilesSHA256": "c60b78483eab9868a25d5666f76856ef4b02d003b5fd0425c536db441ed648ed"
+        },
+        {
+          "path": "tasks/_output/student",
+          "equivalent": true,
+          "files": 27,
+          "html": 1,
+          "zip": 2,
+          "exceptions": [
+            "sitemap.xml"
+          ],
+          "dynamic": [],
+          "leftFilesSHA256": "7fac5babb1d4960be2e924c4bcf1ebf3e7f06fccf86d14f8d35023527aa26cab",
+          "rightFilesSHA256": "7fac5babb1d4960be2e924c4bcf1ebf3e7f06fccf86d14f8d35023527aa26cab"
+        },
+        {
+          "path": "slides/_output/student",
+          "equivalent": true,
+          "files": 81,
+          "html": 2,
+          "zip": 0,
+          "exceptions": [
+            "sitemap.xml"
+          ],
+          "dynamic": [],
+          "leftFilesSHA256": "2576300b867365cf39b3e8e2e96885cbe026b314618fdef6724a12abee77045d",
+          "rightFilesSHA256": "2576300b867365cf39b3e8e2e96885cbe026b314618fdef6724a12abee77045d"
+        }
+      ]
+    },
+    {
+      "label": "fixture-no-git-no-markup-arbitrary-profile",
+      "status": "PASS",
+      "runId": "b7f2f8a0-1046-4a5b-ad17-c6a572ea9070",
+      "outcome": {
+        "code": 0,
+        "signal": null,
+        "wallSeconds": 4.230071782,
+        "cpuUserSeconds": 5.11,
+        "cpuSystemSeconds": 0.36,
+        "peakRssKiB": 249500,
+        "escalated": false,
+        "stdioMode": "separate"
+      },
+      "events": 0,
+      "executors": 3,
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e"
+    },
+    {
+      "label": "fixture-invalid-quality-and-signals",
+      "status": "PASS",
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e"
+    },
+    {
+      "label": "task-12-result-hashes-check",
+      "status": "PASS",
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e",
+      "exit": 0,
+      "rawLogSHA256": "6947cbd3351f5205e11786c2ca99e545566931df49786cbdaa8604d15d6cc6af"
+    },
+    {
+      "label": "task-12-suite-0da9e0d",
+      "status": "PASS",
+      "executionCommit": "0da9e0d2c87304e9c7d802764a1d4785b56bd434",
+      "exit": 0,
+      "rawLogSHA256": "27d2c5929f58c25611ff4b242e9620e8577ea807763c65171206128b80960212",
+      "passed": 234,
+      "failed": 0,
+      "steps": 13
+    },
+    {
+      "label": "task-12-result-hashes-green",
+      "status": "PASS",
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e",
+      "exit": 0,
+      "rawLogSHA256": "ba8701ccdd94825b415e064b8ee8ed5199c1ea1a777ca3a9bac753a39bebac33",
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "label": "task-12-proc-green",
+      "status": "PASS",
+      "executionCommit": "0da9e0d2c87304e9c7d802764a1d4785b56bd434",
+      "exit": 0,
+      "rawLogSHA256": "60ff5dd71fce05055bbba0bff908a2b217c9f2d3e1994a3a2e1895b6bdbc27ee",
+      "passed": 6,
+      "failed": 0
+    },
+    {
+      "label": "task-12-perfetto-bcd76c9",
+      "status": "PASS",
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e",
+      "exit": 0,
+      "rawLogSHA256": "0d8cf479287879755d8eac3a564585a8ae64c73c3d4c82c714210f42fbc3e87d",
+      "regressionFiles": 11,
+      "negativeControls": 4
+    },
+    {
+      "label": "task-12-package-0da9e0d-clean-arch",
+      "status": "PASS",
+      "executionCommit": "0da9e0d2c87304e9c7d802764a1d4785b56bd434",
+      "exit": 0,
+      "rawLogSHA256": "2886de56a8d96088e992210ceaf1989cb7895577d1cd82c5c7845bedc06df08b"
+    },
+    {
+      "label": "task-12-package-0da9e0d-installed",
+      "status": "PASS",
+      "executionCommit": "0da9e0d2c87304e9c7d802764a1d4785b56bd434",
+      "exit": 0,
+      "rawLogSHA256": "cfdee9258970e225fd0b24b1c488ed203961c98183a0dc131f9ffd6ef562d65a"
+    },
+    {
+      "label": "task-12-controller-proc-system-deno",
+      "status": "PASS",
+      "denoVersion": "2.9.8",
+      "exit": 0,
+      "rawLogSHA256": "916d9ed3ad16fe5aacf35036c28ad1be8b0130d79457cada850257b64bf138ee"
+    },
+    {
+      "label": "task-12-controller-proc-system-deno-actual",
+      "status": "PASS",
+      "denoVersion": "2.9.8",
+      "exit": 0,
+      "rawLogSHA256": "57f2779042d999430716996031b3c16995c5abbdd276e4e31e1f1cce870ae1dc"
+    },
+    {
+      "label": "native-failure-small-fixture",
+      "status": "PASS",
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e",
+      "expectedExit": 1,
+      "actualExit": 1,
+      "nativeOutcome": {
+        "code": 1,
+        "signal": null,
+        "wallSeconds": 5.844832707999999,
+        "cpuUserSeconds": 6.96,
+        "cpuSystemSeconds": 0.47,
+        "peakRssKiB": 247808,
+        "escalated": false,
+        "stdioMode": "separate"
+      },
+      "git": null,
+      "dataValid": true,
+      "rawStdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "rawStderrSHA256": "94a0d006b34ca7c6e07397c2fa74a6d1f97dc6bcc1970cd119e1102d49557cc9"
+    },
+    {
+      "label": "actual-cpu-and-perfetto-ui",
+      "status": "PASS",
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e",
+      "cpuProfiles": 53,
+      "cpuProfileSHA256": "e349904b3123370cc58dcb57bf3f139eaca8f5c8fe1fdd51aae02376f5ddca56",
+      "proofSHA256": "472a727c8646f74c261f5355f1a55e4e1a86971d1793cf79e046cdf70152f841",
+      "trace": {
+        "runId": "3c5202d3-a4b1-4f85-a447-3d63c62ef957",
+        "wallSHA256": "6bc26e69ff066c9be46fc741065c9edbbc6e05afcb8212d9617ae48c57147f3f",
+        "luaCpuSHA256": "9cbfecc0fd48fb5488baa78846a0fb127542331a460260ca6f052346988ee76c",
+        "observedSelectedOperation": "course-site.infrastructure.process.quarto",
+        "selectedSpan": "f7bf31c3-98d1-41c4-8d37-abfdd023f785-ts-5",
+        "recordedParent": "f7bf31c3-98d1-41c4-8d37-abfdd023f785-ts-1",
+        "preceding": "course-site.application.compose.pre",
+        "following": "course-site.infrastructure.process.executable",
+        "dataValid": true,
+        "coverageComplete": false
+      }
+    },
+    {
+      "label": "actual-trace-processor-calibrated-wall",
+      "status": "PASS",
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e",
+      "runId": "3c5202d3-a4b1-4f85-a447-3d63c62ef957",
+      "clock": "calibrated-wall",
+      "traceSHA256": "6bc26e69ff066c9be46fc741065c9edbbc6e05afcb8212d9617ae48c57147f3f",
+      "slices": 2714,
+      "tracks": 15,
+      "flows": 2711,
+      "selfLinks": 0,
+      "wrongParent": 0,
+      "missingOriginalIDs": 0,
+      "overflowTracks": 0,
+      "stdoutSHA256": "435766b20493765e5015c96c6ad384094ec035ba77745e03a6e90a69a3e9d8cf",
+      "stderrSHA256": "5df47afdff5c3a1bb98e12d3429ee11a7c3d9e999769b6c15bfdd52972457d52"
+    },
+    {
+      "label": "actual-trace-processor-local-lua-cpu",
+      "status": "PASS",
+      "executionCommit": "bcd76c943314c605499ca243d011bfdd3b414b2e",
+      "runId": "3c5202d3-a4b1-4f85-a447-3d63c62ef957",
+      "clock": "local-lua-cpu",
+      "traceSHA256": "9cbfecc0fd48fb5488baa78846a0fb127542331a460260ca6f052346988ee76c",
+      "slices": 3780,
+      "tracks": 3,
+      "flows": 3365,
+      "selfLinks": 0,
+      "wrongParent": 0,
+      "missingOriginalIDs": 0,
+      "overflowTracks": 0,
+      "stdoutSHA256": "0724738dfe947893943aa6e238a4387b667e6cba1ca286cf8e453a919d183f33",
+      "stderrSHA256": "d503a70ec936afa9a5d813ba89fc783dba9062cdff7217a17c3d7983ef5a078e"
+    }
+  ],
+  "commands": [
+    {
+      "label": "root-summary-student",
+      "argv": [
+        "deno",
+        "run",
+        "src/cli.ts",
+        "render",
+        "--perf-mode",
+        "summary",
+        "--perf-output",
+        "<evidence>",
+        "--profile",
+        "student"
+      ],
+      "cwd": ".",
+      "startUTC": "2026-10-24T12:15:13.984Z",
+      "endUTC": "2026-10-24T12:19:07.459Z",
+      "exit": 0,
+      "signal": null,
+      "stdoutSHA256": "148bb92af39e0af81efb0a0cf6948e0d65f3b38cf7d6261106eda77ce4f5f222",
+      "stderrSHA256": "03cf0364eb1d140a33f12ad2c321a714f636aa25fb6f3bcb9b1658235e318398"
+    },
+    {
+      "label": "cwd-slides-summary",
+      "argv": [
+        "deno",
+        "run",
+        "src/cli.ts",
+        "render",
+        "--perf-mode",
+        "summary",
+        "--perf-output",
+        "<evidence>",
+        "--profile",
+        "student"
+      ],
+      "cwd": "slides",
+      "startUTC": "2026-10-24T12:19:08.535Z",
+      "endUTC": "2026-10-24T12:20:01.278Z",
+      "exit": 0,
+      "signal": null,
+      "stdoutSHA256": "eafcc55b655cc7e49657d869562c5ba6bb85bf827b0d577d44e6452589af1cf0",
+      "stderrSHA256": "93a973c7ebc8ca36996654aff8ecf2bfc0ed3343b494b3a73118db8694cd3cfc"
+    },
+    {
+      "label": "target-slides-directory-native",
+      "argv": [
+        "quarto",
+        "render",
+        "slides",
+        "--profile",
+        "student"
+      ],
+      "cwd": ".",
+      "startUTC": "2026-10-24T12:20:01.669Z",
+      "endUTC": "2026-10-24T12:20:41.366Z",
+      "exit": 0,
+      "signal": null,
+      "stdoutSHA256": "eafcc55b655cc7e49657d869562c5ba6bb85bf827b0d577d44e6452589af1cf0",
+      "stderrSHA256": "960acaf089c13a55dc05c2b9ba23c0697d54d982a8f8515b5fdbbd10dcd44bfb"
+    },
+    {
+      "label": "target-slides-directory-summary",
+      "argv": [
+        "deno",
+        "run",
+        "src/cli.ts",
+        "render",
+        "--perf-mode",
+        "summary",
+        "--perf-output",
+        "<evidence>",
+        "slides",
+        "--profile",
+        "student"
+      ],
+      "cwd": ".",
+      "startUTC": "2026-10-24T12:20:41.564Z",
+      "endUTC": "2026-10-24T12:21:36.023Z",
+      "exit": 0,
+      "signal": null,
+      "stdoutSHA256": "eafcc55b655cc7e49657d869562c5ba6bb85bf827b0d577d44e6452589af1cf0",
+      "stderrSHA256": "b2d41fb066971f44e585cc70e59b4586406b07bba9d0834ba6f7a61690edff5c"
+    },
+    {
+      "label": "target-slides-file-native",
+      "argv": [
+        "quarto",
+        "render",
+        "slides/index.qmd",
+        "--profile",
+        "student"
+      ],
+      "cwd": ".",
+      "startUTC": "2026-10-24T12:21:36.424Z",
+      "endUTC": "2026-10-24T12:22:22.947Z",
+      "exit": 0,
+      "signal": null,
+      "stdoutSHA256": "eafcc55b655cc7e49657d869562c5ba6bb85bf827b0d577d44e6452589af1cf0",
+      "stderrSHA256": "960acaf089c13a55dc05c2b9ba23c0697d54d982a8f8515b5fdbbd10dcd44bfb"
+    },
+    {
+      "label": "target-slides-file-summary",
+      "argv": [
+        "deno",
+        "run",
+        "src/cli.ts",
+        "render",
+        "--perf-mode",
+        "summary",
+        "--perf-output",
+        "<evidence>",
+        "slides/index.qmd",
+        "--profile",
+        "student"
+      ],
+      "cwd": ".",
+      "startUTC": "2026-10-24T12:22:23.133Z",
+      "endUTC": "2026-10-24T12:23:17.904Z",
+      "exit": 0,
+      "signal": null,
+      "stdoutSHA256": "eafcc55b655cc7e49657d869562c5ba6bb85bf827b0d577d44e6452589af1cf0",
+      "stderrSHA256": "de76f86c875e982bc0a738a13e8f87dab36bef4c512d25c1c404d76276a6d5c7"
+    },
+    {
+      "label": "cwd-tasks-native",
+      "argv": [
+        "quarto",
+        "render",
+        "--profile",
+        "student"
+      ],
+      "cwd": "tasks",
+      "startUTC": "2026-10-24T12:23:18.292Z",
+      "endUTC": "2026-10-24T12:24:23.300Z",
+      "exit": 0,
+      "signal": null,
+      "stdoutSHA256": "1b3fbc88b24d025e1c89cd24ae22d5848818b1a8e2f6846ec007d543119dde72",
+      "stderrSHA256": "81c17485e13827193ba6e3fde2e1e51d0ca6424eb46698818502aaa1dc5bac49"
+    },
+    {
+      "label": "cwd-tasks-summary",
+      "argv": [
+        "deno",
+        "run",
+        "src/cli.ts",
+        "render",
+        "--perf-mode",
+        "summary",
+        "--perf-output",
+        "<evidence>",
+        "--profile",
+        "student"
+      ],
+      "cwd": "tasks",
+      "startUTC": "2026-10-24T12:24:23.485Z",
+      "endUTC": "2026-10-24T12:26:00.766Z",
+      "exit": 0,
+      "signal": null,
+      "stdoutSHA256": "1b3fbc88b24d025e1c89cd24ae22d5848818b1a8e2f6846ec007d543119dde72",
+      "stderrSHA256": "f9062153bab175e047f2854baa4d7225dea9b766b0cc6fe3c75840131350926e"
+    },
+    {
+      "label": "cwd-tasks-projects-native",
+      "argv": [
+        "quarto",
+        "render",
+        "../index.qmd",
+        "--profile",
+        "student"
+      ],
+      "cwd": "tasks/projects",
+      "startUTC": "2026-10-24T12:26:01.415Z",
+      "endUTC": "2026-10-24T12:27:11.528Z",
+      "exit": 0,
+      "signal": null,
+      "stdoutSHA256": "1b3fbc88b24d025e1c89cd24ae22d5848818b1a8e2f6846ec007d543119dde72",
+      "stderrSHA256": "81c17485e13827193ba6e3fde2e1e51d0ca6424eb46698818502aaa1dc5bac49"
+    },
+    {
+      "label": "cwd-tasks-projects-summary",
+      "argv": [
+        "deno",
+        "run",
+        "src/cli.ts",
+        "render",
+        "--perf-mode",
+        "summary",
+        "--perf-output",
+        "<evidence>",
+        "../index.qmd",
+        "--profile",
+        "student"
+      ],
+      "cwd": "tasks/projects",
+      "startUTC": "2026-10-24T12:27:11.727Z",
+      "endUTC": "2026-10-24T12:28:52.105Z",
+      "exit": 0,
+      "signal": null,
+      "stdoutSHA256": "1b3fbc88b24d025e1c89cd24ae22d5848818b1a8e2f6846ec007d543119dde72",
+      "stderrSHA256": "ff8c5e9b413ffb06e911bafceef44f8bb9963176b57bb6fc4ade398c818bb743"
+    },
+    {
+      "label": "slides-cpu",
+      "argv": [
+        "deno",
+        "run",
+        "src/cli.ts",
+        "render",
+        "--perf-mode",
+        "cpu",
+        "--perf-output",
+        "<evidence>",
+        "slides/index.qmd",
+        "--profile",
+        "student",
+        "--to",
+        "revealjs"
+      ],
+      "cwd": ".",
+      "startUTC": "2026-10-24T12:28:52.730Z",
+      "endUTC": "2026-10-24T12:30:14.356Z",
+      "exit": 0,
+      "signal": null,
+      "stdoutSHA256": "eafcc55b655cc7e49657d869562c5ba6bb85bf827b0d577d44e6452589af1cf0",
+      "stderrSHA256": "e81c3d41321ae198b51571eff74d5c754ceeef62b2394eee01eed1d2f2809218"
+    },
+    {
+      "label": "fixture-no-git-no-markup-arbitrary-profile",
+      "argv": [
+        "deno",
+        "run",
+        "src/cli.ts",
+        "render",
+        "--perf-mode",
+        "summary",
+        "--perf-output",
+        "<evidence>",
+        "index.qmd",
+        "--profile",
+        "arbitrary"
+      ],
+      "cwd": "<fixture>",
+      "startUTC": "2026-10-24T12:38:44.605Z",
+      "endUTC": "2026-10-24T12:38:53.683Z",
+      "exit": 0,
+      "signal": null,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "2517dec62eed59ca0a5f5908d3fd7149455b751174b4215c1926b41c8a6d7b0e"
+    },
+    {
+      "label": "fixture-invalid-quality-and-signals",
+      "argv": [
+        "deno",
+        "test",
+        "-A",
+        "tests/runner/storage-cli.test.ts",
+        "tests/analysis/quality.test.ts"
+      ],
+      "cwd": "<application>",
+      "startUTC": "2026-10-24T12:38:53.796Z",
+      "endUTC": "2026-10-24T12:39:29.256Z",
+      "exit": 0,
+      "signal": null,
+      "stdoutSHA256": "d2652e5fdf2801b1c0498db15d540c821d539f391ec0531081e64c862b801cbc",
+      "stderrSHA256": "0f4c43dd646d11d8ee27d3f623f6fae99ce60fae6a418d25a5f58e96c9074c5a"
+    }
+  ],
+  "archArtifact": {
+    "sourceCommit": "0da9e0d2c87304e9c7d802764a1d4785b56bd434",
+    "archiveSHA256": "b51f29bf1e32a0d8b746f1f497b74f86ea85f6769930d4ba3ffe0c14c27d9264",
+    "recipeSHA256": "18d9334f7feaa91c881b6379e1ef1a9816675a0d58f69b9b109c884845544168",
+    "packageSHA256": "c9d84bb5651f09bd0e2dc32e185cf7644c66f5fa349e320fc86cca4f34570e49",
+    "installedTreeSHA256": "a61e768a0ef633c957a7f4b736d21a4e38c724e53834f9aac03064e1091c249d",
+    "publicationStatus": "not-published-by-this-check"
+  },
+  "historicalFailures": [
+    {
+      "executionCommit": "0d4ccd3005f9121da7f72912aa787410fb88ac38",
+      "exit": 1,
+      "reason": "QA copies имели разные абсолютные source paths в intermediate QRC HTML; исправлена изоляция без нормализации HTML."
+    },
+    {
+      "executionCommit": "f3da2c3971c691082c466b17e27e04c10de95e53",
+      "exit": 1,
+      "nativeExit": 0,
+      "cliExit": 2,
+      "reason": "Фактический ESRCH исчезнувшего proc entry; исправлен узкий scanner predicate, сохранены raw/staging и RED/GREEN."
+    },
+    {
+      "label": "initial-sandbox-suite",
+      "exit": -9,
+      "reason": "Известное ограничение signal/PTY sandbox; остановлены только подтверждённые собственные процессы, исходный журнал сохранён."
+    }
+  ],
+  "limits": [
+    "coverageComplete не заявляется; количество зарегистрированных symbols не считается исполнением.",
+    "Lua CPU и TS wall являются разными часами; inclusive spans могут перекрываться.",
+    "Cloud VM не входит в выбранный Java и имеет статус N/A.",
+    "Прямые native/off student/full baselines исполнены на f3da2c3; новый runtime summary/CPU/trace/replacement проверен отдельно, baselines не переименованы в новый HEAD.",
+    "Полный suite относится к 0da9e0d; поздний QA assertion проверен отдельным scoped test.",
+    "Документация, CI и опубликованные release assets проверяются контроллером отдельной финальной фазой."
+  ]
+}
