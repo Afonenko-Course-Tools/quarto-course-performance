@@ -90,3 +90,88 @@ Deno.test("damaged pairs and aborted spans never become normal slices", () => {
     assert.equal(traces(run(events)).wall.traceEvents.filter((e) => e.ph === "X").length, 0);
   }
 });
+
+Deno.test("confirmed comparable parent has one logical flow", () => {
+  for (const parentEnd of [20, 80]) {
+    const bundle = traces(run([
+      ...pair("parent", 0, parentEnd),
+      ...pair("child", 30, 40, {
+        process_id: "other-process",
+        parent_span_id: "parent",
+      }),
+    ]));
+    const links = bundle.wall.traceEvents.filter((e) => e.ph === "s" || e.ph === "f");
+    assert.deepEqual(links.map((e) => e.ph), ["s", "f"]);
+    assert.equal(links[0].id, links[1].id);
+    assert.equal(typeof links[0].id, "number");
+    assert.deepEqual(links.map((e) => e.ts), [0, 30]);
+    assert.equal(links[0].args.relationship, "logical-parent");
+  }
+});
+Deno.test("unknown reversed cross-run and incomparable parents have no flows", () => {
+  const cases = [
+    [...pair("parent", 40, 90), ...pair("child", 30, 40, { parent_span_id: "parent" })],
+    [
+      ...pair("parent", 0, 10, { run_id: "other" }),
+      ...pair("child", 30, 40, { parent_span_id: "parent" }),
+    ],
+    [...pair("child", 30, 40, { parent_span_id: "unknown" })],
+    [
+      ...pair("parent", 0, 10),
+      ...pair("child", 30, 40, {
+        parent_span_id: "parent",
+        clock_domain: "process_cpu",
+        executor_id: "lua",
+      }),
+    ],
+    [
+      ...pair("parent", 0, 10, { clock_domain: "process_cpu", executor_id: "lua" }),
+      ...pair("child", 30, 40, {
+        parent_span_id: "parent",
+        clock_domain: "process_cpu",
+        executor_id: "lua-other",
+      }),
+    ],
+  ];
+  for (const events of cases) {
+    const bundle = traces(run(events));
+    for (const trace of [bundle.wall, bundle.luaCpu]) {
+      assert.equal(trace.traceEvents.filter((e) => e.ph === "s" || e.ph === "f").length, 0);
+    }
+  }
+  const calibrated = run([
+    ...pair("parent", 0, 10),
+    ...pair("child", 30, 40, { process_id: "remote", parent_span_id: "parent" }),
+  ]);
+  calibrated.executors["remote/ts"].calibration = { time_origin_ms: -1 };
+  assert.equal(
+    traces(calibrated).wall.traceEvents.filter((e) => e.ph === "s" || e.ph === "f").length,
+    0,
+  );
+});
+Deno.test("untimed counters and totals stay aggregates with independent quality and receipts", () => {
+  const input = run([...pair("ok", 0, 1), {
+    ...pair("counter", 0, 1)[0],
+    event: "counter",
+    executor_id: "counter",
+    clock_domain: "none",
+    timestamp_us: undefined,
+    counter: { name: "calls", value: 1, quality: "partial" },
+  }]);
+  input.dataValid = false;
+  const bundle = traces(input, [{
+    process_id: input.events[0].process_id,
+    parent_process_id: "parent",
+    peak_rss_kib: 100,
+  }]);
+  assert(!bundle.wall.traceEvents.some((e) => String(e.ph) === "C"));
+  const slice = bundle.wall.traceEvents.find((e) => e.ph === "X")!;
+  assert.equal(slice.args.data_valid, false);
+  assert.equal(slice.args.coverage_complete, false);
+  const metadata = bundle.wall.traceEvents.find((e) => e.name === "process_name")!;
+  assert.equal(
+    (metadata.args.receipts as Record<string, unknown>[])[0].parent_process_id,
+    "parent",
+  );
+  assert(!bundle.wall.traceEvents.some((e) => e.ph === "s" || e.ph === "f"));
+});

@@ -196,5 +196,45 @@ export function traces(
       placed.set(begin.span_id!, { trace, event: row });
     }
   }
+  let flowId = 0;
+  for (const id of [...placed.keys()].sort(compare)) {
+    const child = placed.get(id)!;
+    const parentId = bySpan.get(id)!.begin.parent_span_id;
+    const parent = parentId ? placed.get(parentId) : undefined;
+    if (
+      !parent || child.trace !== bundle.wall || parent.trace !== bundle.wall ||
+      parent.event.ts! > child.event.ts! || parentId === id
+    ) continue;
+    // Циклическое отношение не является подтверждённой причинной связью.
+    let cursor: string | undefined = parentId;
+    const seen = new Set([id]);
+    while (cursor && !seen.has(cursor)) {
+      seen.add(cursor);
+      cursor = bySpan.get(cursor)?.begin.parent_span_id;
+    }
+    if (cursor) continue;
+    const args = {
+      relationship: "logical-parent",
+      run_id: run.runId,
+      parent_span_id: parentId,
+      span_id: id,
+      parent_process_id: parent.event.args.process_id,
+      process_id: child.event.args.process_id,
+      meaning: "Логическая связь; время передачи управления не измерено",
+    };
+    const linkId = ++flowId;
+    for (const [ph, anchor] of [["s", parent.event], ["f", child.event]] as const) {
+      bundle.wall.traceEvents.push({
+        ph,
+        name: "Логическое родительство",
+        cat: "logical-parent",
+        id: linkId,
+        pid: anchor.pid,
+        tid: anchor.tid,
+        ts: anchor.ts,
+        args,
+      });
+    }
+  }
   return bundle;
 }
