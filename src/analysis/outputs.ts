@@ -101,7 +101,7 @@ export async function compareOutputs(
       }
     } else if (await hashFile(a.get(name)!) !== await hashFile(b.get(name)!)) {
       if (
-        !name.endsWith(".html") ||
+        roots.outputPolicy !== "java-pilot-core-qrc-v1" || !name.endsWith(".html") ||
         normalizeOutput(
             name,
             roots.outputPolicy === "java-pilot-core-qrc-v1" && roots.normalizeHtml

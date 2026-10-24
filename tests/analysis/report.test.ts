@@ -198,3 +198,37 @@ Deno.test("legacy arbitrary commands are not silently relabeled as native Quarto
     await Deno.remove(root, { recursive: true });
   }
 });
+
+Deno.test("experiment report displays each saved benchmark threshold without a global Java policy", async () => {
+  const { compareBenchmarks } = await import("../../src/analysis/compare.ts");
+  const root = await Deno.makeTempDir();
+  try {
+    await Deno.mkdir(join(root, "benchmarks"));
+    for (const [scenario, threshold] of [["lenient", 1.2], ["tight", 1.05]] as const) {
+      await Deno.writeTextFile(
+        join(root, "benchmarks", scenario + ".json"),
+        JSON.stringify({
+          scenario,
+          complete: true,
+          left: "clean-control",
+          right: "candidate",
+          comparison: compareBenchmarks([1.1], 42, threshold),
+        }),
+      );
+    }
+    await writeExperimentReport(
+      { experimentId: "e", sources: [], packages: [], runtime: {} },
+      [],
+      root,
+    );
+    const report = await Deno.readTextFile(join(root, "report.md"));
+    assert.match(report, /\| Порог ratio \|/);
+    assert.match(report, /\[lenient\][^\n]+\| 1\.20000 \|[^\n]+\| PASS \|/);
+    assert.match(report, /\[tight\][^\n]+\| 1\.05000 \|[^\n]+\| FAIL \|/);
+    assert(!report.includes("≤1.01"));
+    assert(!report.includes(">1.01"));
+    assert.match(report, /порога серии/);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

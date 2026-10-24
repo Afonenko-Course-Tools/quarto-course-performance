@@ -166,3 +166,27 @@ Deno.test("strict output comparison keeps ZIP container bytes literal", async ()
     await Deno.remove(root, { recursive: true });
   }
 });
+
+Deno.test("strict comparison distinguishes different invalid UTF-8 HTML bytes", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    await Deno.mkdir(root + "/left");
+    await Deno.mkdir(root + "/right");
+    await Deno.writeFile(
+      root + "/left/index.html",
+      new Uint8Array([60, 112, 62, 0x80, 60, 47, 112, 62]),
+    );
+    await Deno.writeFile(
+      root + "/right/index.html",
+      new Uint8Array([60, 112, 62, 0x81, 60, 47, 112, 62]),
+    );
+    assert.equal((await compareOutputs(root + "/left", root + "/right")).equivalent, false);
+    assert.equal(
+      (await compareOutputs(root + "/left", root + "/right", { outputPolicy: "strict" }))
+        .equivalent,
+      false,
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

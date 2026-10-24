@@ -159,21 +159,24 @@ export async function writeExperimentReport(
     "",
     "## Парные off измерения",
     "",
-    "| Сценарий | Контроль / candidate | Пар | Median ratio | 95% CI | Статус |",
-    "| --- | --- | ---: | ---: | --- | --- |",
+    "| Сценарий | Контроль / candidate | Пар | Порог ratio | Median ratio | 95% CI | Статус |",
+    "| --- | --- | ---: | ---: | ---: | --- | --- |",
     ...benchmarks.filter((b) => b.complete === true).map((b) => {
       const c = b.comparison as {
         pairs: number;
+        maxSlowdownRatio?: number;
         medianRatio: number;
         interval95: number[];
         status: string;
       };
       return `| [${b.scenario}](benchmarks/${b.file_name}) | ${b.left} / ${b.right} | ${c.pairs} | ${
-        c.medianRatio.toFixed(5)
-      } | ${c.interval95.map((n) => n.toFixed(5)).join("–")} | ${c.status} |`;
+        c.maxSlowdownRatio?.toFixed(5) ?? "не сохранён"
+      } | ${c.medianRatio.toFixed(5)} | ${
+        c.interval95.map((n) => n.toFixed(5)).join("–")
+      } | ${c.status} |`;
     }),
     "",
-    "Порог: верхняя граница ≤1.01 — PASS; нижняя >1.01 — FAIL; пересечение — INCONCLUSIVE. Bootstrap median парных ratios: 10 000 resamples, seed хранится в raw series. Прогревы исключены. Незавершённая серия не даёт acceptance.",
+    "Верхняя граница ≤ порога серии — PASS; нижняя > порога серии — FAIL; пересечение — INCONCLUSIVE. Порог берётся из сохранённой политики соответствующей серии. Bootstrap median парных ratios: 10 000 resamples, seed хранится в raw series. Прогревы исключены. Незавершённая серия не даёт acceptance.",
     "",
     "## Качество и покрытие",
     "",
