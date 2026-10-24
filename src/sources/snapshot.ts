@@ -10,13 +10,17 @@ export async function hashFile(path: string): Promise<string> {
 }
 export async function files(
   root: string,
-  options: { materializeFileLinks?: boolean } = {},
+  options: { materializeFileLinks?: boolean; sourceSnapshot?: boolean } = {},
 ): Promise<string[]> {
   const result: string[] = [];
   async function visit(dir: string) {
     for await (const entry of Deno.readDir(dir)) {
       if (entry.name === ".git") continue;
       const path = join(dir, entry.name);
+      if (
+        options.sourceSnapshot &&
+        relative(root, path).split(/[\\/]/).slice(-2).join("/") === ".quarto/course-perf"
+      ) continue;
       if (entry.isSymlink) {
         if (!options.materializeFileLinks) {
           throw new Error(`Символическая ссылка запрещена: ${path}`);
@@ -36,9 +40,12 @@ export async function files(
   await visit(root);
   return result.sort();
 }
-export async function treeHash(root: string): Promise<string> {
+export async function treeHash(
+  root: string,
+  options: { sourceSnapshot?: boolean } = {},
+): Promise<string> {
   const rows = [];
-  for (const path of await files(root)) {
+  for (const path of await files(root, options)) {
     const info = await Deno.stat(path);
     rows.push([relative(root, path), info.mode! & 0o777, await hashFile(path)]);
   }
@@ -47,7 +54,7 @@ export async function treeHash(root: string): Promise<string> {
 export async function copyTree(
   source: string,
   destination: string,
-  options: { materializeFileLinks?: boolean } = {},
+  options: { materializeFileLinks?: boolean; sourceSnapshot?: boolean } = {},
 ): Promise<void> {
   await Deno.mkdir(destination, { recursive: true });
   for (const path of await files(source, options)) {

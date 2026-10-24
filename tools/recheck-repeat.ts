@@ -28,7 +28,7 @@ for (const check of original.comparisons) {
     ...await compareOutputs(
       join(snapshotRoot, check.path),
       join(original.preparedRoot, check.path),
-      { normalizeHtml: canonicalizeMetadata },
+      { outputPolicy: "java-pilot-core-qrc-v1", normalizeHtml: canonicalizeMetadata },
     ),
   });
 }

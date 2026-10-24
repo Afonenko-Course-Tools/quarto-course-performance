@@ -5,13 +5,14 @@ export async function benchmarkPair(
   left: PreparedVariant,
   right: PreparedVariant,
   options: {
-    pairs: number;
+    pairs?: number;
     seed: number;
     executeOptions?: ExecuteOptions;
     onProgress?: (series: unknown) => Promise<void>;
   },
 ) {
-  if (options.pairs < 1 || !Number.isInteger(options.pairs)) {
+  const count = options.pairs ?? 10;
+  if (count < 1 || !Number.isInteger(count)) {
     throw new Error("Число пар должно быть положительным");
   }
   const warmups = [];
@@ -21,7 +22,7 @@ export async function benchmarkPair(
     warmups.push(warm.runId);
   }
   const pairs = [];
-  for (let i = 0; i < options.pairs; i++) {
+  for (let i = 0; i < count; i++) {
     const order = i % 2 ? "BA" as const : "AB" as const, results = [];
     for (const prepared of order === "AB" ? [left, right] : [right, left]) {
       const result = await executeScenario(scenario, prepared, "off", options.executeOptions);

@@ -212,7 +212,6 @@ export async function executeScenario(
         argv: [scenario.executable, ...argv],
         cwd,
         cachePolicy: scenario.cachePolicy,
-        courseProfile: scenario.courseProfile,
         experimentId: prepared.manifest.experimentId,
         resources,
         signalAvailability: options.useHyperfine ? "unavailable" : "observed",

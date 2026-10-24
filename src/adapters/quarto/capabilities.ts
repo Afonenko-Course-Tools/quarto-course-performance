@@ -2,7 +2,10 @@ import type { SourceManifest } from "../../config/types.ts";
 import { delimiter, join, resolve } from "node:path";
 import { hashFile } from "../../sources/snapshot.ts";
 // Subprocess ищет bare command в PATH; receipts должны читать тот же файл.
-async function executablePath(command: string, env: Record<string, string>): Promise<string> {
+export async function executablePath(
+  command: string,
+  env: Record<string, string>,
+): Promise<string> {
   if (command.includes("/") || command.includes("\\")) return resolve(command);
   for (const directory of (env.PATH ?? "").split(delimiter)) {
     const candidate = resolve(directory, command);

@@ -25,11 +25,9 @@ Deno.test("runner keeps argv, cwd, outputs and build exit code and off creates n
     );
     const scenario: Scenario = {
       id: "fake",
-      project: "Java",
       cwd: ".",
       executable: Deno.execPath(),
       args: ["run", "-A", path, "arg with spaces"],
-      courseProfile: "student",
       cachePolicy: "repeat-render",
       mode: "off",
       scope: { modules: [], extensions: [], strict: true },
@@ -38,7 +36,15 @@ Deno.test("runner keeps argv, cwd, outputs and build exit code and off creates n
     const prepared: PreparedVariant = {
       variant: "candidate",
       root,
-      manifest: { experimentId: "e", sources: [], packages: [], runtime: {} },
+      manifest: {
+        schema_version: 2 as const,
+        projectSource: "org/Fixture",
+        replacements: [],
+        experimentId: "e",
+        sources: [],
+        packages: [],
+        runtime: {},
+      },
     };
     const result = await executeScenario(scenario, prepared, "off", {
       outputRoot: join(root, "runs"),
@@ -76,11 +82,9 @@ Deno.test("Hyperfine 2 records raw resource metrics and literal argv without exe
     const literal = "space ' quote $(touch forbidden) `no-command`",
       s: Scenario = {
         id: "fake",
-        project: "Java",
         cwd: ".",
         executable: Deno.execPath(),
         args: ["run", "-A", path, literal],
-        courseProfile: "student",
         cachePolicy: "repeat-render",
         mode: "off",
         scope: { modules: [], extensions: [], strict: true },
@@ -89,7 +93,15 @@ Deno.test("Hyperfine 2 records raw resource metrics and literal argv without exe
       p: PreparedVariant = {
         variant: "candidate",
         root,
-        manifest: { experimentId: "e", sources: [], packages: [], runtime: {} },
+        manifest: {
+          schema_version: 2 as const,
+          projectSource: "org/Fixture",
+          replacements: [],
+          experimentId: "e",
+          sources: [],
+          packages: [],
+          runtime: {},
+        },
       };
     const result = await executeScenario(s, p, "off", {
       outputRoot: join(root, "runs"),
@@ -121,11 +133,9 @@ Deno.test("resource measurement retains the tool signal separately from a numeri
     await Deno.writeTextFile(script, "Deno.kill(Deno.pid, 'SIGTERM');await new Promise(()=>{});");
     const scenario: Scenario = {
       id: "signal",
-      project: "Java",
       cwd: ".",
       executable: Deno.execPath(),
       args: ["run", "-A", script],
-      courseProfile: "student",
       cachePolicy: "repeat-render",
       mode: "off",
       scope: { modules: [], extensions: [], strict: true },
@@ -134,7 +144,15 @@ Deno.test("resource measurement retains the tool signal separately from a numeri
     const prepared: PreparedVariant = {
       variant: "candidate",
       root,
-      manifest: { experimentId: "e", sources: [], packages: [], runtime: {} },
+      manifest: {
+        schema_version: 2 as const,
+        projectSource: "org/Fixture",
+        replacements: [],
+        experimentId: "e",
+        sources: [],
+        packages: [],
+        runtime: {},
+      },
     };
     const result = await executeScenario(scenario, prepared, "off", {
       outputRoot: join(root, "runs"),

@@ -3,6 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { loadOwnerNormalizer } from "./owner-normalizer.ts";
 import { validateConfig } from "../src/config/validate.ts";
 import { compareOutputs } from "../src/analysis/outputs.ts";
+import { importSourceManifest } from "../src/config/types.ts";
 import { files } from "../src/sources/snapshot.ts";
 const workspace = resolve(Deno.args[0]), upstreamWorkspace = resolve(Deno.args[1]);
 const config = validateConfig(
@@ -39,7 +40,10 @@ async function findRun(
         meta.scenario === scenario && meta.variant === variant && meta.mode === mode &&
         !meta.buildExitCode && meta.dataValid
       ) {
-        meta.manifest = JSON.parse(await Deno.readTextFile(join(dirname(path), "manifest.json")));
+        meta.manifest = importSourceManifest(
+          JSON.parse(await Deno.readTextFile(join(dirname(path), "manifest.json"))),
+          true,
+        );
         matches.push({ meta, modified: (await Deno.stat(path)).mtime!.getTime() });
       }
     } catch (e) {
@@ -80,6 +84,7 @@ async function compareBuilds(a: Build, b: Build, label: string) {
     if (!hasA && !hasB) continue;
     const result = hasA && hasB
       ? await compareOutputs(left, right, {
+        outputPolicy: config.outputPolicy,
         leftSourceRoot: root(a),
         rightSourceRoot: root(b),
         normalizeHtml: canonicalizeMetadata,
@@ -123,7 +128,10 @@ for (const profile of ["student", "full"]) {
   );
   const candidate = await findRun(workspace, id, "candidate", "off");
   const summary = await findRun(workspace, id, "candidate", "summary");
-  const frozen = JSON.parse(await Deno.readTextFile(join(workspace, "upstream.manifest.json")));
+  const frozen = importSourceManifest(
+    JSON.parse(await Deno.readTextFile(join(workspace, "upstream.manifest.json"))),
+    true,
+  );
   for (const source of frozen.sources) {
     if (
       !upstream.manifest.sources.some((s) =>
@@ -131,8 +139,11 @@ for (const profile of ["student", "full"]) {
       )
     ) throw new Error("Upstream из другого source set");
   }
-  const frozenControl = JSON.parse(
-    await Deno.readTextFile(join(workspace, "clean-control.manifest.json")),
+  const frozenControl = importSourceManifest(
+    JSON.parse(
+      await Deno.readTextFile(join(workspace, "clean-control.manifest.json")),
+    ),
+    true,
   );
   for (const source of frozenControl.sources) {
     if (

@@ -92,9 +92,8 @@ Deno.test("native help after a native separator reaches the native render argv",
 });
 
 Deno.test("experiment capabilities needs no Compiler API or npm cache", async () => {
-  const project = new URL("../../", import.meta.url).pathname;
   await isolated(
-    ["experiment", "capabilities", "--config", join(project, "scenarios/java.json")],
+    ["experiment", "capabilities"],
     (_root, out) => {
       assert(out.success, decode(out.stderr));
       const capabilities = JSON.parse(decode(out.stdout));

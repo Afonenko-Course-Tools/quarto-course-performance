@@ -3,13 +3,19 @@ import { validateConfig } from "../config/validate.ts";
 import { resolveSources } from "../sources/resolve.ts";
 import { freezeVariants } from "../sources/freeze.ts";
 import { prepareVariant } from "../sources/prepare.ts";
-import { probeQuarto } from "../adapters/quarto/capabilities.ts";
+import { executablePath, probeQuarto } from "../adapters/quarto/capabilities.ts";
 import { executeScenario } from "../runner/execute.ts";
 import { benchmarkPair } from "../runner/benchmark.ts";
+import { hashFile } from "../sources/snapshot.ts";
 import { compareBenchmarks } from "../analysis/compare.ts";
 import { type NormalizedRun, normalizeRun } from "../analysis/normalize.ts";
 import { writeExperimentReport } from "../analysis/report.ts";
-import type { Mode, SourceManifest, Variant } from "../config/types.ts";
+import {
+  importSourceManifest,
+  liveSourceManifest,
+  type Mode,
+  type Variant,
+} from "../config/types.ts";
 function parseFlags(args: readonly string[]): Record<string, string> {
   const flags: Record<string, string> = {};
   for (let n = 0; n < args.length; n += 2) {
@@ -18,6 +24,7 @@ function parseFlags(args: readonly string[]): Record<string, string> {
     }
     if (
       ![
+        "--quarto",
         "--workspace",
         "--config",
         "--inputs",
@@ -38,15 +45,42 @@ function parseFlags(args: readonly string[]): Record<string, string> {
 export async function experimentCommand(argv: readonly string[]): Promise<number> {
   const [command, ...args] = argv;
   const flags = parseFlags(args);
-  const workspace = resolve(flags["--workspace"] ?? ".workspace/experiment"),
-    config = validateConfig(
-      JSON.parse(await Deno.readTextFile(flags["--config"] ?? "scenarios/java.json")),
+  if (
+    !["sources", "freeze", "run", "benchmark", "report", "verify", "capabilities"].includes(command)
+  ) throw new Error("Команды: sources, freeze, run, benchmark, report, verify, capabilities");
+  if (command === "capabilities") {
+    console.log(
+      JSON.stringify(
+        await probeQuarto(flags["--quarto"] ?? Deno.env.get("QUARTO") ?? "quarto"),
+        null,
+        2,
+      ),
     );
-  const quarto = config.runtime?.quarto ?? "quarto";
+    return 0;
+  }
+  const workspace = resolve(flags["--workspace"] ?? ".workspace/experiment");
+  const historical = command === "report" || command === "verify";
+  if (!historical && !flags["--config"]) throw new Error("Необходим --config v2");
+  const config = historical
+    ? undefined
+    : validateConfig(JSON.parse(await Deno.readTextFile(flags["--config"])));
+  const quarto = flags["--quarto"] ?? config?.runtime?.quarto ?? "quarto";
+  function assertSelection(
+    manifest: { projectSource: string; replacements: unknown; sources: { repository: string }[] },
+  ) {
+    if (
+      !config || manifest.projectSource !== config.projectSource ||
+      JSON.stringify(manifest.replacements) !== JSON.stringify(config.replacements) ||
+      JSON.stringify(manifest.sources.map((s) => s.repository).sort()) !==
+        JSON.stringify(config.sources.map((s) => s.repository).sort())
+    ) throw new Error("Config расходится с закреплённым source manifest");
+  }
   if (command === "freeze") {
     if (!flags["--inputs"]) throw new Error("Необходим --inputs");
+    const inputs = JSON.parse(await Deno.readTextFile(flags["--inputs"]));
+    assertSelection(liveSourceManifest(JSON.parse(await Deno.readTextFile(inputs.baseline))));
     const manifests = await freezeVariants(
-      JSON.parse(await Deno.readTextFile(flags["--inputs"])),
+      inputs,
       workspace,
       quarto,
     );
@@ -54,7 +88,7 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
     return 0;
   }
   if (command === "sources") {
-    const manifest = await resolveSources(config.sources, workspace);
+    const manifest = await resolveSources(config!, workspace);
     const caps = await probeQuarto(quarto);
     manifest.runtime = caps.runtime;
     await Deno.writeTextFile(
@@ -68,8 +102,13 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
     console.log(JSON.stringify(manifest));
     return 0;
   }
-  const manifestFor = async (variant: Variant): Promise<SourceManifest> =>
-    JSON.parse(await Deno.readTextFile(join(workspace, variant + ".manifest.json")));
+  const manifestFor = async (variant: Variant) => {
+    const manifest = liveSourceManifest(
+      JSON.parse(await Deno.readTextFile(join(workspace, variant + ".manifest.json"))),
+    );
+    assertSelection(manifest);
+    return manifest;
+  };
   const runRoot = join(workspace, "runs"),
     env = {
       XDG_CACHE_HOME: join(workspace, "cache"),
@@ -77,6 +116,7 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
       QUARTO: quarto,
     };
   if (command === "run" || command === "benchmark") {
+    if (!config) throw new Error("Необходим --config v2");
     const runtimeRegistry = (await manifestFor("candidate")).runtime.runtimeRegistry?.path;
     const scenario = config.scenarios.find((s) => s.id === flags["--scenario"]);
     if (!scenario) throw new Error("Неизвестный --scenario");
@@ -92,10 +132,27 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
         !["upstream", "clean-control", "candidate"].includes(left) ||
         !["upstream", "clean-control", "candidate"].includes(right)
       ) throw new Error("Неизвестный variant");
+      if (!config.benchmark) {
+        throw new Error("Необходима benchmark policy с явным maxSlowdownRatio");
+      }
+      // Hyperfine требуется только выбранному действию benchmark, до подготовки копий.
+      const hyperfinePath = await executablePath("hyperfine", Deno.env.toObject());
+      const hyperfine = await new Deno.Command(hyperfinePath, {
+        args: ["--version"],
+        stdout: "piped",
+        stderr: "piped",
+      }).output();
+      if (!hyperfine.success) throw new Error("Hyperfine недоступен");
+      const hyperfineReceipt = {
+        path: hyperfinePath,
+        version: new TextDecoder().decode(hyperfine.stdout).trim(),
+        hash: await hashFile(hyperfinePath),
+      };
       const a = await prepare(left as Variant),
         b = await prepare(right as Variant),
         seed = Number(flags["--seed"] ?? 42),
-        pairs = Number(flags["--pairs"] ?? (scenario.id.startsWith("java-full-") ? 5 : 10));
+        pairs = Number(flags["--pairs"] ?? config.benchmark.pairs ?? 10);
+      for (const prepared of [a, b]) prepared.manifest.runtime.hyperfine = hyperfineReceipt;
       await Deno.mkdir(join(workspace, "benchmarks"), { recursive: true });
       const series = await benchmarkPair({ ...scenario, executable: quarto }, a, b, {
           pairs,
@@ -121,6 +178,7 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
         comparison = compareBenchmarks(
           series.pairs.map((p) => p.candidateWall / p.controlWall),
           seed,
+          config.benchmark.maxSlowdownRatio,
         );
       const result = { scenario: scenario.id, left, right, ...series, comparison };
       await Deno.mkdir(join(workspace, "benchmarks"), { recursive: true });
@@ -179,7 +237,10 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
     return result.buildExitCode ? 3 : result.dataValid ? 0 : 4;
   }
   if (command === "report" || command === "verify") {
-    const manifest = await manifestFor("candidate");
+    const manifest = importSourceManifest(
+      JSON.parse(await Deno.readTextFile(join(workspace, "candidate.manifest.json"))),
+      true,
+    );
     async function* runs(): AsyncGenerator<NormalizedRun> {
       for await (const item of Deno.readDir(runRoot)) {
         if (item.isDirectory) {
@@ -213,10 +274,6 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
       if (meta.buildExitCode !== 0) return 3;
     }
     return report.dataValid ? 0 : 4;
-  }
-  if (command === "capabilities") {
-    console.log(JSON.stringify(await probeQuarto(quarto), null, 2));
-    return 0;
   }
   throw new Error("Команды: sources, freeze, run, benchmark, report, verify, capabilities");
 }

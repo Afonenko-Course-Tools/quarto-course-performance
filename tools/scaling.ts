@@ -13,6 +13,9 @@ if (!ownerArg || !outputArg) throw new Error("Использование: scalin
 const owner = await Deno.realPath(ownerArg), output = resolve(outputArg);
 await Deno.mkdir(output, { recursive: true });
 const manifest: SourceManifest = {
+  schema_version: 2,
+  projectSource: "Afonenko-Course-Tools/quarto-course",
+  replacements: [],
   experimentId: crypto.randomUUID(),
   packages: [],
   runtime: {},
@@ -51,11 +54,9 @@ for (const factor of [1, 2, 4]) {
   );
   const scenario: Scenario = {
     id: `synthetic-core-${factor}`,
-    project: "Java",
     cwd: ".",
     executable: "quarto",
     args: ["render"],
-    courseProfile: "full",
     cachePolicy: "clean-output",
     mode: "summary",
     scope: {

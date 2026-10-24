@@ -1,5 +1,5 @@
 import { basename, join, resolve } from "node:path";
-import type { SourceManifest } from "../config/types.ts";
+import type { ReportSourceManifest } from "../config/types.ts";
 import type { NormalizedRun } from "./normalize.ts";
 
 import { jsonFiles, operationTotals, writeRunArtifacts } from "../report/run.ts";
@@ -28,7 +28,7 @@ function summarizeRun(run: NormalizedRun) {
 }
 
 export async function writeExperimentReport(
-  manifest: SourceManifest,
+  manifest: ReportSourceManifest,
   runs: Iterable<NormalizedRun> | AsyncIterable<NormalizedRun>,
   output: string,
 ) {

@@ -1,10 +1,15 @@
-import { join, relative } from "node:path";
+import { relative } from "node:path";
+import type { OutputPolicy } from "../config/types.ts";
 import { files, hashFile } from "../sources/snapshot.ts";
 
 // Исторические атрибуты упражнений Core: значения и остальные bytes сохраняются.
 // Нормализация QRC предоставляется владельцем через explicit normalizeHtml adapter.
-export function normalizeOutput(path: string, contents: string): string {
-  if (!path.endsWith(".html")) return contents;
+export function normalizeOutput(
+  path: string,
+  contents: string,
+  policy: OutputPolicy = "strict",
+): string {
+  if (policy === "strict" || !path.endsWith(".html")) return contents;
   return contents.replace(
     /<script\b[\s\S]*?<\/script\s*>|<style\b[\s\S]*?<\/style\s*>|<!--[\s\S]*?-->|<(?:a|div)\b(?:"[^"]*"|'[^']*'|[^'">])*>/gi,
     (chunk) => {
@@ -52,6 +57,7 @@ export async function compareOutputs(
   left: string,
   right: string,
   roots: {
+    outputPolicy?: OutputPolicy;
     leftSourceRoot?: string;
     rightSourceRoot?: string;
     normalizeHtml?: (contents: string, sourceRoot?: string) => string;
@@ -65,7 +71,7 @@ export async function compareOutputs(
       differences.push(`${name}: отсутствует в одном варианте`);
       continue;
     }
-    if (name.endsWith(".zip")) {
+    if (name.endsWith(".zip") && roots.outputPolicy === "java-pilot-core-qrc-v1") {
       const list = async (path: string) => {
         const out = await new Deno.Command("unzip", {
           args: ["-Z1", path],
@@ -98,15 +104,17 @@ export async function compareOutputs(
         !name.endsWith(".html") ||
         normalizeOutput(
             name,
-            roots.normalizeHtml
+            roots.outputPolicy === "java-pilot-core-qrc-v1" && roots.normalizeHtml
               ? roots.normalizeHtml(await Deno.readTextFile(a.get(name)!), roots.leftSourceRoot)
               : await Deno.readTextFile(a.get(name)!),
+            roots.outputPolicy,
           ) !==
           normalizeOutput(
             name,
-            roots.normalizeHtml
+            roots.outputPolicy === "java-pilot-core-qrc-v1" && roots.normalizeHtml
               ? roots.normalizeHtml(await Deno.readTextFile(b.get(name)!), roots.rightSourceRoot)
               : await Deno.readTextFile(b.get(name)!),
+            roots.outputPolicy,
           )
       ) differences.push(`${name}: bytes различаются`);
     }

@@ -1,4 +1,80 @@
 {
+  "schema_version": 2,
+  "projectSource": "BSU-RFCT-Afonenko-Courses/Java",
+  "replacements": [
+    {
+      "repository": "Afonenko-Course-Tools/quarto-course",
+      "extensionId": "course-core",
+      "destinations": [
+        "_extensions/Afonenko-Course-Tools/course-core",
+        "handbook/_extensions/Afonenko-Course-Tools/course-core",
+        "lectures/_extensions/Afonenko-Course-Tools/course-core",
+        "practice/_extensions/Afonenko-Course-Tools/course-core",
+        "tasks/_extensions/Afonenko-Course-Tools/course-core",
+        "theory/_extensions/Afonenko-Course-Tools/course-core"
+      ]
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-course",
+      "extensionId": "course-navigation",
+      "destinations": [
+        "lectures/_extensions/Afonenko-Course-Tools/course-navigation",
+        "practice/_extensions/Afonenko-Course-Tools/course-navigation",
+        "tasks/_extensions/Afonenko-Course-Tools/course-navigation"
+      ]
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-course",
+      "extensionId": "course-presentation",
+      "destinations": [
+        "_extensions/Afonenko-Course-Tools/course-presentation",
+        "handbook/_extensions/Afonenko-Course-Tools/course-presentation",
+        "lectures/_extensions/Afonenko-Course-Tools/course-presentation",
+        "practice/_extensions/Afonenko-Course-Tools/course-presentation",
+        "tasks/_extensions/Afonenko-Course-Tools/course-presentation",
+        "theory/_extensions/Afonenko-Course-Tools/course-presentation"
+      ]
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-project-publish",
+      "extensionId": "course-site",
+      "destinations": [
+        "_extensions/Afonenko-Course-Tools/course-site"
+      ]
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-reference-catalog",
+      "extensionId": "reference-catalog",
+      "destinations": [
+        "_extensions/Afonenko-Course-Tools/reference-catalog",
+        "handbook/_extensions/Afonenko-Course-Tools/reference-catalog",
+        "lectures/_extensions/Afonenko-Course-Tools/reference-catalog",
+        "practice/_extensions/Afonenko-Course-Tools/reference-catalog",
+        "tasks/_extensions/Afonenko-Course-Tools/reference-catalog",
+        "theory/_extensions/Afonenko-Course-Tools/reference-catalog"
+      ]
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-project-download",
+      "extensionId": "project-download",
+      "destinations": [
+        "_extensions/Afonenko-Course-Tools/project-download",
+        "tasks/_extensions/Afonenko-Course-Tools/project-download"
+      ]
+    },
+    {
+      "repository": "Afonenko-Course-Tools/quarto-course-prairielearn",
+      "extensionId": "course-prairielearn",
+      "destinations": [
+        "tasks/_extensions/Afonenko-Course-Tools/course-prairielearn"
+      ]
+    }
+  ],
+  "benchmark": {
+    "pairs": 10,
+    "maxSlowdownRatio": 1.01
+  },
+  "outputPolicy": "java-pilot-core-qrc-v1",
   "sources": [
     {
       "repository": "BSU-RFCT-Afonenko-Courses/Java",
@@ -29,7 +105,6 @@
   "scenarios": [
     {
       "id": "java-full-student",
-      "project": "Java",
       "cwd": ".",
       "executable": "quarto",
       "args": [
@@ -37,7 +112,6 @@
         "--profile",
         "student"
       ],
-      "courseProfile": "student",
       "cachePolicy": "clean-output",
       "mode": "off",
       "scope": {
@@ -61,7 +135,6 @@
     },
     {
       "id": "java-full-full",
-      "project": "Java",
       "cwd": ".",
       "executable": "quarto",
       "args": [
@@ -69,7 +142,6 @@
         "--profile",
         "full"
       ],
-      "courseProfile": "full",
       "cachePolicy": "clean-output",
       "mode": "off",
       "scope": {
@@ -93,7 +165,6 @@
     },
     {
       "id": "java-repeat-student",
-      "project": "Java",
       "cwd": ".",
       "executable": "quarto",
       "args": [
@@ -101,7 +172,6 @@
         "--profile",
         "student"
       ],
-      "courseProfile": "student",
       "cachePolicy": "repeat-render",
       "mode": "off",
       "scope": {
@@ -125,7 +195,6 @@
     },
     {
       "id": "java-ast-document",
-      "project": "Java",
       "cwd": "tasks",
       "executable": "quarto",
       "args": [
@@ -134,7 +203,6 @@
         "--profile",
         "student"
       ],
-      "courseProfile": "student",
       "cachePolicy": "clean-output",
       "mode": "off",
       "scope": {
@@ -160,7 +228,6 @@
     },
     {
       "id": "java-ts-publication",
-      "project": "Java",
       "cwd": "practice",
       "executable": "quarto",
       "args": [
@@ -169,7 +236,6 @@
         "--profile",
         "student"
       ],
-      "courseProfile": "student",
       "cachePolicy": "clean-output",
       "mode": "off",
       "scope": {
@@ -195,7 +261,6 @@
     },
     {
       "id": "java-pl-export",
-      "project": "Java",
       "cwd": ".",
       "executable": "quarto",
       "args": [
@@ -212,7 +277,6 @@
         "--book",
         "tasks"
       ],
-      "courseProfile": "student",
       "cachePolicy": "clean-output",
       "mode": "off",
       "scope": {
