@@ -244,13 +244,7 @@ async function writeExperimentArtifacts(
           ),
           "",
         ]),
-        `Raw: ${
-          ((builds.find((b) => b.runId === r.run_id)?.artifacts as
-              | Record<string, string>
-              | undefined)?.events)
-            ? `[events](runs/${r.run_id}/events/), `
-            : ""
-        }[wall trace](runs/${r.run_id}/wall.trace.json), [Lua CPU trace](runs/${r.run_id}/lua-cpu.trace.json), [causal graph](runs/${r.run_id}/causal.json).`,
+        `[Материалы запуска и просмотр измерений](runs/${encodeURIComponent(r.run_id)}/report.md).`,
         "",
       ],
     ),

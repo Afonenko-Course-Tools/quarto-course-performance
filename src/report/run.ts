@@ -153,11 +153,52 @@ export async function writeRunArtifacts(
       if (!(e instanceof Deno.errors.NotFound)) throw e;
     }
   }
-  if (normalized) {
-    const trace = traces(normalized);
+  const views: { path: string; clock: string; process_id?: string; executor_id?: string }[] = [];
+  const profiles: { path: string; process_id: string }[] = [];
+  if (normalized && record.request.mode !== "off") {
+    const processes = await jsonFiles(join(directory, "processes"), ".json");
+    const trace = traces(normalized, processes);
     await Deno.writeTextFile(join(directory, "wall.trace.json"), JSON.stringify(trace.wall));
     await Deno.writeTextFile(join(directory, "lua-cpu.trace.json"), JSON.stringify(trace.luaCpu));
-    const processes = await jsonFiles(join(directory, "processes"), ".json");
+    views.push({ path: "wall.trace.json", clock: "calibrated-wall" }, {
+      path: "lua-cpu.trace.json",
+      clock: "local-lua-cpu",
+    });
+    for (const local of trace.localWall) {
+      await Deno.writeTextFile(join(directory, local.fileName), JSON.stringify(local.trace));
+      const source = local.trace.traceEvents.find((e) => e.ph === "X")!;
+      views.push({
+        path: local.fileName,
+        clock: "local-wall",
+        process_id: String(source.args.process_id),
+        executor_id: String(source.args.executor_id),
+      });
+      artifacts[`localWall${trace.localWall.indexOf(local) + 1}`] = local.fileName;
+    }
+    await Deno.writeTextFile(
+      join(directory, "export.json"),
+      JSON.stringify(
+        {
+          schema_version: 1,
+          format: "chrome-trace-event-json",
+          run_id: record.runId,
+          data_valid: record.dataValid,
+          coverage_complete: record.quality.coverageComplete,
+          quality: record.quality,
+          files: views,
+          executors: Object.entries(normalized.executors).sort(([a], [b]) =>
+            a < b ? -1 : a > b ? 1 : 0
+          ).map(([key, e]) => ({
+            process_id: e.process_id ?? key.split("/")[0],
+            executor_id: e.executor_id ?? key.split("/").slice(1).join("/"),
+            clock_domain: e.clock_domain ?? null,
+          })),
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+    artifacts.export = "export.json";
     await Deno.writeTextFile(
       join(directory, "causal.json"),
       JSON.stringify(
@@ -184,6 +225,24 @@ export async function writeRunArtifacts(
       causal: "causal.json",
     });
   }
+  if (record.request.mode !== "off") {
+    try {
+      for await (const entry of Deno.readDir(join(directory, "profiles"))) {
+        if (!entry.isDirectory) continue;
+        const path = `profiles/${entry.name}/cpu.cpuprofile`;
+        try {
+          if ((await Deno.lstat(join(directory, path))).isFile) {
+            profiles.push({ path, process_id: entry.name });
+          }
+        } catch (error) {
+          if (!(error instanceof Deno.errors.NotFound)) throw error;
+        }
+      }
+    } catch (error) {
+      if (!(error instanceof Deno.errors.NotFound)) throw error;
+    }
+  }
+  profiles.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
   const metadata = { ...record, artifacts };
   const summary = summarizeRunRecord(metadata, normalized);
   for (const [name, value] of Object.entries({ run: metadata, summary })) {
@@ -218,9 +277,41 @@ export async function writeRunArtifacts(
       ]
       : []),
     ...Object.entries(artifacts).filter(([name]) => name !== "report").map(([name, path]) =>
-      `- [${name}](${path})`
+      `- [${name}](${encodeURI(path).replaceAll("(", "%28").replaceAll(")", "%29")})`
     ),
     "",
+    ...(views.length
+      ? [
+        "## Просмотр измерений",
+        "",
+        "Perfetto: откройте локальный trace-файл через Open trace file. Общая wall-шкала содержит только калиброванные часы; локальная wall-шкала каждого некалиброванного исполнителя и Lua CPU читаются отдельно.",
+        "",
+        "Логические дорожки не являются потоками ОС. Стрелки показывают записанное родительство по началам spans; задержка передачи управления не измеряется. Inclusive интервалы могут перекрываться. Счётчики и пиковая память остаются итогами в summary.json.",
+        "",
+        ...views.map((v) =>
+          `- [${
+            v.clock === "calibrated-wall"
+              ? "общая wall-шкала"
+              : v.clock === "local-wall"
+              ? "локальная wall-шкала"
+              : "Lua CPU"
+          }](${v.path})`
+        ),
+        "",
+      ]
+      : []),
+    ...(profiles.length
+      ? [
+        "Speedscope: откройте существующий файл .cpuprofile. Профиль содержит CPU samples, а не точные счётчики вызовов. Качество данных указано выше; профиль не подтверждает полное покрытие.",
+        "",
+        ...profiles.map((p) =>
+          `- [CPU-профиль процесса ${p.process_id.replaceAll("[", "\\[").replaceAll("]", "\\]")}](${
+            encodeURI(p.path).replaceAll("(", "%28").replaceAll(")", "%29")
+          })`
+        ),
+        "",
+      ]
+      : []),
   ];
   await Deno.writeTextFile(join(directory, "report.md"), lines.join("\n"));
 }

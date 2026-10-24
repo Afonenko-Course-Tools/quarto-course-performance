@@ -48,7 +48,12 @@ Deno.test("report separates clock totals, does not claim self time, and retains 
     await Deno.mkdir(join(root, "runs/r"), { recursive: true });
     await Deno.writeTextFile(
       join(root, "runs/r/run.json"),
-      JSON.stringify({ ...record(root, "r"), buildExitCode: 23, mode: "off" }),
+      JSON.stringify({
+        ...record(root, "r"),
+        request: { ...record(root, "r").request, mode: "trace" },
+        buildExitCode: 23,
+        mode: "trace",
+      }),
     );
     await writeExperimentReport({
       schema_version: 2 as const,
@@ -92,7 +97,10 @@ Deno.test("report processes an async run stream before requesting the next raw j
       await Deno.mkdir(join(root, "runs", id), { recursive: true });
       await Deno.writeTextFile(
         join(root, "runs", id, "run.json"),
-        JSON.stringify(record(root, id)),
+        JSON.stringify({
+          ...record(root, id),
+          request: { ...record(root, id).request, mode: "trace" },
+        }),
       );
     }
     async function* runs() {

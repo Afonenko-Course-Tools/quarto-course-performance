@@ -3,6 +3,8 @@ import { join, resolve } from "node:path";
 import { writeRunArtifacts } from "../../src/report/run.ts";
 import { type RunRecord, validateRunRecord, validateRunSummary } from "../../src/report/types.ts";
 
+import { pair, run } from "./fixtures/perfetto/control.ts";
+import { traces } from "../../src/report/perfetto.ts";
 import { record } from "./fixture.ts";
 
 Deno.test("single off report is versioned, portable and does not invent diagnostic observations", async () => {
@@ -81,6 +83,102 @@ Deno.test("run summary retains event deltas and executor totals as separate obse
       "event",
       "delta",
     ], ["calls", 2, "executor-summary", "total"]]);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("trace bundle and versioned export survive staging with relative existing links", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const stage = join(root, "stage folder"), final = join(root, "final folder");
+    await Deno.mkdir(stage);
+    const r = record(stage);
+    r.request.mode = "trace";
+    const normalized = run([
+      ...pair("wall", 1, 9),
+      ...pair("local", 2, 8, { executor_id: "local" }),
+      ...pair("lua", 3, 7, { clock_domain: "process_cpu", executor_id: "lua" }),
+    ]);
+    r.runId = normalized.runId;
+    normalized.executors[`${normalized.events[0].process_id}/local`].calibration = undefined;
+    await Deno.mkdir(join(stage, "processes"));
+    await Deno.writeTextFile(
+      join(stage, "processes/p.json"),
+      JSON.stringify({ process_id: normalized.events[0].process_id, parent_process_id: "root" }),
+    );
+    const before = JSON.stringify(normalized);
+    await writeRunArtifacts(stage, r, normalized);
+    await Deno.rename(stage, final);
+    const bundle = traces(normalized, [{
+      process_id: normalized.events[0].process_id,
+      parent_process_id: "root",
+    }]);
+    for (
+      const [file, expected] of [["wall.trace.json", bundle.wall], [
+        "lua-cpu.trace.json",
+        bundle.luaCpu,
+      ], ...bundle.localWall.map((x) => [x.fileName, x.trace])] as const
+    ) {
+      assert.deepEqual(JSON.parse(await Deno.readTextFile(join(final, String(file)))), expected);
+    }
+    const sidecar = JSON.parse(await Deno.readTextFile(join(final, "export.json")));
+    assert.equal(sidecar.schema_version, 1);
+    assert.equal(sidecar.format, "chrome-trace-event-json");
+    assert.equal(sidecar.run_id, normalized.runId);
+    assert.equal(sidecar.data_valid, true);
+    assert.equal(sidecar.coverage_complete, false);
+    assert.equal(sidecar.files.length, 3);
+    assert(sidecar.files.some((f: { clock: string }) => f.clock === "local-wall"));
+    assert(
+      sidecar.executors.some((e: { process_id: string; executor_id: string }) =>
+        e.process_id === normalized.events[0].process_id && e.executor_id === "local"
+      ),
+    );
+    const report = await Deno.readTextFile(join(final, "report.md"));
+    assert.match(report, /общая wall-шкала/);
+    assert.match(report, /локальная wall-шкала/);
+    assert.match(report, /Lua CPU/);
+    for (const link of report.matchAll(/\]\(([^)]+)\)/g)) {
+      await Deno.stat(resolve(final, decodeURI(link[1])));
+    }
+    assert.equal(JSON.stringify(normalized), before);
+    await assert.rejects(() => Deno.stat(join(final, "runs")), Deno.errors.NotFound);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+Deno.test("report links only existing CPU profiles", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const r = record(root);
+    r.request.mode = "cpu";
+    for (const process of ["present", "with spaces"]) {
+      await Deno.mkdir(join(root, "profiles", process), { recursive: true });
+      await Deno.writeTextFile(
+        join(root, "profiles", process, "cpu.cpuprofile"),
+        JSON.stringify({ nodes: [], startTime: 0, endTime: 1 }),
+      );
+    }
+    await Deno.mkdir(join(root, "profiles/missing"), { recursive: true });
+    await writeRunArtifacts(root, r);
+    const report = await Deno.readTextFile(join(root, "report.md"));
+    assert(report.includes("profiles/present/cpu.cpuprofile"));
+    assert(!report.includes("profiles/missing/cpu.cpuprofile"));
+    assert(report.includes("profiles/with%20spaces/cpu.cpuprofile"));
+    for (const link of report.matchAll(/\]\(([^)]+)\)/g)) {
+      await Deno.stat(resolve(root, decodeURI(link[1])));
+    }
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+Deno.test("off with normalized metadata never promises an internal trace", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    await writeRunArtifacts(root, record(root), run([]));
+    await assert.rejects(() => Deno.stat(join(root, "wall.trace.json")), Deno.errors.NotFound);
+    assert(!(await Deno.readTextFile(join(root, "report.md"))).includes("wall.trace.json"));
   } finally {
     await Deno.remove(root, { recursive: true });
   }
