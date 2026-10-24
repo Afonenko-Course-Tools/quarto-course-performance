@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { files, hashBytes, hashFile, treeHash } from "../src/sources/snapshot.ts";
+import { copyTree, files, hashBytes, hashFile, treeHash } from "../src/sources/snapshot.ts";
 import { prepareDiagnostic } from "../src/runner/diagnostic.ts";
 import { executeScenario } from "../src/runner/execute.ts";
 import { normalizeRun, operationAttribution } from "../src/analysis/normalize.ts";
@@ -146,6 +146,57 @@ export async function checkJava(project: string, output: string, replacementOwne
     ),
   );
   await json(join(output, "execution-source.json"), { executionHEAD, files: executionFiles });
+  const backendExpected = Object.fromEntries(
+    Object.entries(executionFiles).filter(([path]) =>
+      path.startsWith("src/") || path.startsWith("bridge/") ||
+      ["deno.json", "deno.lock", "docs/operation-registry.json"].includes(path)
+    ),
+  );
+  const npmExpected = Object.fromEntries(
+    await Promise.all(
+      (await files(join(app, "node_modules"), { materializeFileLinks: true })).map(async (
+        path,
+      ) => [relative(join(app, "node_modules"), path), await hashFile(path)]),
+    ),
+  );
+  const auditBackend = async (label: string, directory: string) => {
+    const backendRoots = (await files(directory)).filter((path) =>
+      path.endsWith("/backend/deno.lock")
+    ).map(dirname);
+    const results = [];
+    for (const backend of backendRoots) {
+      const actual = Object.fromEntries(
+        await Promise.all(
+          Object.keys(backendExpected).map(async (
+            path,
+          ) => [path, await hashFile(join(backend, path))]),
+        ),
+      );
+      const npmActual = Object.fromEntries(
+        await Promise.all(
+          (await files(join(backend, "node_modules"))).map(async (
+            path,
+          ) => [relative(join(backend, "node_modules"), path), await hashFile(path)]),
+        ),
+      );
+      const sameFiles = (a: Record<string, string>, b: Record<string, string>) =>
+        Object.keys(a).length === Object.keys(b).length &&
+        Object.entries(a).every(([path, hash]) => b[path] === hash);
+      results.push({
+        backend,
+        sourceMatchesExecutionHEAD: sameFiles(backendExpected, actual),
+        npmMatchesPinnedDevelopmentPackages: sameFiles(npmExpected, npmActual),
+        files: actual,
+        npmFiles: npmActual,
+      });
+    }
+    await json(join(output, label + ".source-correspondence.json"), { executionHEAD, results });
+    assert(results.length > 0, `${label}: backend копия не найдена`);
+    assert(
+      results.every((r) => r.sourceMatchesExecutionHEAD && r.npmMatchesPinnedDevelopmentPackages),
+      `${label}: backend расходится с execution HEAD`,
+    );
+  };
   const quarto = Deno.env.get("QUARTO") ?? "/usr/bin/quarto";
   const flags = [
     "run",
@@ -184,11 +235,23 @@ export async function checkJava(project: string, output: string, replacementOwne
       sourceSHA,
     ])).success,
   );
+  // Native Quarto scripts resolve ancestor deno.json from the entrypoint. The
+  // fixed, external path keeps native HTML source identities byte-identical.
+  const renderParent = await Deno.makeTempDir({ dir: "/tmp", prefix: "quarto-perf-java-" });
+  const renderRoot = join(renderParent, "course");
   const makeCopy = async (label: string) => {
-    const root = join(output, label, "course");
+    await Deno.remove(renderRoot, { recursive: true }).catch((e) => {
+      if (!(e instanceof Deno.errors.NotFound)) throw e;
+    });
+    const root = renderRoot;
     await Deno.mkdir(root, { recursive: true });
     assert((await run(label + "-extract", "tar", ["-xf", archive, "-C", root])).success);
     return root;
+  };
+  const snapshot = async (label: string) => {
+    const destination = join(output, label, "course");
+    await copyTree(renderRoot, destination);
+    return destination;
   };
   const roots = ["_site-student", "tasks/_output/student", "slides/_output/student"];
   const dynamicFiles = ["sitemap.xml"];
@@ -232,6 +295,7 @@ export async function checkJava(project: string, output: string, replacementOwne
     assert.equal(record.outcome.code, 0);
     assert.equal(record.dataValid, true);
     if (mode !== "off") {
+      await auditBackend(label, directory);
       const normalized = await normalizeRun(directory);
       assert(normalized.dataValid);
       assert(Object.keys(normalized.executors).length > 0);
@@ -251,13 +315,15 @@ export async function checkJava(project: string, output: string, replacementOwne
   let completed = false;
   try {
     for (const profile of ["student", "full"]) {
-      const native = await makeCopy("root-native-" + profile);
+      let native = await makeCopy("root-native-" + profile);
       assert(
         (await run("root-native-" + profile, quarto, ["render", "--profile", profile], native))
           .success,
       );
-      const off = await makeCopy("root-off-" + profile);
+      native = await snapshot("root-native-" + profile);
+      let off = await makeCopy("root-off-" + profile);
       await monitored("root-off-" + profile, off, "off", ["--profile", profile]);
+      off = await snapshot("root-off-" + profile);
       await compare(
         "root-native-off-" + profile,
         native,
@@ -288,7 +354,12 @@ export async function checkJava(project: string, output: string, replacementOwne
     }
     await json(join(output, "root-summary-nested-contexts.json"), processes);
 
-    await compare("root-native-summary-student", studentNative, summary, roots);
+    await compare(
+      "root-native-summary-student",
+      studentNative,
+      await snapshot("root-summary-student"),
+      roots,
+    );
     for (
       const selection of [
         { label: "cwd-slides", cwd: "slides", args: [], outputs: [roots[2]] },
@@ -297,7 +368,7 @@ export async function checkJava(project: string, output: string, replacementOwne
         { label: "cwd-tasks", cwd: "tasks", args: [], outputs: [roots[1]] },
       ]
     ) {
-      const native = await makeCopy(selection.label + "-native");
+      let native = await makeCopy(selection.label + "-native");
       assert(
         (await run(selection.label + "-native", quarto, [
           "render",
@@ -306,13 +377,19 @@ export async function checkJava(project: string, output: string, replacementOwne
           "student",
         ], join(native, selection.cwd))).success,
       );
+      native = await snapshot(selection.label + "-native");
       const monitoredRoot = await makeCopy(selection.label + "-summary");
       await monitored(selection.label + "-summary", monitoredRoot, "summary", [
         ...selection.args,
         "--profile",
         "student",
       ], selection.cwd);
-      await compare(selection.label, native, monitoredRoot, selection.outputs);
+      await compare(
+        selection.label,
+        native,
+        await snapshot(selection.label + "-summary"),
+        selection.outputs,
+      );
     }
     const cpu = await makeCopy("slides-cpu");
     const cpuRun = await monitored("slides-cpu", cpu, "cpu", [
@@ -326,7 +403,7 @@ export async function checkJava(project: string, output: string, replacementOwne
       (await files(join(cpuRun.directory, "profiles"))).some((p) => p.endsWith(".cpuprofile")),
       "CPU profile отсутствует",
     );
-    await compare("slides-native-cpu", studentNative, cpu, [roots[2]]);
+    await compare("slides-native-cpu", studentNative, await snapshot("slides-cpu"), [roots[2]]);
 
     const sourceReceipt: SourceReceipt = {
       repository: "BSU-RFCT-Afonenko-Courses/Java",
@@ -417,6 +494,7 @@ export async function checkJava(project: string, output: string, replacementOwne
         preparation: diagnostic.preparation,
         coverage: diagnostic.coverage,
       });
+      await auditBackend(label, join(output, label, "diagnostic"));
       const normalized = await normalizeRun(result.outputDirectory);
       const raw = Object.fromEntries(
         await Promise.all(
@@ -470,7 +548,7 @@ export async function checkJava(project: string, output: string, replacementOwne
         replacements: manifest.replacements,
         packages: manifest.packages,
       });
-      await compare(label + "-outputs", studentNative, root, roots);
+      await compare(label + "-outputs", studentNative, await snapshot(label), roots);
     }
     const fixture = join(output, "small-fixture");
     await Deno.mkdir(fixture);
@@ -504,17 +582,32 @@ export async function checkJava(project: string, output: string, replacementOwne
     gates.push({ label: "fixture-invalid-quality-and-signals", status: "PASS" });
     completed = true;
   } finally {
+    const executionAfter = Object.fromEntries(
+      await Promise.all(
+        Object.keys(executionFiles).map(async (path) => [path, await hashFile(join(app, path))]),
+      ),
+    );
+    const executionUnchanged = Object.entries(executionFiles).every(([path, hash]) =>
+      executionAfter[path] === hash
+    );
+    await json(join(output, "execution-source-after.json"), {
+      executionHEAD,
+      executionUnchanged,
+      files: executionAfter,
+    });
     const sourceAfter = await treeHash(project);
     const sourceUnchanged = sourceBefore === sourceAfter &&
       sourceSHA === await git(project, ["rev-parse", "HEAD"]);
     const evidence = {
       schema_version: 1,
-      status: completed && sourceUnchanged ? "PASS" : "FAIL",
+      status: completed && sourceUnchanged && executionUnchanged ? "PASS" : "FAIL",
       executionHEAD,
       sourceSHA,
       sourceBefore,
       sourceAfter,
       sourceUnchanged,
+      executionUnchanged,
+      renderRoot,
       tools,
       targets: [".", "tasks", "slides"],
       dynamicFiles,
@@ -527,6 +620,11 @@ export async function checkJava(project: string, output: string, replacementOwne
     };
     await json(join(output, "validation.json"), evidence);
     assert(sourceUnchanged, "Source Java изменился во время проверки");
+    assert(executionUnchanged, "Исполняемый source изменился во время проверки");
+    // Последняя копия сохраняется для проверки correspondence; очищается только
+    // созданный этим gate временный каталог после сохранения полного снимка.
+    await copyTree(renderRoot, join(output, "last-render-workspace"));
+    await Deno.remove(renderParent, { recursive: true });
   }
 }
 
