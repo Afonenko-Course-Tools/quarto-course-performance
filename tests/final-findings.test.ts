@@ -251,7 +251,10 @@ Deno.test("W-F5 foreign experiment raw events remain but never enter validated i
     assert.equal(normalized.events.length, 4);
     assert.deepEqual(validatedIntervals(normalized).map((x) => x.begin.operation_id), ["valid"]);
     assert.deepEqual(operationTotals(normalized).map((x) => x.operation), ["valid"]);
-    assert.deepEqual(traces(normalized).wall.traceEvents.map((x) => x.name), ["valid"]);
+    const bundle = traces(normalized);
+    const exported = [bundle.wall, bundle.luaCpu, ...bundle.localWall.map((l) => l.trace)]
+      .flatMap((trace) => trace.traceEvents).filter((e) => e.ph === "X");
+    assert.deepEqual(exported.map((e) => e.name), ["valid"]);
   } finally {
     await Deno.remove(root, { recursive: true });
   }
