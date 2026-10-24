@@ -36,7 +36,7 @@ Deno.test("owner sync uses only installed implementation languages and checks th
   }
 });
 
-Deno.test("owner check requires all eight roots and rejects unused bridge language", async () => {
+Deno.test("owner check permits functional clocks and rejects legacy protocol, incomplete roots and extra bridge language", async () => {
   const temporary = await Deno.makeTempDir();
   const registry = JSON.parse(
     await Deno.readTextFile(new URL("../../docs/operation-registry.json", import.meta.url)),
@@ -87,8 +87,24 @@ Deno.test("owner check requires all eight roots and rejects unused bridge langua
         text: new TextDecoder().decode(result.stdout) + new TextDecoder().decode(result.stderr),
       };
     };
+    const functionalClock = join(roots[5], "_extensions/course-print/functional-clock.ts");
+    await Deno.writeTextFile(
+      functionalClock,
+      "export const build = () => { const started = performance.now(); return {timings: {staging: performance.now() - started}}; };",
+    );
     const complete = await check(roots);
     assert(complete.success, complete.text);
+    const legacy = join(roots[2], "_extensions/reference-catalog/legacy-protocol.ts");
+    // Actual QRC fec4e1a protocol: env-selected append-only command timing output.
+    await Deno.writeTextFile(
+      legacy,
+      `const path = Deno.env.get("COURSE_BUILD_TRACE");
+if (path) await Deno.writeTextFile(path, JSON.stringify({kind: "render", elapsedMs: performance.now()}) + "\\n", {append: true});`,
+    );
+    const forbidden = await check(roots);
+    assert.equal(forbidden.success, false, "check accepted the removed command trace protocol");
+    assert.match(forbidden.text, /Legacy telemetry: .*legacy-protocol\.ts/);
+    await Deno.remove(legacy);
     const incomplete = await check(roots.slice(0, 5));
     assert.equal(incomplete.success, false, "check accepted only five old owners");
     assert.match(incomplete.text, /8 checkouts/);

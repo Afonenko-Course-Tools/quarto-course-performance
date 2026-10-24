@@ -23,7 +23,7 @@ for (const root of roots) {
       for (const file of await files(path)) {
         if (
           (file.endsWith(".ts") || file.endsWith(".lua")) && !file.includes("/vendor/") &&
-          /COURSE_BUILD_TRACE|performance\.now\s*\(/.test(await Deno.readTextFile(file))
+          /COURSE_BUILD_TRACE/.test(await Deno.readTextFile(file))
         ) throw new Error("Legacy telemetry: " + file);
       }
     }
@@ -63,5 +63,5 @@ for (const entry of registry) {
   }
 }
 console.log(
-  `PASS ABI 1, self-contained observability, legacy removal и ${registry.length} зарегистрированных операций в ${extensions.size} пакетах`,
+  `PASS ABI 1, self-contained observability, отсутствие COURSE_BUILD_TRACE и ${registry.length} зарегистрированных операций в ${extensions.size} пакетах`,
 );
