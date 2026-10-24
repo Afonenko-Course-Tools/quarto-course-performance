@@ -39,6 +39,8 @@ export async function compareStrictTrees(left: string, right: string, exceptions
   }
   return {
     equivalent: differences.length === 0,
+    leftFiles: a,
+    rightFiles: b,
     files: Object.keys(a).length,
     html: Object.keys(a).filter((p) => p.endsWith(".html")).length,
     zip: Object.keys(a).filter((p) => p.endsWith(".zip")).length,
