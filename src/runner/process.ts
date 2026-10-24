@@ -282,7 +282,9 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
   const send = (signal: Deno.Signal) => {
     pending ??= signal;
     try {
-      recordCancellation(cancelPath, pending);
+      // До проверки ownership ранняя отмена остаётся в очереди: helper должен
+      // удерживать parent-chain. Scanner failure отменяет само ожидание регистрации.
+      if (group || failure) recordCancellation(cancelPath, pending);
     } catch (error) {
       failed(error);
     }
@@ -373,6 +375,7 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
             throw new Error("PGID readiness не принадлежит собственной session");
           }
           group = candidate;
+          if (pending) send(pending);
           // sessions уже сохранены, пока ожидающий helper удерживает parent-chain.
           await Deno.writeTextFile(receipt + ".registered", "");
         } catch (error) {

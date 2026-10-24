@@ -6,7 +6,9 @@ Deno.readDir = ((path: string | URL) => {
   if (path !== "/proc") return readDir(path);
   let ready = false;
   try {
-    ready = stage === "complete"
+    ready = stage === "registration"
+      ? [...Deno.readDirSync(root)].some((e) => e.name.endsWith(".ready"))
+      : stage === "complete"
       ? [...Deno.readDirSync(root)].some((e) => /^status-.*\.json$/.test(e.name))
       : Deno.statSync(root + "/heartbeat").size > 0;
   } catch { /* Native ещё не запущен. */ }
@@ -37,6 +39,42 @@ Deno.readTextFile = ((path: string | URL, options?: Deno.ReadFileOptions) => {
   return readTextFile(path, options);
 }) as typeof Deno.readTextFile;
 const sibling = new Deno.Command("sleep", { args: ["30"] }).spawn();
+const Command = Deno.Command;
+let stdoutEof = false, stderrEof = false;
+Deno.Command = class extends Command {
+  override spawn() {
+    const child = super.spawn();
+    if (stage !== "registration") return child;
+    const stdout = child.stdout.pipeThrough(
+      new TransformStream({
+        flush() {
+          stdoutEof = true;
+        },
+      }),
+    );
+    const stderr = child.stderr.pipeThrough(
+      new TransformStream({
+        flush() {
+          stderrEof = true;
+        },
+      }),
+    );
+    return new Proxy(child, {
+      get(target, key) {
+        if (key === "stdout") return stdout;
+        if (key === "stderr") return stderr;
+        const value = Reflect.get(target, key, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+  }
+};
+const kill = Deno.kill;
+const groupSignals: number[] = [];
+Deno.kill = ((pid: number, signal: Deno.Signal | number) => {
+  if (pid < 0) groupSignals.push(pid);
+  return kill(pid, signal);
+}) as typeof Deno.kill;
 const beat = `while :; do printf x >> '${root}/heartbeat'; sleep 0.01; done`;
 const watchdog = setTimeout(async () => {
   for await (const entry of readDir(root)) {
@@ -82,7 +120,23 @@ try {
   } catch {
     siblingAlive = false;
   }
+  const entries = [...Deno.readDirSync(root)];
+  const ready = entries.find((e) => e.name.endsWith(".ready"));
+  let helperAlive = false;
+  if (ready) {
+    const { group } = JSON.parse(await readTextFile(root + "/" + ready.name));
+    try {
+      kill(group, 0);
+      helperAlive = true;
+    } catch { /* Own helper reaped. */ }
+  }
   result = {
+    stdoutEof,
+    stderrEof,
+    helperAlive,
+    groupSignals: [...groupSignals],
+    nativeStarted: entries.some((e) => e.name.endsWith(".started")),
+    nativeOutcomeKnown: error instanceof OwnedProcessError && error.outcome !== undefined,
     injected,
     error: String(error),
     controlled: error instanceof OwnedProcessError,
@@ -93,6 +147,8 @@ try {
   };
 } finally {
   clearTimeout(watchdog);
+  Deno.Command = Command;
+  Deno.kill = kill;
   Deno.readDir = readDir;
   Deno.readTextFile = readTextFile;
   // Только аварийная страховка fixture, ПОСЛЕ проверки heartbeat после return.

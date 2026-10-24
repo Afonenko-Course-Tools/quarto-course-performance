@@ -58,21 +58,6 @@ async function main() {
     Deno.addSignalListener(signal, listener);
     return { signal, listener };
   });
-  if (owned) {
-    const stat = await Deno.readTextFile("/proc/self/stat");
-    const group = Number(stat.slice(stat.lastIndexOf(")") + 2).split(" ")[2]);
-    await publishReceipt(receipt + ".ready", { group });
-    // Native не может исчезнуть вместе с parent-chain до подтверждения ownership.
-    while (true) {
-      try {
-        await Deno.stat(receipt + ".registered");
-        break;
-      } catch (error) {
-        if (!(error instanceof Deno.errors.NotFound)) throw error;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 5));
-    }
-  }
   const finish = async (status: { code: number; signal: Deno.Signal | null }): Promise<never> => {
     await publishReceipt(receipt, {
       ...status,
@@ -82,6 +67,23 @@ async function main() {
     Deno.exit(status.code);
   };
   const cancelled = () => received ?? readCancellation(cancelPath);
+  if (owned) {
+    const stat = await Deno.readTextFile("/proc/self/stat");
+    const group = Number(stat.slice(stat.lastIndexOf(")") + 2).split(" ")[2]);
+    await publishReceipt(receipt + ".ready", { group });
+    // Native не может исчезнуть вместе с parent-chain до подтверждения ownership.
+    while (true) {
+      const signal = cancelled();
+      if (signal) return await finish({ code: signal === "SIGINT" ? 130 : 143, signal });
+      try {
+        await Deno.stat(receipt + ".registered");
+        break;
+      } catch (error) {
+        if (!(error instanceof Deno.errors.NotFound)) throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+  }
   if (ownsGroup) {
     while (true) {
       const signal = cancelled();

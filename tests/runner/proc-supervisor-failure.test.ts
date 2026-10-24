@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 for (const kind of ["permission", "io", "enumeration"]) {
-  for (const stage of ["live", "complete"]) {
+  for (const stage of ["registration", "live", "complete"]) {
     Deno.test(`supervisor drains owned tree before returning persistent ${kind} error (${stage})`, async () => {
       const root = await Deno.makeTempDir();
       try {
@@ -30,7 +30,22 @@ for (const kind of ["permission", "io", "enumeration"]) {
         );
         assert.equal(result.before, result.after, JSON.stringify(result));
         assert.equal(result.controlled, true);
-        assert.equal(await Deno.readTextFile(join(root, "stdout.log")), "available");
+        assert.equal(
+          await Deno.readTextFile(join(root, "stdout.log")),
+          stage === "registration" ? "" : "available",
+        );
+        if (stage === "registration") {
+          assert.equal(result.stdoutEof, true, JSON.stringify(result));
+          assert.equal(result.stderrEof, true, JSON.stringify(result));
+          assert.equal(result.nativeOutcomeKnown, false, JSON.stringify(result));
+          assert.equal(result.nativeStarted, false, JSON.stringify(result));
+          assert.equal(result.before, 0);
+          assert.equal(result.helperAlive, false, JSON.stringify(result));
+          if (kind === "enumeration") {
+            assert.deepEqual(result.groupSignals, [], JSON.stringify(result));
+          }
+          assert.equal(await Deno.readTextFile(join(root, "stderr.log")), "");
+        }
         assert.equal(result.siblingAlive, true);
         if (stage === "complete") assert.equal(result.nativeCode, 7);
       } finally {

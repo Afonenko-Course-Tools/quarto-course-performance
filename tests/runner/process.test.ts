@@ -757,44 +757,46 @@ Deno.test("registered PTY ownership remains available for cleanup after native p
     await Deno.remove(root, { recursive: true });
   }
 });
-Deno.test("queued abort prevents native spawn through GNU time bootstrap", async () => {
-  const root = await Deno.makeTempDir();
-  try {
-    const wrapper = join(root, "time"), trap = join(root, "bootstrap-signal");
-    await Deno.writeTextFile(
-      wrapper,
-      `#!/bin/sh\ntrap 'printf T >> ${
-        "'" + trap.replaceAll("'", "'\\''") + "'"
-      }' TERM\nsleep 0.1\nexec /usr/bin/time "$@"\n`,
-    );
-    await Deno.chmod(wrapper, 0o755);
-    const abort = new AbortController();
-    abort.abort("SIGTERM");
-    const result = await runOwnedProcess({
-      executable: Deno.execPath(),
-      args: [
-        "eval",
-        `Deno.writeTextFileSync(${
-          JSON.stringify(join(root, "native"))
-        },"started");setInterval(()=>{},100)`,
-      ],
-      cwd: root,
-      env: Deno.env.toObject(),
-      stdoutPath: join(root, "out"),
-      stderrPath: join(root, "err"),
-      timeExecutable: wrapper,
-      abortSignal: abort.signal,
-      graceMilliseconds: 200,
-    });
-    assert.equal(result.signal, "SIGTERM");
-    assert.equal(result.escalated, false);
-    await assert.rejects(() => Deno.stat(join(root, "native")), Deno.errors.NotFound);
-    await assert.rejects(() => Deno.stat(trap), Deno.errors.NotFound);
-  } finally {
-    await cleanupFixture(root);
-    await Deno.remove(root, { recursive: true });
-  }
-});
+for (const signal of ["SIGTERM", "SIGINT"] as const) {
+  Deno.test(`queued ${signal} abort prevents native spawn through GNU time bootstrap`, async () => {
+    const root = await Deno.makeTempDir();
+    try {
+      const wrapper = join(root, "time"), trap = join(root, "bootstrap-signal");
+      await Deno.writeTextFile(
+        wrapper,
+        `#!/bin/sh\ntrap 'printf T >> ${
+          "'" + trap.replaceAll("'", "'\\''") + "'"
+        }' TERM\nsleep 0.1\nexec /usr/bin/time "$@"\n`,
+      );
+      await Deno.chmod(wrapper, 0o755);
+      const abort = new AbortController();
+      abort.abort(signal);
+      const result = await runOwnedProcess({
+        executable: Deno.execPath(),
+        args: [
+          "eval",
+          `Deno.writeTextFileSync(${
+            JSON.stringify(join(root, "native"))
+          },"started");setInterval(()=>{},100)`,
+        ],
+        cwd: root,
+        env: Deno.env.toObject(),
+        stdoutPath: join(root, "out"),
+        stderrPath: join(root, "err"),
+        timeExecutable: wrapper,
+        abortSignal: abort.signal,
+        graceMilliseconds: 200,
+      });
+      assert.equal(result.signal, signal);
+      assert.equal(result.escalated, false);
+      await assert.rejects(() => Deno.stat(join(root, "native")), Deno.errors.NotFound);
+      await assert.rejects(() => Deno.stat(trap), Deno.errors.NotFound);
+    } finally {
+      await cleanupFixture(root);
+      await Deno.remove(root, { recursive: true });
+    }
+  });
+}
 Deno.test("external cancellation bounds stopped registered bootstrap before native spawn", async () => {
   const root = await Deno.makeTempDir();
   const module = new URL("../../src/runner/process.ts", import.meta.url).href;

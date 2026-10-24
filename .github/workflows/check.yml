@@ -47,5 +47,6 @@ jobs:
           echo "32c739f71b2d39721afd294c0b038f2499a44a71b5b6bcdd85b83faca0b240b9  /tmp/perfetto-v58.2.zip" | sha256sum --check
           mkdir /tmp/perfetto-v58.2
           unzip /tmp/perfetto-v58.2.zip -d /tmp/perfetto-v58.2
+          chmod u+x /tmp/perfetto-v58.2/linux-amd64/trace_processor_shell
       - name: Фактический импорт Perfetto и отрицательные контроли
         run: deno task check:perfetto --trace-processor /tmp/perfetto-v58.2/linux-amd64/trace_processor_shell
