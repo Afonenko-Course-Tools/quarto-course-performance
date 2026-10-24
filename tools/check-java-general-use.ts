@@ -142,7 +142,7 @@ export async function checkJava(project: string, output: string, replacementOwne
         join(app, "deno.json"),
         join(app, "deno.lock"),
         join(app, "docs/operation-registry.json"),
-      ).map(async (p) => [relative(app, p), await hashFile(p)]),
+      ).map(async (p) => [relative(app, p), await hashFile(p)] as const),
     ),
   );
   await json(join(output, "execution-source.json"), { executionHEAD, files: executionFiles });
