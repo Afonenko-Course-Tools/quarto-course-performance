@@ -1,12 +1,13 @@
 import { assetPath } from "../assets.ts";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { prepareLaunchers } from "../launchers/setup.ts";
 import { probeQuarto } from "../adapters/quarto/capabilities.ts";
 import { prepareFilterAdapter } from "../adapters/quarto/filter-trace.ts";
 import { contained, hashFile } from "../sources/snapshot.ts";
 import type { NativeRenderRequest } from "../report/types.ts";
-import type { ProjectTarget } from "../adapters/quarto/inspect.ts";
+import { type ProjectTarget, resolveRenderProject } from "../adapters/quarto/inspect.ts";
+import { collectPackageCoverage } from "./package-coverage.ts";
 import { validateTelemetryEnvironment } from "./environment.ts";
 import type { PreparationReceipt, PreparedVariant, Scenario } from "../config/types.ts";
 export async function prepareDiagnostic(
@@ -28,9 +29,24 @@ export async function prepareDiagnostic(
     dataDir: join(caps.filterAdapter ? share : caps.share, "pandoc/datadir"),
   });
   preparation.push(...setup.preparation);
+  const cwd = resolve(prepared.root, scenario.cwd);
+  const target = scenario.args[0] === "render"
+    ? await resolveRenderProject({
+      cwd,
+      quarto,
+      nativeArgv: scenario.args.slice(1).map((arg) =>
+        arg.replaceAll("{course_root}", prepared.root)
+      ),
+      mode: "summary",
+    })
+    : { projectRoot: cwd, kind: "standalone" as const };
   const registry = assetPath("docs/operation-registry.json");
   const coverage = {
     complete: false,
+    packageCoverage: await collectPackageCoverage(target.projectRoot, scenario.scope.extensions, [
+      workspace,
+      ...(target.outputDirectory ? [target.outputDirectory] : []),
+    ]),
     installed: { ts: true, lua: true },
     instrumented: { ts: true, lua: true },
     observed: { ts: false, lua: false },
@@ -123,6 +139,10 @@ export async function prepareRenderDiagnostic(
     preparation: setup.preparation,
     coverage: {
       complete: false,
+      packageCoverage: await collectPackageCoverage(target.projectRoot, [], [
+        workspace,
+        ...(target.outputDirectory ? [target.outputDirectory] : []),
+      ]),
       installed: { ts: true, lua: true },
       instrumented: { ts: true, lua: true },
       observed: { ts: false, lua: false },

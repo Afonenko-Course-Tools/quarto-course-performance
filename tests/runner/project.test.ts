@@ -1,3 +1,4 @@
+import { quarto as nativeQuarto } from "../runtime.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 import type { NativeRenderRequest } from "../../src/report/types.ts";
@@ -116,7 +117,7 @@ Deno.test("inspect normalizes leading-dash targets without changing native rende
     await Deno.writeTextFile(join(root, "--help/a.qmd"), "# Test\n");
     const request: NativeRenderRequest = {
       cwd: root,
-      quarto: "/usr/bin/quarto",
+      quarto: nativeQuarto,
       nativeArgv: ["--", "--help"],
       mode: "off",
     };

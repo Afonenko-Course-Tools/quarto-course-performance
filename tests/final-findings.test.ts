@@ -1,3 +1,4 @@
+import { quarto as nativeQuarto } from "./runtime.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 import { prepareRunStorage } from "../src/runner/storage.ts";
@@ -26,7 +27,9 @@ Deno.test("W-F1 damaged requested diagnostics return 4, native errors retain pri
       executable,
       `#!/bin/sh
 if [ "$1" = inspect ]; then printf '%s\\n' '{"dir":"${root}","files":{"config":[]}}'; exit; fi
-if [ "$1" = --version ] || [ "$1" = --paths ]; then exec /usr/bin/quarto "$@"; fi
+if [ "$1" = --version ] || [ "$1" = --paths ]; then exec ${
+        "'" + nativeQuarto.replaceAll("'", "'\\''") + "'"
+      } "$@"; fi
 if [ "$FIX_DAMAGE" = yes ]; then printf '%s\\n' '{"schema_version":2,"processes":[{"process_id":"fixture","agent":"ts","requested":true,"supported":true,"activated":true,"executed":true,"summary_path":"events/fixture/ts.summary.json"}]}' > "$COURSE_PERF_OUTPUT_DIR/expectations.json"; fi
 if [ "$FIX_SIGNAL" = yes ]; then kill -TERM $$; fi
 exit \${FIX_EXIT:-0}

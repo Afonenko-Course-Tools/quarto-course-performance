@@ -1,4 +1,4 @@
-import { dataDir, pandoc } from "../runtime.ts";
+import { dataDir, pandoc, quarto as nativeQuarto } from "../runtime.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 import { prepareFilterAdapter } from "../../src/adapters/quarto/filter-trace.ts";
@@ -68,7 +68,7 @@ Deno.test("simple summary works without private Quarto filter adapter and cpu wr
         assert.equal(
           await renderCommand({
             cwd: root,
-            quarto: "/usr/bin/quarto",
+            quarto: nativeQuarto,
             nativeArgv: ["doc.qmd", ...form],
             mode,
             outputParent,
@@ -171,7 +171,7 @@ Deno.test("public render preparation preserves selected binaries share and funct
     keys.forEach((key, i) => Deno.env.set(key, values[i]));
     const request = {
       cwd: root,
-      quarto: "/usr/bin/quarto",
+      quarto: nativeQuarto,
       nativeArgv: [],
       mode: "summary" as const,
     };

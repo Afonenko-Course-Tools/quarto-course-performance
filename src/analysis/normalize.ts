@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { observePackages, type PackageCoverage } from "../runner/package-coverage.ts";
 import { files } from "../sources/snapshot.ts";
 import type { Event } from "../protocol/types.ts";
 import { validateEvent } from "../protocol/validate.ts";
@@ -16,6 +17,7 @@ export interface NormalizedRun {
   dataValid: boolean;
   quality: QualitySummary;
   executors: Record<string, Record<string, unknown>>;
+  coverage?: Record<string, unknown>;
 }
 export interface ValidatedInterval {
   begin: Event;
@@ -258,8 +260,11 @@ export async function normalizeRun(
       quality.errors.push(`Неподтверждённый parent ${e.parent_span_id}`);
     }
   }
+  let coverageInput: Record<string, unknown> | undefined;
   try {
     const c = JSON.parse(await Deno.readTextFile(join(directory, "coverage.json")));
+    if (!c || typeof c !== "object" || Array.isArray(c)) throw new Error("Некорректный coverage");
+    coverageInput = c;
     quality.coverageComplete = c.complete === true;
   } catch (e) {
     if (!(e instanceof Deno.errors.NotFound)) quality.errors.push(`Coverage: ${String(e)}`);
@@ -374,36 +379,71 @@ export async function normalizeRun(
       process.kind === "deno" && argv[0] === "run" && !executors[`${process.process_id}/ts`]
     ) quality.errors.push(`Отсутствует child summary: ${process.process_id}`);
   }
+  const deltas = new Map<
+    string,
+    { process: string; executor: string; name: string; value: number }
+  >();
+  for (const event of events) {
+    if (
+      event.event !== "counter" || !event.counter || event.run_id !== runId ||
+      event.experiment_id !== experimentId
+    ) continue;
+    const key = JSON.stringify([event.process_id, event.executor_id, event.counter.name]);
+    const delta = deltas.get(key) ?? {
+      process: event.process_id,
+      executor: event.executor_id,
+      name: event.counter.name,
+      value: 0,
+    };
+    delta.value += event.counter.value;
+    deltas.set(key, delta);
+  }
+  for (const delta of deltas.values()) {
+    const totals = executors[`${delta.process}/${delta.executor}`]?.counters as
+      | Record<string, number>
+      | undefined;
+    // Отсутствие события/total не означает нулевое наблюдение. Два источника
+    // сохраняются отдельно даже при потере журнала и никогда не складываются.
+    if (totals && Object.hasOwn(totals, delta.name) && totals[delta.name] !== delta.value) {
+      quality.errors.push(
+        `Counter ${delta.process}/${delta.executor}/${delta.name}: delta=${delta.value}, total=${
+          totals[delta.name]
+        }`,
+      );
+    }
+  }
   const dataValid = !quality.droppedEvents && !quality.incompleteSpans && !quality.errors.length;
   quality.coverageComplete &&= dataValid;
-  if (expectations && !options.readOnly) {
-    try {
-      const path = join(directory, "coverage.json"),
-        coverage = JSON.parse(await Deno.readTextFile(path));
-      const instrumented = {
-        ts: expectations.processes.some((p) => p.agent === "ts" && p.activated),
-        lua: expectations.processes.some((p) => p.agent === "lua" && p.activated),
-      };
-      const observed = {
-        ts: events.some((e) => e.clock_domain === "monotonic_process"),
-        lua: events.some((e) => e.clock_domain === "process_cpu"),
-      };
+  let coverage: Record<string, unknown> | undefined;
+  if (coverageInput) {
+    const scoped = events.filter((event) =>
+      event.run_id === runId && event.experiment_id === experimentId
+    );
+    coverage = {
+      ...coverageInput,
+      complete: quality.coverageComplete,
+      packageCoverage: observePackages(
+        coverageInput.packageCoverage as PackageCoverage | undefined,
+        scoped,
+        dataValid,
+      ),
+      instrumented: expectations
+        ? {
+          ts: expectations.processes.some((p) => p.agent === "ts" && p.activated),
+          lua: expectations.processes.some((p) => p.agent === "lua" && p.activated),
+        }
+        : coverageInput.instrumented ?? { ts: null, lua: null },
+      observed: {
+        ts: scoped.some((event) => event.clock_domain === "monotonic_process"),
+        lua: scoped.some((event) => event.clock_domain === "process_cpu"),
+      },
+      integrity: dataValid ? "valid" : "invalid",
+    };
+    if (!options.readOnly) {
       await Deno.writeTextFile(
-        path,
-        JSON.stringify(
-          {
-            ...coverage,
-            complete: quality.coverageComplete,
-            instrumented,
-            observed,
-            integrity: dataValid ? "valid" : "invalid",
-          },
-          null,
-          2,
-        ) + "\n",
+        join(directory, "coverage.json"),
+        JSON.stringify(coverage, null, 2) + "\n",
       );
-    } catch (e) {
-      if (!(e instanceof Deno.errors.NotFound)) throw e;
     }
   }
   return {
@@ -413,5 +453,6 @@ export async function normalizeRun(
     dataValid,
     quality,
     executors,
+    ...(coverage ? { coverage } : {}),
   };
 }

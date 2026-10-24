@@ -235,19 +235,23 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
       runtimeRegistry,
     });
     if (diagnostic) {
-      const normalized = await normalizeRun(result.outputDirectory);
-      const names = Object.values(normalized.executors).flatMap((e) =>
-        Object.keys(e.counters as object)
+      const coverage = JSON.parse(
+        await Deno.readTextFile(join(result.outputDirectory, "coverage.json")),
       );
       const observations = Object.fromEntries(
         diagnostic.coverage.requestedExtensions.map((ext) => [
           ext,
-          names.some((name) => name.startsWith(`calls.${ext}.`)) ? "observed" : "not-observed",
+          coverage.packageCoverage?.observations?.some((
+              entry: { extensionId: string; attribution: string },
+            ) => entry.extensionId === ext && entry.attribution === "recorded"
+            )
+            ? "observed"
+            : "unknown",
         ]),
       );
       await Deno.writeTextFile(
         join(result.outputDirectory, "coverage.json"),
-        JSON.stringify({ ...diagnostic.coverage, observations }, null, 2) + "\n",
+        JSON.stringify({ ...coverage, observations }, null, 2) + "\n",
       );
     }
     await Deno.writeTextFile(

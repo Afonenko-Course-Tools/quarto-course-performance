@@ -141,6 +141,20 @@ async function writeExperimentArtifacts(
       quality: run.quality,
     } as unknown as RunRecord;
     await writeRunArtifacts(path, record, run);
+    // Lazy normalization обновляет quality/coverage во время итерации runs.
+    // Агрегаты получают тот же итоговый record, что сохранён per-run writer.
+    builds[builds.indexOf(build)] = JSON.parse(await Deno.readTextFile(join(path, "run.json")));
+    try {
+      const current = {
+        run_id: run.runId,
+        ...JSON.parse(await Deno.readTextFile(join(path, "coverage.json"))),
+      };
+      const index = coverage.findIndex((item) => item.run_id === run.runId);
+      if (index < 0) coverage.push(current);
+      else coverage[index] = current;
+    } catch (error) {
+      if (!(error instanceof Deno.errors.NotFound)) throw error;
+    }
   }
   const data = {
     manifest,

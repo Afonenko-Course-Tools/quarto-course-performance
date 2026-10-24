@@ -1,3 +1,4 @@
+import { quarto as nativeQuarto } from "../runtime.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 
@@ -50,7 +51,7 @@ Deno.test("native render help bypasses project inspect and report staging", asyn
       assert.match(decode(out.stdout), /quarto render/);
       assert.deepEqual(await Array.fromAsync(Deno.readDir(root)), []);
     },
-    { QUARTO: "/usr/bin/quarto" },
+    { QUARTO: nativeQuarto },
   );
 });
 
@@ -99,7 +100,7 @@ Deno.test("experiment capabilities needs no Compiler API or npm cache", async ()
       const capabilities = JSON.parse(decode(out.stdout));
       assert(capabilities.runtime.quarto.version);
     },
-    { QUARTO: "/usr/bin/quarto" },
+    { QUARTO: nativeQuarto },
   );
 });
 

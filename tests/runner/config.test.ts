@@ -1,3 +1,4 @@
+import { quarto as nativeQuarto } from "../runtime.ts";
 import { strict as assert } from "node:assert";
 import { validateConfig } from "../../src/config/validate.ts";
 Deno.test("config rejects unknown modes, escaped cwd, duplicate scenarios and missing explicit ref", () => {
@@ -85,7 +86,7 @@ Deno.test("experiment capabilities works outside a project without config, Git, 
         "experiment",
         "capabilities",
         "--quarto",
-        "/usr/bin/quarto",
+        nativeQuarto,
       ],
       cwd: root,
       env: { PATH: bin + ":" + Deno.env.get("PATH") },

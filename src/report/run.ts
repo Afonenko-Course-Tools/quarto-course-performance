@@ -120,6 +120,12 @@ export async function writeRunArtifacts(
   normalized?: NormalizedRun,
 ): Promise<void> {
   await Deno.mkdir(directory, { recursive: true });
+  if (normalized?.coverage) {
+    await Deno.writeTextFile(
+      join(directory, "coverage.json"),
+      JSON.stringify(normalized.coverage, null, 2) + "\n",
+    );
+  }
   const artifacts: Record<string, string> = {
     run: "run.json",
     summary: "summary.json",

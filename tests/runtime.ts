@@ -1,5 +1,14 @@
 import { join } from "node:path";
-const result = await new Deno.Command("quarto", {
+import { executablePath } from "../src/adapters/quarto/capabilities.ts";
+export const quarto = await executablePath(Deno.env.get("QUARTO") ?? "quarto", Deno.env.toObject());
+const cacheInfo = await new Deno.Command(Deno.execPath(), {
+  args: ["info", "--json"],
+  stdout: "piped",
+  stderr: "piped",
+}).output();
+if (!cacheInfo.success) throw new Error("Не удалось определить cache native fixtures");
+export const denoCache: string = JSON.parse(new TextDecoder().decode(cacheInfo.stdout)).denoDir;
+const result = await new Deno.Command(quarto, {
   args: ["--paths"],
   stdout: "piped",
   stderr: "piped",

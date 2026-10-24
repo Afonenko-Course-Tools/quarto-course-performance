@@ -41,7 +41,10 @@ function vanishedProcEntry(error: unknown): boolean {
   return error instanceof Deno.errors.NotFound || error instanceof Error &&
       /^No such process \(os error 3\)(?:: readfile '\/proc\/\d+\/stat')?$/.test(error.message);
 }
-async function scanGroup(group: number): Promise<{ live: boolean; zombies: number }> {
+async function scanGroup(
+  group: number,
+  cleanupError?: (error: unknown) => void,
+): Promise<{ live: boolean; zombies: number }> {
   let zombies = 0;
   for await (const entry of Deno.readDir("/proc")) {
     if (!/^\d+$/.test(entry.name)) continue;
@@ -52,19 +55,22 @@ async function scanGroup(group: number): Promise<{ live: boolean; zombies: numbe
       if (fields[0] !== "Z") return { live: true, zombies };
       zombies++;
     } catch (error) {
-      if (!vanishedProcEntry(error)) throw error;
+      if (!vanishedProcEntry(error)) {
+        if (!cleanupError) throw error;
+        cleanupError(error);
+      }
     }
   }
   return { live: false, zombies };
 }
-async function liveGroup(group: number): Promise<boolean> {
+async function liveGroup(group: number, cleanupError?: (error: unknown) => void): Promise<boolean> {
   if (!groupExists(group)) return false;
-  if ((await scanGroup(group)).live) return true;
+  if ((await scanGroup(group, cleanupError)).live) return true;
   if (!groupExists(group)) return false;
   // Directory enumeration могла начаться до fork, а stat parent — после exit.
   // Новый снимок подтверждает zombie-only; пустота при существующей kernel group
   // остаётся неопределённостью, которую обычный цикл перепроверит без раннего return.
-  const confirmed = await scanGroup(group);
+  const confirmed = await scanGroup(group, cleanupError);
   if (confirmed.live) return true;
   if (confirmed.zombies > 0) return false;
   return groupExists(group);
@@ -79,7 +85,11 @@ export async function readOwnedGroup(path: string): Promise<number> {
 
 // Только аварийный путь до доверенного receipt: session создана нашим setsid PID.
 // Дополнительные session признаются своими лишь по фактическому родству с ним.
-async function ownedGroups(root: number, sessions: Set<number>): Promise<Set<number>> {
+async function ownedGroups(
+  root: number,
+  sessions: Set<number>,
+  cleanupError?: (error: unknown) => void,
+): Promise<Set<number>> {
   const processes = new Map<
     number,
     { parent: number; group: number; session: number; live: boolean }
@@ -96,7 +106,10 @@ async function ownedGroups(root: number, sessions: Set<number>): Promise<Set<num
         live: f[0] !== "Z",
       });
     } catch (error) {
-      if (!vanishedProcEntry(error)) throw error;
+      if (!vanishedProcEntry(error)) {
+        if (!cleanupError) throw error;
+        cleanupError(error);
+      }
     }
   }
   const descendants = new Set([root]);
@@ -340,6 +353,10 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
         tee(child.stderr, options.stderrPath, options.stderr ?? Deno.stderr.writable, failed),
       ];
     const observed = streams.map((stream) => stream.catch(failed));
+    let streamsFinished = false;
+    const drainedStreams = Promise.all(observed).then(() => {
+      streamsFinished = true;
+    });
     const sessions = new Set([child.pid]);
     let status: Deno.CommandStatus | undefined;
     const completed = child.status.then((s) => {
@@ -381,11 +398,23 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
         fifoKeeper.close();
         fifoKeeper = undefined;
       }
-      const remaining = failure
-        ? await ownedGroups(child.pid, sessions)
-        : new Set(group && await liveGroup(group) ? [group] : []);
-      // Даже stale ancestry snapshot не отменяет уже подтверждённое владение group.
-      if (failure && group && await liveGroup(group)) remaining.add(group);
+      let remaining = new Set<number>(), scannerFailed = false;
+      try {
+        remaining = failure
+          ? await ownedGroups(child.pid, sessions, failed)
+          : new Set(group && await liveGroup(group) ? [group] : []);
+        // Даже stale ancestry snapshot не отменяет уже подтверждённое владение group.
+        if (failure && group && await liveGroup(group, failed)) remaining.add(group);
+      } catch (error) {
+        failed(error);
+        scannerFailed = true;
+        // Ошибка scanner не обходит stop/wait/drain. Только ранее подтверждённая
+        // group известна без нового снимка; candidate из readiness здесь не доверяем.
+        if (group) remaining.add(group);
+      }
+      // В аварийном снимке нечитаемый PID не даёт нового ownership. Подтверждённая
+      // group всё равно получает stop/escalation, даже если её stat недоступен.
+      if (failure && group && !escalated && groupExists(group)) remaining.add(group);
       if (failure) {
         send(pending ?? "SIGTERM");
         // Proxy script завершается после native group; не сигналим ему TERM,
@@ -402,6 +431,10 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
         signalledAt ||= performance.now();
       }
       if (status && remaining.size === 0) break;
+      // При отказе самой enumeration повторный /proc snapshot невозможен.
+      // После KILL только подтверждённых групп ждём child и EOF обоих потоков;
+      // zombie-only kernel PGID не заставляет supervisor зависнуть навсегда.
+      if (scannerFailed && escalated && status && streamsFinished) break;
       if (signalledAt && performance.now() - signalledAt > (options.graceMilliseconds ?? 2000)) {
         for (const target of remaining) {
           if (!escalated) signalGroup(target, "SIGKILL");
@@ -411,7 +444,7 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
       await pause(10);
     }
     await completed;
-    await Promise.all(observed);
+    await drainedStreams;
     drained = true;
     let nativeStatus = status!;
     let nativeReceipt = false;

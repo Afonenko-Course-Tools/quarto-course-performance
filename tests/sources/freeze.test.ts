@@ -1,3 +1,4 @@
+import { quarto as nativeQuarto } from "../runtime.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 import { freezeVariants } from "../../src/sources/freeze.ts";
@@ -63,7 +64,7 @@ Deno.test("freeze pins generic trusted local candidates without Hyperfine and pr
       },
     };
     const workspace = join(root, "experiment");
-    const frozen = await freezeVariants(inputs, workspace, "/usr/bin/quarto");
+    const frozen = await freezeVariants(inputs, workspace, nativeQuarto);
     assert.equal(frozen.candidate?.sources[0].sha, candidateSha);
     assert.equal(frozen.candidate?.sources[0].baseSha, baseSha);
     assert.equal(frozen.candidate?.sources[0].sourceKind, "local-candidate");
@@ -71,14 +72,14 @@ Deno.test("freeze pins generic trusted local candidates without Hyperfine and pr
     assert.equal(frozen.candidate?.runtime.hyperfine, undefined);
     await assert.rejects(() => Deno.stat(join(root, "forbidden")), Deno.errors.NotFound);
     const before = await Deno.readTextFile(join(workspace, "candidate.manifest.json"));
-    await assert.rejects(() => freezeVariants(inputs, workspace, "/usr/bin/quarto"), /закреплён/);
+    await assert.rejects(() => freezeVariants(inputs, workspace, nativeQuarto), /закреплён/);
     assert.equal(await Deno.readTextFile(join(workspace, "candidate.manifest.json")), before);
     await assert.rejects(
       () =>
         freezeVariants(
           { ...inputs, variants: { ...inputs.variants, upstream: { "org/Other": candidate } } },
           join(root, "bad"),
-          "/usr/bin/quarto",
+          nativeQuarto,
         ),
       /SHA/,
     );

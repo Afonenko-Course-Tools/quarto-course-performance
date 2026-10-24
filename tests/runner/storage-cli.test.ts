@@ -1,3 +1,4 @@
+import { denoCache, quarto as nativeQuarto } from "../runtime.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 const cli = new URL("../../src/cli.ts", import.meta.url).pathname;
@@ -12,14 +13,20 @@ async function fixture(root: string, body: string) {
   return executable;
 }
 async function run(root: string, quarto: string, args: string[] = []) {
-  return await new Deno.Command(Deno.execPath(), {
-    args: ["run", "-A", cli, "render", ...args],
-    cwd: root,
-    env: { QUARTO: quarto, XDG_CACHE_HOME: join(root, "cache") },
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
+  const cacheParent = await Deno.makeTempDir({ prefix: "perf-cli-cache-" });
+  try {
+    return await new Deno.Command(Deno.execPath(), {
+      args: ["run", "-A", cli, "render", ...args],
+      cwd: root,
+      env: { QUARTO: quarto, DENO_DIR: denoCache, XDG_CACHE_HOME: cacheParent },
+      stdout: "piped",
+      stderr: "piped",
+    }).output();
+  } finally {
+    await Deno.remove(cacheParent, { recursive: true });
+  }
 }
+
 async function onlyRun(root: string) {
   const dirs = [];
   for await (const e of Deno.readDir(root)) if (e.isDirectory) dirs.push(e.name);
@@ -80,7 +87,7 @@ Deno.test("off CLI real standalone render creates mandatory report and relative 
   const root = await Deno.makeTempDir();
   try {
     await Deno.writeTextFile(join(root, "page.qmd"), "# Test\n");
-    const out = await run(root, "/usr/bin/quarto", [
+    const out = await run(root, nativeQuarto, [
       "--perf-output",
       "reports",
       "page.qmd",
@@ -138,12 +145,12 @@ Deno.test("resources star excludes default scratch and rejects custom output bef
       'project:\n  type: website\n  resources: ["**"]\nformat:\n  html:\n    theme: none\n',
     );
     await Deno.writeTextFile(join(root, "page.qmd"), "# Test\n");
-    const denied = await run(root, "/usr/bin/quarto", ["--perf-output", "reports", "page.qmd"]);
+    const denied = await run(root, nativeQuarto, ["--perf-output", "reports", "page.qmd"]);
     assert.equal(denied.code, 2);
     assert(decoder.decode(denied.stderr).includes("resources"));
     await assert.rejects(() => Deno.stat(join(root, "reports")), Deno.errors.NotFound);
     await assert.rejects(() => Deno.stat(join(root, "_site")), Deno.errors.NotFound);
-    const out = await run(root, "/usr/bin/quarto", ["page.qmd"]);
+    const out = await run(root, nativeQuarto, ["page.qmd"]);
     assert.equal(out.code, 0, decoder.decode(out.stderr));
     await onlyRun(join(root, ".quarto/course-perf/runs"));
     await assert.rejects(() => Deno.stat(join(root, "_site/.quarto")), Deno.errors.NotFound);
