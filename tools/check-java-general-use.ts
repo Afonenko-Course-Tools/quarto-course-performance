@@ -366,6 +366,12 @@ export async function checkJava(project: string, output: string, replacementOwne
         { label: "target-slides-directory", cwd: ".", args: ["slides"], outputs: [roots[2]] },
         { label: "target-slides-file", cwd: ".", args: ["slides/index.qmd"], outputs: [roots[2]] },
         { label: "cwd-tasks", cwd: "tasks", args: [], outputs: [roots[1]] },
+        {
+          label: "cwd-tasks-projects",
+          cwd: "tasks/projects",
+          args: ["../index.qmd"],
+          outputs: [roots[1]],
+        },
       ]
     ) {
       let native = await makeCopy(selection.label + "-native");
@@ -550,7 +556,7 @@ export async function checkJava(project: string, output: string, replacementOwne
       });
       await compare(label + "-outputs", studentNative, await snapshot(label), roots);
     }
-    const fixture = join(output, "small-fixture");
+    const fixture = join(renderParent, "small-fixture");
     await Deno.mkdir(fixture);
     await Deno.writeTextFile(
       join(fixture, "_quarto.yml"),
@@ -580,6 +586,7 @@ export async function checkJava(project: string, output: string, replacementOwne
     ], app);
     assert(negative.success, "Маленькие invalid/failure/signal fixtures не прошли");
     gates.push({ label: "fixture-invalid-quality-and-signals", status: "PASS" });
+    await copyTree(fixture, join(output, "small-fixture"));
     completed = true;
   } finally {
     const executionAfter = Object.fromEntries(

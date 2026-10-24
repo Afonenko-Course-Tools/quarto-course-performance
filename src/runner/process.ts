@@ -35,6 +35,12 @@ function groupExists(group: number): boolean {
     throw error;
   }
 }
+// /proc entry может исчезнуть между open и read: Linux возвращает ESRCH,
+// которое Deno 2.7 представляет обычным Error, а не Deno.errors.NotFound.
+function vanishedProcEntry(error: unknown): boolean {
+  return error instanceof Deno.errors.NotFound || error instanceof Error &&
+      /^No such process \(os error 3\)(?:: readfile '\/proc\/\d+\/stat')?$/.test(error.message);
+}
 async function scanGroup(group: number): Promise<{ live: boolean; zombies: number }> {
   let zombies = 0;
   for await (const entry of Deno.readDir("/proc")) {
@@ -46,7 +52,7 @@ async function scanGroup(group: number): Promise<{ live: boolean; zombies: numbe
       if (fields[0] !== "Z") return { live: true, zombies };
       zombies++;
     } catch (error) {
-      if (!(error instanceof Deno.errors.NotFound)) throw error;
+      if (!vanishedProcEntry(error)) throw error;
     }
   }
   return { live: false, zombies };
@@ -90,7 +96,7 @@ async function ownedGroups(root: number, sessions: Set<number>): Promise<Set<num
         live: f[0] !== "Z",
       });
     } catch (error) {
-      if (!(error instanceof Deno.errors.NotFound)) throw error;
+      if (!vanishedProcEntry(error)) throw error;
     }
   }
   const descendants = new Set([root]);
