@@ -5,6 +5,20 @@ const project = new URL("../../", import.meta.url).pathname;
 function shellQuote(value: string) {
   return "'" + value.replaceAll("'", "'\\''") + "'";
 }
+export async function pandocBuiltinInit(
+  binary: string,
+  env: Record<string, string> = Deno.env.toObject(),
+): Promise<Uint8Array> {
+  const result = await new Deno.Command(binary, {
+    args: ["--print-default-data-file", "init.lua"],
+    env,
+    clearEnv: true,
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
+  if (!result.success) throw new Error("Выбранный Pandoc не предоставил builtin init.lua");
+  return result.stdout;
+}
 export async function prepareLaunchers(
   options: { workspace: string; deno: string; pandoc: string; dataDir: string },
 ) {
@@ -28,6 +42,7 @@ export async function prepareLaunchers(
     options.dataDir,
     dataDir,
     backend + "/src/agents/lua/init.lua",
+    await pandocBuiltinInit(pandoc),
   );
   for (const kind of ["deno", "pandoc"]) {
     const path = join(root, kind);
@@ -66,9 +81,18 @@ export async function preparePandocData(
   source: string,
   destination: string,
   agentInit: string,
+  builtinInit?: Uint8Array,
 ): Promise<PreparationReceipt> {
   await copyPandocData(source, destination);
   const init = join(destination, "init.lua");
+  if (builtinInit) {
+    try {
+      await Deno.lstat(init);
+    } catch (error) {
+      if (!(error instanceof Deno.errors.NotFound)) throw error;
+      await Deno.writeFile(init, builtinInit, { createNew: true });
+    }
+  }
   let sourceHash = await hashBytes(new Uint8Array());
   let hasOriginal = false;
   try {

@@ -62,6 +62,8 @@ Deno.test("Lua data-dir bootstrap preserves original initialization and installs
     }
     const out = await new Deno.Command(setup.env.QUARTO_PANDOC, {
       args: [
+        "--data-dir",
+        data,
         "--lua-filter",
         join(root, "a.lua"),
         "--lua-filter",

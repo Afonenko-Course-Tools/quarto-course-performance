@@ -1,5 +1,5 @@
 import { join, resolve } from "node:path";
-import { preparePandocData } from "./setup.ts";
+import { preparePandocArgs } from "./pandoc-data.ts";
 import type { ProcessExpectation } from "../report/types.ts";
 const [kind, ...originalArgs] = Deno.args;
 if (!["deno", "pandoc"].includes(kind)) throw new Error("Неизвестный launcher");
@@ -105,29 +105,14 @@ if (mode && mode !== "off") {
       args.splice(1, 0, "--cpu-prof-dir", profiles, "--cpu-prof-name", "cpu.cpuprofile");
     }
   }
-  if (kind === "pandoc") {
-    let source = env.COURSE_PERF_SOURCE_DATA_DIR;
-    for (let i = 0; i < args.length; i++) {
-      if (args[i] === "--data-dir") {
-        if (!args[i + 1]) throw new Error("Необходимо значение --data-dir");
-        source = resolve(args[i + 1]);
-        args.splice(i, 2);
-        i--;
-      } else if (args[i].startsWith("--data-dir=")) {
-        source = resolve(args[i].slice("--data-dir=".length));
-        args.splice(i, 1);
-        i--;
-      }
-    }
-    let dataDir = env.COURSE_PERF_DATA_DIR;
-    if (source !== env.COURSE_PERF_SOURCE_DATA_DIR) {
-      dataDir = join(env.COURSE_PERF_OUTPUT_DIR, "pandoc-data", id);
-      const receipt = await preparePandocData(source, dataDir, env.COURSE_PERF_INIT_LUA);
+  if (kind === "pandoc" && !pandocInformational) {
+    const prepared = await preparePandocArgs(binary, args, env, id);
+    args.splice(0, args.length, ...prepared.args);
+    if (prepared.preparation) {
       const directory = join(env.COURSE_PERF_OUTPUT_DIR, "preparation");
       await Deno.mkdir(directory, { recursive: true });
-      await Deno.writeTextFile(join(directory, id + ".json"), JSON.stringify(receipt));
+      await Deno.writeTextFile(join(directory, id + ".json"), JSON.stringify(prepared.preparation));
     }
-    args.push("--data-dir", dataDir);
   }
 }
 const child = new Deno.Command(binary, {
