@@ -181,3 +181,79 @@ Deno.test("ordered Pandoc defaults remain native off and diagnostics refuse unre
     await Deno.remove(root, { recursive: true });
   }
 });
+
+Deno.test("Pandoc option values beginning with defaults or data-dir syntax remain literal", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const data = join(root, "data");
+    await Deno.mkdir(data);
+    await Deno.writeTextFile(join(data, "init.lua"), "INIT_COUNT=(INIT_COUNT or 0)+1\n");
+    const filter = join(root, "filter.lua"), input = join(root, "input.html");
+    await Deno.writeTextFile(filter, "assert(INIT_COUNT==1);return {}\n");
+    await Deno.writeTextFile(input, "<p>literal values</p>");
+    const setup = await prepareLaunchers({
+      workspace: join(root, "launchers"),
+      deno: Deno.execPath(),
+      pandoc,
+      dataDir: data,
+    });
+    const cases = [
+      ["-o", "-draft.json"],
+      ["-o", "--"],
+      ["--output", "-draft.json"],
+      ["--metadata", "-draft"],
+      ["-M", "-draft"],
+      ["--metadata", "--defaults=literal"],
+      ["--metadata", "--data-dir=literal"],
+    ];
+    for (const [index, extra] of cases.entries()) {
+      const args = [
+        "--data-dir",
+        data,
+        "--from=html",
+        "--to=json",
+        "--lua-filter",
+        filter,
+        ...extra,
+        input,
+      ];
+      const nativeDir = join(root, String(index), "native"),
+        monitoredDir = join(root, String(index), "monitored");
+      await Deno.mkdir(nativeDir, { recursive: true });
+      await Deno.mkdir(monitoredDir);
+      const native = await new Deno.Command(pandoc, {
+        args,
+        cwd: nativeDir,
+        stdin: "null",
+        stdout: "piped",
+        stderr: "piped",
+      }).output();
+      assert(native.success, decode(native.stderr));
+      const out = await new Deno.Command(setup.env.QUARTO_PANDOC, {
+        args,
+        cwd: monitoredDir,
+        env: {
+          ...setup.env,
+          COURSE_PERF_MODE: "summary",
+          COURSE_PERF_RUN_ID: "r",
+          COURSE_PERF_EXPERIMENT_ID: "e",
+          COURSE_PERF_OUTPUT_DIR: join(root, "output", String(index)),
+        },
+        stdin: "null",
+        stdout: "piped",
+        stderr: "piped",
+      }).output();
+      assert.equal(out.code, native.code, `${extra}: ${decode(out.stderr)}`);
+      assert.deepEqual(out.stdout, native.stdout);
+      assert.deepEqual(out.stderr, native.stderr);
+      if (extra[0] === "-o" || extra[0] === "--output") {
+        assert.deepEqual(
+          await Deno.readFile(join(monitoredDir, extra[1])),
+          await Deno.readFile(join(nativeDir, extra[1])),
+        );
+      }
+    }
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

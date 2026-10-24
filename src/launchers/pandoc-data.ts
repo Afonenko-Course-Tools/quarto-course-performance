@@ -8,11 +8,94 @@ export async function preparePandocArgs(
   env: Record<string, string>,
   id: string,
 ) {
+  // Публичные опции с обязательным отдельным значением: Pandoc 3.10 --help.
+  // Необязательные [=VALUE] не поглощают следующий отдельный аргумент.
+  const valueOptions = new Set([
+    "-f",
+    "-r",
+    "--from",
+    "--read",
+    "-t",
+    "-w",
+    "--to",
+    "--write",
+    "-o",
+    "--output",
+    "-M",
+    "--metadata",
+    "--metadata-file",
+    "--template",
+    "-V",
+    "--variable",
+    "--variable-json",
+    "--wrap",
+    "--toc-depth",
+    "--number-offset",
+    "--top-level-division",
+    "--extract-media",
+    "--resource-path",
+    "-H",
+    "--include-in-header",
+    "-B",
+    "--include-before-body",
+    "-A",
+    "--include-after-body",
+    "--highlight-style",
+    "--syntax-definition",
+    "--syntax-highlighting",
+    "--dpi",
+    "--eol",
+    "--columns",
+    "--tab-stop",
+    "--pdf-engine",
+    "--pdf-engine-opt",
+    "--reference-doc",
+    "--request-header",
+    "--abbreviations",
+    "--typst-input",
+    "--indented-code-classes",
+    "--default-image-extension",
+    "-F",
+    "--filter",
+    "-L",
+    "--lua-filter",
+    "--shift-heading-level-by",
+    "--base-header-level",
+    "--track-changes",
+    "--reference-location",
+    "--figure-caption-position",
+    "--table-caption-position",
+    "--markdown-headings",
+    "--slide-level",
+    "--email-obfuscation",
+    "--id-prefix",
+    "-T",
+    "--title-prefix",
+    "-c",
+    "--css",
+    "--epub-subdirectory",
+    "--epub-cover-image",
+    "--epub-metadata",
+    "--epub-embed-font",
+    "--split-level",
+    "--chunk-template",
+    "--epub-chapter-level",
+    "--ipynb-output",
+    "--bibliography",
+    "--csl",
+    "--citation-abbreviations",
+    "--log",
+    "-D",
+    "--print-default-template",
+    "--print-default-data-file",
+    "--print-highlight-style",
+  ]);
   const args: string[] = [];
-  let source: string | undefined, lastData = -1, lastDefaults = -1;
+  let source: string | undefined, lastData = -1, lastDefaults = -1, nativeSeparator = -1;
   for (let i = 0; i < original.length; i++) {
     const arg = original[i];
     if (arg === "--") {
+      nativeSeparator = args.length;
       args.push(...original.slice(i));
       break;
     }
@@ -24,6 +107,9 @@ export async function preparePandocArgs(
       if (!arg.slice("--data-dir=".length)) throw new Error("Необходимо значение --data-dir");
       lastData = i;
       source = resolve(arg.slice("--data-dir=".length));
+    } else if (valueOptions.has(arg)) {
+      args.push(arg);
+      if (original[i + 1] !== undefined) args.push(original[++i]);
     } else {
       if (arg === "--defaults" || arg === "-d") {
         lastDefaults = i;
@@ -88,7 +174,6 @@ export async function preparePandocArgs(
     };
   }
   // Не превращать аргументы после нативного разделителя в параметры.
-  const separator = args.indexOf("--");
-  args.splice(separator < 0 ? args.length : separator, 0, "--data-dir", dataDir);
+  args.splice(nativeSeparator < 0 ? args.length : nativeSeparator, 0, "--data-dir", dataDir);
   return { args, preparation };
 }
