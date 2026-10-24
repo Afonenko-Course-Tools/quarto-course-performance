@@ -1,6 +1,6 @@
 import { dirname, join, matchesGlob, parse, relative, resolve } from "node:path";
 import type { NativeRenderRequest, RunRecord } from "../report/types.ts";
-import type { ProjectTarget } from "../adapters/quarto/inspect.ts";
+import { explicitOutputDirectory, type ProjectTarget } from "../adapters/quarto/inspect.ts";
 import { writeRunArtifacts } from "../report/run.ts";
 import type { NormalizedRun } from "../analysis/normalize.ts";
 import type { RunPaths } from "../config/types.ts";
@@ -29,6 +29,25 @@ export async function prepareRunStorage(
   const parent = request.outputParent === undefined
     ? join(target.projectRoot, ".quarto/course-perf/runs")
     : resolve(request.cwd, request.outputParent);
+  const explicit = explicitOutputDirectory(request.nativeArgv);
+  const publication = explicit === undefined
+    ? target.outputDirectory
+    : resolve(target.projectRoot, explicit);
+  if (publication) {
+    // Resolve existing symlink ancestors without creating any directory.
+    const physical = async (path: string): Promise<string> => {
+      try {
+        return await Deno.realPath(path);
+      } catch (error) {
+        if (!(error instanceof Deno.errors.NotFound)) throw error;
+        return join(await physical(dirname(path)), parse(path).base);
+      }
+    };
+    const [a, b] = await Promise.all([physical(parent), physical(publication)]);
+    if (a === b || a.startsWith(b + "/") || b.startsWith(a + "/")) {
+      throw new Error(`Каталог perf-output пересекается с native output-dir: ${parent}`);
+    }
+  }
   const rel = relative(target.projectRoot, parent);
   // Quarto исключает служебный .quarto из копирования ресурсов, включая resources:["**"].
   if (rel !== ".quarto" && !rel.startsWith(".quarto/")) {

@@ -137,6 +137,7 @@ export async function renderCommand(request: NativeRenderRequest): Promise<numbe
   Deno.addSignalListener("SIGINT", rememberInt);
   Deno.addSignalListener("SIGTERM", rememberTerm);
   let outcome: BuildOutcome | undefined, failure: unknown;
+  let diagnosticValid = true;
   let savedDirectory = paths.stagingDirectory;
   try {
     try {
@@ -163,13 +164,14 @@ export async function renderCommand(request: NativeRenderRequest): Promise<numbe
           errors.push(error instanceof Error ? error.message : String(error));
         }
       }
+      diagnosticValid = !failure && (normalized?.dataValid ?? !prepared);
       const record: RunRecord = {
         schema_version: 2,
         runId: paths.runId,
         request,
         outcome,
         preparation,
-        dataValid: !failure && (normalized?.dataValid ?? !prepared),
+        dataValid: diagnosticValid,
         quality: normalized
           ? {
             ...normalized.quality,
@@ -239,7 +241,7 @@ export async function renderCommand(request: NativeRenderRequest): Promise<numbe
     await new Promise(() => {});
   }
   if (outcome?.code) return outcome.code;
-  if (failure) {
+  if (failure || !diagnosticValid) {
     if (!outcome) throw failure;
     return 4;
   }

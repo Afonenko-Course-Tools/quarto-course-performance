@@ -45,6 +45,11 @@ Deno.test("public inspect resolves cwd, subfolder, nested and foreign projects w
       assert.deepEqual(await resolveRenderProject(request), {
         projectRoot: join(root, expected),
         kind,
+        ...(argv.some((arg) => arg === "--output-dir")
+          ? { outputDirectory: join(root, expected, "site with spaces") }
+          : argv.some((arg) => arg === "--output-dir=out")
+          ? { outputDirectory: join(root, expected, "out") }
+          : {}),
       });
       assert.equal(JSON.stringify(request), before);
     }

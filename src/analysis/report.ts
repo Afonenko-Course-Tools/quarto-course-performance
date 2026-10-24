@@ -1,4 +1,4 @@
-import { basename, join, resolve } from "node:path";
+import { join } from "node:path";
 import type { ReportSourceManifest } from "../config/types.ts";
 import type { NormalizedRun } from "./normalize.ts";
 
@@ -27,19 +27,58 @@ function summarizeRun(run: NormalizedRun) {
   };
 }
 
+/** Refuse in-place historical imports before normalization or any output write. */
+export async function assertWritableExperiment(
+  manifest: ReportSourceManifest,
+  output: string,
+): Promise<void> {
+  const historical = () =>
+    new Error("Исторические metadata доступны read-only; in-place report/verify не поддерживается");
+  if (manifest.schema_version !== 2) throw historical();
+  try {
+    const aggregate = JSON.parse(await Deno.readTextFile(join(output, "summary.json")));
+    if (!aggregate || aggregate.schema_version !== 2 || !Array.isArray(aggregate.runs)) {
+      throw historical();
+    }
+  } catch (error) {
+    if (!(error instanceof Deno.errors.NotFound)) throw error;
+  }
+  try {
+    for await (const item of Deno.readDir(join(output, "runs"))) {
+      if (!item.isDirectory) continue;
+      try {
+        const metadata = JSON.parse(
+          await Deno.readTextFile(join(output, "runs", item.name, "run.json")),
+        );
+        if (!metadata || metadata.schema_version !== 2) throw historical();
+      } catch (error) {
+        if (!(error instanceof Deno.errors.NotFound)) throw error;
+      }
+    }
+  } catch (error) {
+    if (!(error instanceof Deno.errors.NotFound)) throw error;
+  }
+}
+
 export async function writeExperimentReport(
   manifest: ReportSourceManifest,
   runs: Iterable<NormalizedRun> | AsyncIterable<NormalizedRun>,
   output: string,
 ) {
-  await Deno.mkdir(output, { recursive: true });
+  await assertWritableExperiment(manifest, output);
   const builds: Record<string, unknown>[] = [], coverage: Record<string, unknown>[] = [];
   try {
     for await (const item of Deno.readDir(join(output, "runs"))) {
       if (!item.isDirectory) continue;
       const dir = join(output, "runs", item.name);
       try {
-        builds.push(JSON.parse(await Deno.readTextFile(join(dir, "run.json"))));
+        const metadata = JSON.parse(await Deno.readTextFile(join(dir, "run.json")));
+        if (!metadata || metadata.schema_version !== 2) {
+          throw new Error(
+            "Исторические metadata доступны read-only; in-place report/verify не поддерживается",
+          );
+        }
+        builds.push(metadata);
       } catch (e) {
         if (!(e instanceof Deno.errors.NotFound)) throw e;
         builds.push({ runId: item.name, status: "INCOMPLETE" });
@@ -56,75 +95,27 @@ export async function writeExperimentReport(
   } catch (e) {
     if (!(e instanceof Deno.errors.NotFound)) throw e;
   }
+  await Deno.mkdir(output, { recursive: true });
   const benchmarks = await jsonFiles(join(output, "benchmarks"), ".json", true);
   const summary: ReturnType<typeof summarizeRun>[] = [];
   for await (const run of runs) {
     summary.push(summarizeRun(run));
     const path = join(output, "runs", run.runId);
     await Deno.mkdir(path, { recursive: true });
-    const build = builds.find((b) => b.runId === run.runId) ?? {};
-    // Адаптер старого experiment metadata; raw journals и preparation receipts не меняются.
-    let legacyQuarto = "quarto", legacyNativeArgv: string[] = [];
-    if (build.schema_version !== 2 && build.argv !== undefined) {
-      const argv = build.argv;
-      if (
-        !Array.isArray(argv) || argv.some((arg) => typeof arg !== "string") ||
-        argv[1] !== "render" ||
-        !(typeof argv[0] === "string" &&
-          (["quarto", "quarto.exe"].includes(basename(argv[0]).toLowerCase()) ||
-            argv[0] === manifest.runtime.quarto?.path))
-      ) {
-        throw new Error(
-          "Legacy argv не описывает известный Quarto render; необходима явная адаптация команды",
-        );
-      }
-      legacyQuarto = argv[0];
-      legacyNativeArgv = argv.slice(2);
+    const build = builds.find((b) => b.runId === run.runId);
+    if (!build || build.schema_version !== 2) {
+      throw new Error(`Отсутствуют текущие metadata запуска: ${run.runId}`);
     }
-    const record: RunRecord = build.schema_version === 2
-      ? { ...build, dataValid: run.dataValid, quality: run.quality } as unknown as RunRecord
-      : {
-        ...build,
-        schema_version: 2,
-        runId: run.runId,
-        request: {
-          cwd: String(build.cwd ?? resolve(path)),
-          quarto: legacyQuarto,
-          nativeArgv: legacyNativeArgv,
-          mode: (build.mode ?? "off") as RunRecord["request"]["mode"],
-        },
-        outcome: {
-          code: Number(build.buildExitCode ?? 0),
-          signal: (build.signal ?? null) as Deno.Signal | null,
-          wallSeconds: Number(build.wallSeconds ?? 0),
-          cpuUserSeconds:
-            (build.resources as Record<string, number | null> | undefined)?.cpu_user_seconds ??
-              null,
-          cpuSystemSeconds:
-            (build.resources as Record<string, number | null> | undefined)?.cpu_system_seconds ??
-              null,
-          peakRssKiB:
-            (build.resources as Record<string, number | null> | undefined)?.peak_rss_kib ?? null,
-        },
-        preparation: (build.preparation ?? []) as RunRecord["preparation"],
-        dataValid: run.dataValid,
-        quality: run.quality,
-        versions: {
-          tool: "2.0.0",
-          quarto: manifest.runtime.quarto?.version ?? "неизвестно",
-          deno: manifest.runtime.deno?.version ?? null,
-          pandoc: manifest.runtime.pandoc?.version ?? null,
-        },
-        git: null,
-        collectionDirectory: String(build.outputDirectory ?? resolve(path)),
-        outputDirectory: resolve(path),
-        artifacts: {},
-      };
+    const record = {
+      ...build,
+      dataValid: run.dataValid,
+      quality: run.quality,
+    } as unknown as RunRecord;
     await writeRunArtifacts(path, record, run);
   }
   const data = {
     manifest,
-    summary,
+    summary: { schema_version: 2, experimentId: manifest.experimentId, runs: summary },
     quality: summary.map((r) => ({ run_id: r.run_id, ...r.quality })),
     coverage,
     builds,

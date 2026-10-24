@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import { operationTotals, writeExperimentReport } from "../../src/analysis/report.ts";
 import type { NormalizedRun } from "../../src/analysis/normalize.ts";
 import type { Event } from "../../src/protocol/types.ts";
+import { record } from "../report/fixture.ts";
 import { join } from "node:path";
 Deno.test("report separates clock totals, does not claim self time, and retains failed build evidence", async () => {
   const root = await Deno.makeTempDir();
@@ -47,9 +48,17 @@ Deno.test("report separates clock totals, does not claim self time, and retains 
     await Deno.mkdir(join(root, "runs/r"), { recursive: true });
     await Deno.writeTextFile(
       join(root, "runs/r/run.json"),
-      JSON.stringify({ runId: "r", buildExitCode: 23, mode: "off", dataValid: true }),
+      JSON.stringify({ ...record(root, "r"), buildExitCode: 23, mode: "off" }),
     );
-    await writeExperimentReport({ experimentId: "e", sources: [], packages: [], runtime: {} }, [
+    await writeExperimentReport({
+      schema_version: 2 as const,
+      projectSource: "org/Fixture",
+      replacements: [],
+      experimentId: "e",
+      sources: [],
+      packages: [],
+      runtime: {},
+    }, [
       run,
     ], root);
     assert.equal(
@@ -79,6 +88,13 @@ Deno.test("report processes an async run stream before requesting the next raw j
     quality: { droppedEvents: 0, incompleteSpans: 0, coverageComplete: true, errors: [] },
   };
   try {
+    for (const id of ["r", "second"]) {
+      await Deno.mkdir(join(root, "runs", id), { recursive: true });
+      await Deno.writeTextFile(
+        join(root, "runs", id, "run.json"),
+        JSON.stringify(record(root, id)),
+      );
+    }
     async function* runs() {
       yield run;
       assert((await Deno.stat(join(root, "runs/r/wall.trace.json"))).isFile);
@@ -101,12 +117,20 @@ Deno.test("report processes an async run stream before requesting the next raw j
       }),
     );
     await writeExperimentReport(
-      { experimentId: "e", sources: [], packages: [], runtime: {} },
+      {
+        schema_version: 2 as const,
+        projectSource: "org/Fixture",
+        replacements: [],
+        experimentId: "e",
+        sources: [],
+        packages: [],
+        runtime: {},
+      },
       runs(),
       root,
     );
     const summary = JSON.parse(await Deno.readTextFile(join(root, "summary.json")));
-    assert.deepEqual(summary.map((r: { run_id: string }) => r.run_id), ["r", "second"]);
+    assert.deepEqual(summary.runs.map((r: { run_id: string }) => r.run_id), ["r", "second"]);
     assert(
       (await Deno.readTextFile(join(root, "report.md"))).includes(
         "benchmarks/scenario.initial10.json",
@@ -117,56 +141,6 @@ Deno.test("report processes an async run stream before requesting the next raw j
   }
 });
 
-Deno.test("legacy Quarto render metadata preserves the executable and only argv after render", async () => {
-  const root = await Deno.makeTempDir();
-  try {
-    const manifest = { experimentId: "e", sources: [], packages: [], runtime: {} };
-    for (const executable of ["quarto", "/usr/bin/quarto"]) {
-      const runId = executable === "quarto" ? "bare" : "absolute";
-      const dir = join(root, "runs", runId);
-      await Deno.mkdir(dir, { recursive: true });
-      await Deno.writeTextFile(
-        join(dir, "run.json"),
-        JSON.stringify({
-          runId,
-          cwd: "/original/cwd",
-          argv: [executable, "render", "page.qmd", "--profile", "student", "--", "--help"],
-          mode: "off",
-          buildExitCode: 7,
-          wallSeconds: 1,
-          preparation: [],
-        }),
-      );
-      await writeExperimentReport(manifest, [{
-        runId,
-        events: [],
-        executors: {},
-        dataValid: true,
-        quality: { droppedEvents: 0, incompleteSpans: 0, coverageComplete: true, errors: [] },
-      }], root);
-      const converted = JSON.parse(await Deno.readTextFile(join(dir, "run.json")));
-      assert.equal(converted.request.quarto, executable);
-      assert.deepEqual(converted.request.nativeArgv, [
-        "page.qmd",
-        "--profile",
-        "student",
-        "--",
-        "--help",
-      ]);
-      assert.deepEqual(converted.argv, [
-        executable,
-        "render",
-        "page.qmd",
-        "--profile",
-        "student",
-        "--",
-        "--help",
-      ]);
-    }
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
 Deno.test("legacy arbitrary commands are not silently relabeled as native Quarto render", async () => {
   const root = await Deno.makeTempDir();
   try {
@@ -183,14 +157,22 @@ Deno.test("legacy arbitrary commands are not silently relabeled as native Quarto
       await Deno.writeTextFile(join(dir, "run.json"), legacy);
       await assert.rejects(
         () =>
-          writeExperimentReport({ experimentId: "e", sources: [], packages: [], runtime: {} }, [{
+          writeExperimentReport({
+            schema_version: 2 as const,
+            projectSource: "org/Fixture",
+            replacements: [],
+            experimentId: "e",
+            sources: [],
+            packages: [],
+            runtime: {},
+          }, [{
             runId: "r",
             events: [],
             executors: {},
             dataValid: true,
             quality: { droppedEvents: 0, incompleteSpans: 0, coverageComplete: true, errors: [] },
           }], root),
-        /Quarto render/,
+        /read-only/,
       );
       assert.equal(await Deno.readTextFile(join(dir, "run.json")), legacy);
     }
@@ -217,7 +199,15 @@ Deno.test("experiment report displays each saved benchmark threshold without a g
       );
     }
     await writeExperimentReport(
-      { experimentId: "e", sources: [], packages: [], runtime: {} },
+      {
+        schema_version: 2 as const,
+        projectSource: "org/Fixture",
+        replacements: [],
+        experimentId: "e",
+        sources: [],
+        packages: [],
+        runtime: {},
+      },
       [],
       root,
     );

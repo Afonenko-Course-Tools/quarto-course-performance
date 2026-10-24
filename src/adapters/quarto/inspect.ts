@@ -5,6 +5,7 @@ export interface ProjectTarget {
   projectRoot: string;
   kind: "project" | "standalone";
   resources?: string[];
+  outputDirectory?: string;
 }
 
 // Только параметры, значения которых могут быть ошибочно приняты за input.
@@ -85,6 +86,18 @@ function inspectArguments(argv: readonly string[], cwd: string): string[] {
   return [...(input === undefined ? [] : [resolve(cwd, input)]), ...profiles];
 }
 
+export function explicitOutputDirectory(argv: readonly string[]): string | undefined {
+  let selected: string | undefined;
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--") break;
+    if (arg.startsWith("--output-dir=")) selected = arg.slice(13);
+    else if (arg === "--output-dir") selected = argv[++i];
+    else if (valueOptions.has(arg)) i++;
+  }
+  return selected;
+}
+
 export async function resolveRenderProject(request: NativeRenderRequest): Promise<ProjectTarget> {
   const args = inspectArguments(request.nativeArgv, request.cwd);
   const output = await new Deno.Command(request.quarto, {
@@ -101,7 +114,12 @@ export async function resolveRenderProject(request: NativeRenderRequest): Promis
   if (typeof project.dir !== "string" || !project.dir) {
     throw new Error("quarto inspect не вернул каталог проекта или самостоятельного документа");
   }
+  const outputDir = explicitOutputDirectory(request.nativeArgv) ??
+    project.config?.project?.["output-dir"];
   return {
+    ...(typeof outputDir === "string" && outputDir
+      ? { outputDirectory: resolve(request.cwd, project.dir, outputDir) }
+      : {}),
     ...(Array.isArray(project.config?.project?.resources) && project.config.project.resources.length
       ? { resources: project.config.project.resources }
       : {}),

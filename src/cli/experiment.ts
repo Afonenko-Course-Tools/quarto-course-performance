@@ -9,7 +9,7 @@ import { benchmarkPair } from "../runner/benchmark.ts";
 import { hashFile } from "../sources/snapshot.ts";
 import { compareBenchmarks } from "../analysis/compare.ts";
 import { type NormalizedRun, normalizeRun } from "../analysis/normalize.ts";
-import { writeExperimentReport } from "../analysis/report.ts";
+import { assertWritableExperiment, writeExperimentReport } from "../analysis/report.ts";
 import {
   importSourceManifest,
   liveSourceManifest,
@@ -241,6 +241,7 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
       JSON.parse(await Deno.readTextFile(join(workspace, "candidate.manifest.json"))),
       true,
     );
+    await assertWritableExperiment(manifest, workspace);
     async function* runs(): AsyncGenerator<NormalizedRun> {
       for await (const item of Deno.readDir(runRoot)) {
         if (item.isDirectory) {
@@ -252,7 +253,17 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
             if (e instanceof Deno.errors.NotFound) continue;
             throw e;
           }
-          if (meta.mode !== "off") yield await normalizeRun(dir);
+          if (meta.request.mode !== "off") {
+            yield await normalizeRun(dir);
+          } else {
+            yield {
+              runId: meta.runId,
+              events: [],
+              executors: {},
+              dataValid: meta.dataValid,
+              quality: meta.quality,
+            };
+          }
         }
       }
     }
@@ -271,7 +282,7 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
         if (e instanceof Deno.errors.NotFound) return 4;
         throw e;
       }
-      if (meta.buildExitCode !== 0) return 3;
+      if (meta.outcome.code !== 0) return 3;
     }
     return report.dataValid ? 0 : 4;
   }

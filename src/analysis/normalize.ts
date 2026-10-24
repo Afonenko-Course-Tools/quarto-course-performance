@@ -11,6 +11,7 @@ export interface QualitySummary {
 }
 export interface NormalizedRun {
   runId: string;
+  experimentId?: string;
   events: Event[];
   dataValid: boolean;
   quality: QualitySummary;
@@ -21,10 +22,16 @@ export interface ValidatedInterval {
   end: Event;
   durationUs: number;
 }
+export function validatedEvents(run: NormalizedRun): Event[] {
+  return run.events.filter((event) =>
+    event.run_id === run.runId &&
+    (!run.experimentId || event.experiment_id === run.experimentId)
+  );
+}
 /** Ровно одна согласованная пара; дубликаты целиком исключают span из производных данных. */
 export function validatedIntervals(run: NormalizedRun): ValidatedInterval[] {
   const spans = new Map<string, Event[]>();
-  for (const event of run.events) {
+  for (const event of validatedEvents(run)) {
     if ((event.event !== "begin" && event.event !== "end") || !event.span_id) continue;
     const rows = spans.get(event.span_id) ?? [];
     rows.push(event);
@@ -391,6 +398,7 @@ export async function normalizeRun(directory: string): Promise<NormalizedRun> {
   }
   return {
     runId,
+    ...(experimentId ? { experimentId } : {}),
     events,
     dataValid,
     quality,

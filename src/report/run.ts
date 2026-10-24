@@ -3,6 +3,7 @@ import type { CounterAggregate, RunRecord, RunSummary } from "./types.ts";
 import {
   type NormalizedRun,
   operationAttribution,
+  validatedEvents,
   validatedIntervals,
 } from "../analysis/normalize.ts";
 import { traces } from "./perfetto.ts";
@@ -59,7 +60,7 @@ export async function jsonFiles(directory: string, suffix: string, retainFileNam
 export function summarizeRunRecord(record: RunRecord, normalized?: NormalizedRun): RunSummary {
   const exact = record.dataValid ? "observed-exact" as const : "partial" as const;
   const deltas = new Map<string, CounterAggregate>();
-  for (const event of normalized?.events ?? []) {
+  for (const event of normalized ? validatedEvents(normalized) : []) {
     if (event.event !== "counter" || !event.counter) continue;
     const key = `${event.process_id}/${event.executor_id}/${event.counter.name}`;
     const aggregate = deltas.get(key) ??
@@ -163,7 +164,7 @@ export async function writeRunArtifacts(
           run_id: record.runId,
           data_valid: record.dataValid,
           processes,
-          spans: normalized.events.filter((e) => e.event === "begin").map((e) => ({
+          spans: validatedEvents(normalized).filter((e) => e.event === "begin").map((e) => ({
             span_id: e.span_id,
             parent_span_id: e.parent_span_id ?? null,
             process_id: e.process_id,
