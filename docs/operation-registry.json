@@ -1414,5 +1414,11 @@
     "path": "infrastructure/navigation.ts",
     "operation": "course-site.infrastructure.navigation.addressNavigation",
     "kind": "phase"
+  },
+  {
+    "extension": "course-core",
+    "path": "infrastructure/native-run.ts",
+    "operation": "course-core.infrastructure.native-run.commonPathDocument",
+    "kind": "io"
   }
 ]

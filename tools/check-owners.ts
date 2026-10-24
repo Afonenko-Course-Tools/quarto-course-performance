@@ -1,8 +1,8 @@
 import { join, relative } from "node:path";
 import { files } from "../src/sources/snapshot.ts";
-import { syncBridge } from "./sync-bridge.ts";
+import { bridgeLanguages, syncBridge } from "./sync-bridge.ts";
 const roots = Deno.args;
-if (!roots.length) throw new Error("Укажите checkouts владельцев");
+if (roots.length !== 8) throw new Error("Укажите все 8 checkouts владельцев");
 await syncBridge(roots, true);
 const extensions = new Map<string, string>();
 for (const root of roots) {
@@ -13,9 +13,11 @@ for (const root of roots) {
       extensions.set(ext.name, path);
       const observation = await files(join(path, "observability"));
       if (
-        observation.length !== 2 ||
+        observation.length !== bridgeLanguages(ext.name).length ||
         observation.some((p) =>
-          !/^bridge\.(ts|lua)$/.test(relative(join(path, "observability"), p))
+          !bridgeLanguages(ext.name).map((language) => "bridge." + language).includes(
+            relative(join(path, "observability"), p),
+          )
         )
       ) throw new Error("Пакет содержит лишние observability зависимости");
       for (const file of await files(path)) {
@@ -26,6 +28,22 @@ for (const root of roots) {
       }
     }
   }
+}
+for (
+  const extension of [
+    "course-core",
+    "course-presentation",
+    "course-navigation",
+    "course-prairielearn",
+    "course-site",
+    "reference-catalog",
+    "project-download",
+    "course-print",
+    "course-moodle",
+    "course-cloud",
+  ]
+) {
+  if (!extensions.has(extension)) throw new Error("Отсутствует owner: " + extension);
 }
 const registry = JSON.parse(
   await Deno.readTextFile(new URL("../docs/operation-registry.json", import.meta.url)),
