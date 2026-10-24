@@ -228,3 +228,26 @@ assets и HTTP-ссылки проверяются после публикаци
 перезаписываются. Сайт руководства публикуется штатно из репозитория
 [quarto-template-course](https://github.com/Afonenko-Course-Tools/quarto-template-course), без
 отдельного runtime Performance.
+
+## Дополнительная проверка регистрации процесса и CI
+
+Повторное ревью `1c98194615eea402ddce0fa313bbd7dfcb730535` уточнило границу прежних scanner
+проверок: они покрывали отказ после регистрации группы; ошибка enumeration до регистрации могла
+оставить helper ждать. По прямому разрешению пользователя R55 выполнена узкая дополнительная серия
+`bf7212e9fdb30d6e6e42cdcba74f7754f6b34a95`. Helper теперь читает отмену во время ожидания
+регистрации; исходная ошибка сохраняется, собственный child и оба потока завершаются без native
+spawn. Ранний сигнал ожидает проверки ownership, отмена публикуется до registration ack.
+Неподтверждённый PGID не разрешает сигнал; неизвестный native outcome сохраняется неизвестным.
+
+В registration fixture до cleanup проверены оба EOF, завершение helper, отсутствие native start,
+исходная причина и живой посторонний sibling. Protocol — 38 PASS, усиленные EOF/registration — 9
+PASS, queued TERM/INT — 2 PASS. Отдельный полный suite на exact `bf7212e`: 264 PASS / 13 steps / 0
+FAIL; `deno task check` — 102 файла. Первоначальные RED и промежуточные регрессии сохранены.
+
+[Hosted CI 40105100044](https://github.com/Afonenko-Course-Tools/quarto-course-performance/actions/runs/40105100044)
+на прежнем `1c981946` прошёл 260 тестов, но остановился на EACCES при запуске Perfetto.
+[Workflow](../.github/workflows/check.yml) теперь после SHA check и распаковки задаёт `u+x` только
+закреплённому `trace_processor_shell`. Локальная проверка сохранила версию/checksum/байты и прошла
+SQL, 11 регрессионных файлов и 4 отрицательных контроля. Новый hosted CI, независимое scoped review,
+свежая runtime QA контроллера и выпуск на момент записи ещё ожидаются. Прежние результаты
+Java/GUI/TP сохраняют собственные execution SHA.
