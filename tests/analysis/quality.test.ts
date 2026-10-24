@@ -48,6 +48,7 @@ async function input(
         executor_id: executor,
         clock_domain: executor === "lua" ? "process_cpu" : "monotonic_process",
         counters: {},
+        calibration: { time_origin_ms: 0 },
         ...summary as object,
       }),
     );
@@ -92,10 +93,16 @@ Deno.test("Lua CPU spans never enter wall trace and async self time is unavailab
     const run = await normalizeRun(root);
     assert(run.dataValid);
     const result = traces(run);
-    assert.equal(result.wall.traceEvents.length, 1);
-    assert.equal(result.luaCpu.traceEvents.length, 1);
-    assert.equal(result.wall.traceEvents[0].args.self_time, "not-available");
-    assert.equal(result.luaCpu.traceEvents[0].args.clock_domain, "process_cpu");
+    assert.equal(result.wall.traceEvents.filter((e) => e.ph === "X").length, 1);
+    assert.equal(result.luaCpu.traceEvents.filter((e) => e.ph === "X").length, 1);
+    assert.equal(
+      result.wall.traceEvents.find((e) => e.ph === "X")!.args.self_time,
+      "not-available",
+    );
+    assert.equal(
+      result.luaCpu.traceEvents.find((e) => e.ph === "X")!.args.clock_domain,
+      "process_cpu",
+    );
   } finally {
     await Deno.remove(root, { recursive: true });
   }
@@ -201,7 +208,7 @@ Deno.test("unconfirmed begin/end pairs never contribute totals or trace interval
       const run = await normalizeRun(root);
       assert.equal(run.events.length, 2);
       assert.deepEqual(operationTotals(run), []);
-      assert.equal(traces(run).wall.traceEvents.length, 0);
+      assert.equal(traces(run).wall.traceEvents.filter((e) => e.ph === "X").length, 0);
     } finally {
       await Deno.remove(root, { recursive: true });
     }
