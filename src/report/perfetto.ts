@@ -14,6 +14,7 @@ export interface ChromeTraceEvent {
   ts?: number;
   dur?: number;
   id?: number;
+  bp?: "e";
   cat?: string;
   args: Record<string, unknown>;
 }
@@ -59,6 +60,30 @@ export function traces(
     .map((i) => origin(run, i)).filter((n): n is number => n !== undefined);
   const zero = origins.length ? Math.min(...origins) : 0;
   const bySpan = new Map(intervals.map((i) => [i.begin.span_id!, i]));
+  bundle.wall.traceEvents.push({
+    ph: "M",
+    name: "course_perf_run",
+    pid: 0,
+    tid: 0,
+    args: {
+      run_id: run.runId,
+      data_valid: run.dataValid,
+      coverage_complete: run.quality.coverageComplete,
+      quality: run.quality,
+      process_receipts: [...processes].sort((a, b) =>
+        compare(String(a.process_id), String(b.process_id))
+      ),
+      excluded_spans: validatedEvents(run).filter((e) => e.span_id && !bySpan.has(e.span_id))
+        .map((e) => ({
+          process_id: e.process_id,
+          executor_id: e.executor_id,
+          span_id: e.span_id,
+          event: e.event,
+          status: e.status ?? null,
+        }))
+        .sort((a, b) => compare(JSON.stringify(a), JSON.stringify(b))),
+    },
+  });
   const placed = new Map<string, { trace: ChromeTrace; event: ChromeTraceEvent }>();
   const initialized = new Set<ChromeTrace>();
   const processMetadata = new Map<ChromeTrace, Set<number>>();
@@ -226,6 +251,7 @@ export function traces(
     for (const [ph, anchor] of [["s", parent.event], ["f", child.event]] as const) {
       bundle.wall.traceEvents.push({
         ph,
+        ...(ph === "f" ? { bp: "e" as const } : {}),
         name: "Логическое родительство",
         cat: "logical-parent",
         id: linkId,

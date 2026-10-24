@@ -1,6 +1,15 @@
 {
   "version": "2.0.0",
-  "tasks": {"perf": "deno run -A src/cli.ts", "test": "deno test -A tests", "check": "deno check src/cli.ts tools/repeat-java.ts tools/recheck-repeat.ts tools/validate-java.ts tools/owner-normalizer.ts && deno fmt --check src bridge tools tests"},
-  "compilerOptions": {"strict": true},
-  "fmt": {"lineWidth": 100}
+  "tasks": {
+    "perf": "deno run -A src/cli.ts",
+    "test": "deno test -A tests",
+    "check": "deno check src/cli.ts tools/repeat-java.ts tools/recheck-repeat.ts tools/validate-java.ts tools/owner-normalizer.ts tools/check-perfetto.ts && deno fmt --check src bridge tools tests",
+    "check:perfetto": "deno run -A tools/check-perfetto.ts"
+  },
+  "compilerOptions": {
+    "strict": true
+  },
+  "fmt": {
+    "lineWidth": 100
+  }
 }

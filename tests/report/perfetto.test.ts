@@ -67,6 +67,9 @@ Deno.test("uncalibrated wall stays local", () => {
 Deno.test("damaged pairs and aborted spans never become normal slices", () => {
   for (
     const patch of [
+      { experiment_id: "other" },
+      { sequence: 0 },
+      { sequence: 1 },
       { run_id: "other" },
       { process_id: "other" },
       { executor_id: "other" },
@@ -174,4 +177,27 @@ Deno.test("untimed counters and totals stay aggregates with independent quality 
     "parent",
   );
   assert(!bundle.wall.traceEvents.some((e) => e.ph === "s" || e.ph === "f"));
+});
+
+Deno.test("event storage order never changes validated slice mapping", () => {
+  const events = [...pair("a", 1, 9), ...pair("b", 2, 8, { process_id: "second" })];
+  assert.deepEqual(traces(run(events)), traces(run([...events].reverse())));
+});
+
+Deno.test("aborted-only runs and unmeasured process relationships remain metadata", () => {
+  const events = pair("aborted", 1, 9);
+  events[1].status = "aborted";
+  const input = run(events);
+  input.dataValid = false;
+  input.quality.incompleteSpans = 1;
+  const receipt = { process_id: "unmeasured", parent_process_id: "parent" };
+  const bundle = traces(input, [receipt]);
+  const metadata = bundle.wall.traceEvents.find((e) => e.name === "course_perf_run")!;
+  assert(metadata);
+  assert.equal(metadata.args.data_valid, false);
+  assert.deepEqual(metadata.args.process_receipts, [receipt]);
+  assert(
+    (metadata.args.excluded_spans as { status: string }[]).some((e) => e.status === "aborted"),
+  );
+  assert(!bundle.wall.traceEvents.some((e) => e.ph !== "M"));
 });

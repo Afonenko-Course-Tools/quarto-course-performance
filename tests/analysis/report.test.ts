@@ -3,7 +3,8 @@ import { operationTotals, writeExperimentReport } from "../../src/analysis/repor
 import type { NormalizedRun } from "../../src/analysis/normalize.ts";
 import type { Event } from "../../src/protocol/types.ts";
 import { record } from "../report/fixture.ts";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { pair, run as fixtureRun } from "../report/fixtures/perfetto/control.ts";
 Deno.test("report separates clock totals, does not claim self time, and retains failed build evidence", async () => {
   const root = await Deno.makeTempDir();
   const event = (
@@ -226,6 +227,60 @@ Deno.test("experiment report displays each saved benchmark threshold without a g
     assert(!report.includes("≤1.01"));
     assert(!report.includes(">1.01"));
     assert.match(report, /порога серии/);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("experiment links survive relocation with trace CPU and off adapters", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const stage = join(root, "stage folder"), final = join(root, "final folder");
+    const normalized = fixtureRun(pair("phase", 1, 9));
+    const runs = [normalized, { ...fixtureRun([]), runId: "off" }];
+    for (const r of runs) {
+      const dir = join(stage, "runs", r.runId);
+      await Deno.mkdir(dir, { recursive: true });
+      const rec = record(dir, r.runId);
+      rec.request.mode = r.runId === "off" ? "off" : "cpu";
+      await Deno.writeTextFile(join(dir, "run.json"), JSON.stringify(rec));
+      if (r.runId !== "off") {
+        await Deno.mkdir(join(dir, "profiles/with spaces"), { recursive: true });
+        await Deno.writeTextFile(join(dir, "profiles/with spaces/cpu.cpuprofile"), "{}");
+      }
+    }
+    await writeExperimentReport(
+      {
+        schema_version: 2,
+        projectSource: "org/Fixture",
+        replacements: [],
+        experimentId: "control",
+        sources: [],
+        packages: [],
+        runtime: {},
+      },
+      runs,
+      stage,
+    );
+    await Deno.rename(stage, final);
+    for (const file of ["report.md", "runs/fixture/report.md", "runs/off/report.md"]) {
+      const report = await Deno.readTextFile(join(final, file));
+      for (const match of report.matchAll(/\]\(([^)]+)\)/g)) {
+        await Deno.stat(resolve(final, file, "..", decodeURI(match[1])));
+      }
+    }
+    assert(
+      (await Deno.readTextFile(join(final, "runs/fixture/report.md"))).includes(
+        "profiles/with%20spaces/cpu.cpuprofile",
+      ),
+    );
+    await assert.rejects(
+      () => Deno.stat(join(final, "runs/off/wall.trace.json")),
+      Deno.errors.NotFound,
+    );
+    const metadata = JSON.parse(await Deno.readTextFile(join(final, "runs/fixture/run.json")));
+    assert.equal(metadata.collectionDirectory, join(stage, "runs/fixture"));
+    assert.equal(metadata.outputDirectory, "/final/test");
   } finally {
     await Deno.remove(root, { recursive: true });
   }

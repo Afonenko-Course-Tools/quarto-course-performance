@@ -27,3 +27,11 @@ jobs:
       - run: deno task check
       - name: Native fixtures выбранных инструментов
         run: deno task test
+      - name: Загрузка закреплённого Perfetto v58.2
+        run: |
+          curl -fL https://github.com/google/perfetto/releases/download/v58.2/linux-amd64.zip -o /tmp/perfetto-v58.2.zip
+          echo "32c739f71b2d39721afd294c0b038f2499a44a71b5b6bcdd85b83faca0b240b9  /tmp/perfetto-v58.2.zip" | sha256sum --check
+          mkdir /tmp/perfetto-v58.2
+          unzip /tmp/perfetto-v58.2.zip -d /tmp/perfetto-v58.2
+      - name: Фактический импорт Perfetto и отрицательные контроли
+        run: deno task check:perfetto --trace-processor /tmp/perfetto-v58.2/linux-amd64/trace_processor_shell

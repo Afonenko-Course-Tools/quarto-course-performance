@@ -40,7 +40,8 @@ export function validatedIntervals(run: NormalizedRun): ValidatedInterval[] {
   const intervals: ValidatedInterval[] = [];
   for (const rows of spans.values()) {
     if (rows.length !== 2) continue;
-    const [begin, end] = rows;
+    // Порядок хранения журналов не задаёт порядок границ; sequence принадлежит executor.
+    const [begin, end] = [...rows].sort((a, b) => a.sequence - b.sequence);
     if (begin.event !== "begin" || end.event !== "end" || end.status === "aborted") continue;
     if (
       ["experiment_id", "run_id", "process_id", "executor_id", "operation_id", "clock_domain"].some(

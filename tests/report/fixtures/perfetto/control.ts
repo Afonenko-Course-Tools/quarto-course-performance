@@ -48,7 +48,7 @@ export function run(events: Event[], calibration: unknown = { time_origin_ms: 0 
   };
 }
 export function controlRun(): NormalizedRun {
-  return run([
+  const result = run([
     ...pair("parent", 0, 100),
     ...pair("child", 10, 20, { parent_span_id: "parent" }),
     ...pair("async-a", 30, 60),
@@ -65,4 +65,6 @@ export function controlRun(): NormalizedRun {
       e.event === "end" ? { ...e, status: "error" as const } : e
     ),
   ].filter(Boolean));
+  result.executors["00000000-0000-4000-8000-000000000001/uncalibrated"].calibration = undefined;
+  return result;
 }
