@@ -547,7 +547,7 @@ Deno.test("Pandoc data-dir rejects destination aliases and missing descendants o
   }
 });
 
-Deno.test("launcher receipts precede child code and distinguish executable CPU work from help", async () => {
+Deno.test("launcher receipts precede child code and distinguish executable CPU work from help", async (t) => {
   const { normalizeRun } = await import("../../src/analysis/normalize.ts");
   const root = await Deno.makeTempDir();
   try {
@@ -562,51 +562,78 @@ Deno.test("launcher receipts precede child code and distinguish executable CPU w
       entry,
       `const root=Deno.env.get('COURSE_PERF_OUTPUT_DIR')!,id=Deno.env.get('COURSE_PERF_PROCESS_ID')!;const receipt=JSON.parse(await Deno.readTextFile(root+'/processes/'+id+'.json'));if(!receipt.expectation.summary_path||!receipt.expectation.profile_path||receipt.expectation.executed)throw new Error('missing initial expectation');console.log('executed');`,
     );
+    const preload = join(root, "helper.ts");
+    await Deno.writeTextFile(preload, 'throw new Error("help must not execute preload");\n');
+    const required = join(root, "helper.cjs");
+    await Deno.writeTextFile(required, 'throw new Error("help must not execute require");\n');
+    await Deno.writeTextFile(join(root, ".env"), "FIXTURE=1\n");
     for (
       const [name, kind, args, active] of [
         ["work", "deno", ["run", "-A", entry, "--help"], true],
         ["deno-help", "deno", ["run", "--help"], false],
+        ["deno-preload-help", "deno", ["run", "--preload", preload, "--help"], false],
+        ["deno-require-help", "deno", ["run", "--require", required, "--help"], false],
+        ["deno-log-level-help", "deno", ["run", "-L", "debug", "--help"], false],
+        ["deno-help-full", "deno", ["run", "--help=full", entry], false],
+        ["deno-lock-help", "deno", ["run", "--lock", "deno.lock", "--help"], false],
+        ["deno-env-entry", "deno", ["run", "-A", "--env-file", entry, "--help"], true],
+        ["deno-v8-entry", "deno", ["run", "-A", "--v8-flags", entry, "--help"], true],
+        ["deno-env-equals-entry", "deno", ["run", "-A", "--env-file=.env", entry, "--help"], true],
+        [
+          "deno-lock-equals-entry",
+          "deno",
+          ["run", "-A", "--lock=deno.lock", entry, "--help"],
+          true,
+        ],
         ["pandoc-help", "pandoc", ["--help"], false],
         ["no-markup", "pandoc", ["-t", "plain"], false],
       ] as const
     ) {
-      const output = join(root, name);
-      await Deno.mkdir(output);
-      await Deno.writeTextFile(
-        join(output, "expectations.json"),
-        JSON.stringify({ schema_version: 2, processes: [] }),
-      );
-      const result = await new Deno.Command(
-        setup.env[kind === "deno" ? "QUARTO_DENO" : "QUARTO_PANDOC"],
-        {
-          args: [...args],
-          env: {
-            ...Deno.env.toObject(),
-            ...setup.env,
-            COURSE_PERF_MODE: "cpu",
-            COURSE_PERF_RUN_ID: "r",
-            COURSE_PERF_EXPERIMENT_ID: "e",
-            COURSE_PERF_OUTPUT_DIR: output,
+      await t.step(name, async () => {
+        const output = join(root, name);
+        await Deno.mkdir(output);
+        await Deno.writeTextFile(
+          join(output, "expectations.json"),
+          JSON.stringify({ schema_version: 2, processes: [] }),
+        );
+        const result = await new Deno.Command(
+          setup.env[kind === "deno" ? "QUARTO_DENO" : "QUARTO_PANDOC"],
+          {
+            args: [...args],
+            cwd: root,
+            env: {
+              ...Deno.env.toObject(),
+              ...setup.env,
+              COURSE_PERF_MODE: "cpu",
+              COURSE_PERF_RUN_ID: "r",
+              COURSE_PERF_EXPERIMENT_ID: "e",
+              COURSE_PERF_OUTPUT_DIR: output,
+            },
+            clearEnv: true,
+            stdin: "null",
+            stdout: "piped",
+            stderr: "piped",
           },
-          clearEnv: true,
-          stdin: "null",
-          stdout: "piped",
-          stderr: "piped",
-        },
-      ).output();
-      assert(result.success, new TextDecoder().decode(result.stderr));
-      const run = await normalizeRun(output);
-      assert(run.dataValid, JSON.stringify(run.quality));
-      const expectations = JSON.parse(await Deno.readTextFile(join(output, "expectations.json")));
-      assert.equal(expectations.schema_version, 2);
-      assert.equal(expectations.processes.length, 1);
-      assert.equal(expectations.processes[0].activated, active);
-      assert.equal(expectations.processes[0].executed, active);
-      assert.equal(Boolean(expectations.processes[0].summary_path), active);
-      if (active) {
-        await Deno.remove(join(output, expectations.processes[0].summary_path));
-        assert.equal((await normalizeRun(output)).dataValid, false);
-      }
+        ).output();
+        assert(result.success, new TextDecoder().decode(result.stderr));
+        if (kind === "deno" && !active) {
+          assert(new TextDecoder().decode(result.stdout).includes("Usage:"));
+          assert.equal(new TextDecoder().decode(result.stderr), "");
+        }
+        const run = await normalizeRun(output);
+        assert(run.dataValid, JSON.stringify(run.quality));
+        const expectations = JSON.parse(await Deno.readTextFile(join(output, "expectations.json")));
+        assert.equal(expectations.schema_version, 2);
+        assert.equal(expectations.processes.length, 1);
+        assert.equal(expectations.processes[0].activated, active);
+        assert.equal(expectations.processes[0].executed, active);
+        assert.equal(Boolean(expectations.processes[0].summary_path), active);
+        assert.equal(Boolean(expectations.processes[0].profile_path), active && kind === "deno");
+        if (active) {
+          await Deno.remove(join(output, expectations.processes[0].summary_path));
+          assert.equal((await normalizeRun(output)).dataValid, false);
+        }
+      });
     }
   } finally {
     await Deno.remove(root, { recursive: true });

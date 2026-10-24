@@ -16,25 +16,36 @@ const args = [...originalArgs];
 // Deno разбирает флаги только до entry; --help после entry принадлежит программе.
 let denoExecutable = false;
 if (kind === "deno" && args[0] === "run") {
+  // Флаги с отдельным значением в публичном deno run --help=full (Deno 2.7.14).
+  // --env-file/--v8-flags допускают необязательное значение только через '='; --lock — и отдельно.
   const values = new Set([
+    "--cert",
+    "--conditions",
     "--config",
     "-c",
+    "--cpu-prof-dir",
+    "--cpu-prof-interval",
+    "--cpu-prof-name",
+    "--ext",
     "--import-map",
-    "--lock",
-    "--cert",
     "--location",
-    "--v8-flags",
+    "--log-level",
+    "-L",
+    "--minimum-dependency-age",
+    "--preload",
+    "--require",
     "--seed",
-    "--env-file",
+    "--lock",
   ]);
   for (let i = 1; i < args.length; i++) {
     const arg = args[i];
-    if (["--help", "-h", "--version", "-V"].includes(arg)) break;
+    if (["--help", "-h", "--version", "-V"].includes(arg) || arg.startsWith("--help=")) break;
     if (arg === "--" || !arg.startsWith("-") || arg === "-") {
       denoExecutable = true;
       break;
     }
-    if (values.has(arg)) i++;
+    const next = args[i + 1];
+    if (values.has(arg) && next !== undefined && (!next.startsWith("-") || next === "-")) i++;
   }
 }
 const pandocInformational = originalArgs.some((arg) =>
