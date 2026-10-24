@@ -383,3 +383,98 @@ Deno.test("historical aggregate does not retain a complete coverage claim after 
     await Deno.remove(root, { recursive: true });
   }
 });
+
+for (const entry of ["API", "report", "verify"]) {
+  Deno.test(`historical off ${entry} respects withdrawal without requiring diagnostic raw`, async () => {
+    const { importHistoricalExperiment } = await import("../../src/analysis/report.ts");
+    const root = await Deno.makeTempDir();
+    try {
+      for (
+        const [name, marker, code, exit, valid] of [
+          [
+            "withdrawn",
+            '{"reason":"known measurement withdrawn after original run"}\n',
+            0,
+            4,
+            false,
+          ],
+          [
+            "native failure",
+            '{"reason":"known measurement withdrawn after original run"}\n',
+            7,
+            3,
+            false,
+          ],
+          ["no marker", undefined, 0, 0, true],
+          ["broken marker", "{broken\n", 0, 4, false],
+          ["null marker", "null\n", 0, 4, false],
+        ] as const
+      ) {
+        const source = join(root, name);
+        const run = join(source, "runs/r");
+        await json(join(source, "candidate.manifest.json"), {
+          experimentId: "history-e",
+          sources: [],
+          packages: [],
+          runtime: {},
+        });
+        await json(join(run, "run.json"), {
+          runId: "r",
+          experimentId: "history-e",
+          mode: "off",
+          argv: ["quarto", "render"],
+          cwd: "/old/project",
+          buildExitCode: code,
+          wallSeconds: 1.25,
+          signal: null,
+          dataValid: true,
+          preparation: [],
+        });
+        if (marker !== undefined) {
+          await Deno.writeTextFile(join(run, "invalidated.json"), marker);
+          await Deno.chmod(join(run, "invalidated.json"), 0o440);
+        }
+        const before = await inventory(source);
+        const output = join(root, `output ${name}`);
+        if (entry === "API") {
+          const result = await importHistoricalExperiment(source, output);
+          assert.equal(result.exitCode, exit, name);
+          assert.equal(result.dataValid, valid, name);
+        } else {
+          const result = await cli(source, entry, "--import-historical", "--output", output);
+          assert.equal(result.code, exit, `${name}: ${new TextDecoder().decode(result.stderr)}`);
+        }
+        assert.deepEqual(await inventory(source), before);
+        const record = validateRunRecord(
+          JSON.parse(await Deno.readTextFile(join(output, "runs/r/run.json"))),
+        );
+        const summary = validateRunSummary(
+          JSON.parse(await Deno.readTextFile(join(output, "runs/r/summary.json"))),
+        );
+        assert.equal(record.outcome.code, code);
+        assert.equal(record.outcome.wallSeconds, 1.25);
+        assert.equal(record.importProvenance!.sourceStatus.buildExitCode, code);
+        assert.equal(record.importProvenance!.sourceStatus.dataValid, true);
+        assert.equal(record.importProvenance!.run.sha256, await hashFile(join(run, "run.json")));
+        for (const derived of [record, summary]) {
+          assert.equal(derived.dataValid, valid);
+          assert.equal(derived.quality.coverageComplete, false);
+          assert.equal(derived.quality.errors.length, valid ? 0 : 1);
+          if (name === "withdrawn" || name === "native failure") {
+            assert.match(
+              derived.quality.errors[0],
+              /Измерение отозвано: known measurement withdrawn/,
+            );
+          } else if (!valid) assert.match(derived.quality.errors[0], /Invalidation:/);
+        }
+        assert.deepEqual(summary.operations, []);
+        assert.deepEqual(summary.counters, []);
+        if (marker !== undefined) {
+          assert.equal(await Deno.readTextFile(join(output, "runs/r/invalidated.json")), marker);
+        }
+      }
+    } finally {
+      await Deno.remove(root, { recursive: true });
+    }
+  });
+}

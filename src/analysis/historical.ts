@@ -238,6 +238,19 @@ export async function prepareHistoricalImport(
         readOnly: true,
         identity: { runId: value.runId, experimentId: manifest.experimentId },
       });
+    if (mode === "off") {
+      // Off has no diagnostic raw; apply the same withdrawal receipt semantics
+      // as normalizeRun without requiring executor/coverage evidence.
+      try {
+        const invalid = JSON.parse(await Deno.readTextFile(join(dir, "invalidated.json")));
+        run.quality.errors.push(`Измерение отозвано: ${invalid.reason}`);
+      } catch (e) {
+        if (!(e instanceof Deno.errors.NotFound)) {
+          run.quality.errors.push(`Invalidation: ${String(e)}`);
+        }
+      }
+      if (run.quality.errors.length) run.dataValid = false;
+    }
     if (value.dataValid !== true) {
       run.quality.errors.push("Исходные metadata не подтверждают dataValid");
       run.dataValid = false;
