@@ -83,7 +83,7 @@ CLI: 0 — команда выполнена, 2 — configuration/preparation er
 
 В отдельных runs GNU time измеряет CPU/RSS инструмента вместе с внешним помощником сохранения native child status (`resourceScope` указан явно); wall относится к запуску самого инструмента. Помощник нужен для различения сигнала и числового exit code независимо от версии GNU time. В Hyperfine benchmark запускается непосредственно обычная команда без этого помощника; исходный signal в его JSON недоступен (`signalAvailability: unavailable`), exit code сохраняется.
 
-Отчёт содержит `manifest.json`, `builds.json`, `summary.json`, `coverage.json`, `quality.json`, `benchmarks.json` и Markdown. Для каждого diagnostic run — отдельные `wall.trace.json` и `lua-cpu.trace.json`; их можно загрузить в Perfetto. Raw processes, profiles, events, stdout/stderr, preparation receipts и установленные копии остаются рядом с run. Невалидные/прерванные измерения сохраняются и не превращаются в PASS.
+Отчёт содержит `manifest.json`, `builds.json`, `summary.json`, `coverage.json`, `quality.json`, `benchmarks.json` и Markdown. В `report.md` отдельного диагностического запуска находятся ссылки на трассы Perfetto и существующие CPU-профили Speedscope. Выбор файлов, раздельные шкалы времени и локальное открытие описаны в [инструкции визуализации](docs/visualization.md). Raw processes, profiles, events, stdout/stderr, preparation receipts и установленные копии остаются рядом с run. Невалидные/прерванные измерения сохраняются и не превращаются в PASS.
 
 ## Как читать данные
 
