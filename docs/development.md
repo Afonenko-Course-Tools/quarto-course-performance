@@ -1,0 +1,174 @@
+# Разработка и проверка Performance
+
+Исходный checkout нужен для изменения инструмента, проверки форматов и подготовки пакета. Для
+измерения курса используйте [установленную команду](../README.md).
+
+## Подготовка зависимостей
+
+Перед `deno task check`, `deno task test` и `deno task perf` подготовьте обычные локальные каталоги
+`node_modules/typescript` и `node_modules/luaparse`. Версии `typescript@5.9.3` и `luaparse@0.3.1`
+закреплены в `deno.lock`; SHA-256 официальных архивов и полный блок загрузки/распаковки находятся в
+[Arch-инструкции](arch-package.md#подготовка-исходного-checkout-для-разработки-и-ci). CI выполняет
+эту подготовку до check/test.
+
+Установленная команда выбирает собственные абсолютные config/lock, `--frozen`,
+`--node-modules-dir=manual` и `--cached-only`; она не загружает npm при первом запуске и не пишет в
+`/usr`. Исходный checkout и внешний `deno task` имеют отдельную границу: с совершенно пустым кэшем
+Deno task/typecheck может загрузить npm ещё до выполнения команды задачи. Для разработки без сети
+заранее подготовьте также кэш. Работа installed runtime с новым кэшем не доказывает работу offline
+typecheck с новым кэшем.
+
+## Команды проверки
+
+Из корня подготовленного checkout:
+
+```sh
+deno task check
+deno task test
+deno task check:perfetto --trace-processor /absolute/path/to/trace_processor_shell
+```
+
+`check` выполняет typecheck точек входа и проверяет форматирование `src`, `bridge`, `tools`,
+`tests`. `test` включает небольшие native fixtures, поэтому нужны доступные Deno/Quarto/Pandoc и
+зависимости соответствующих действий. `check:perfetto` импортирует контрольные трассы настоящим
+Trace Processor и проверяет интервалы, дорожки, идентичность и точные концы связей. Версии и
+контрольные суммы Perfetto приведены в [инструкции визуализации](visualization.md).
+
+Проверка установленного дерева описана в
+[Arch-инструкции](arch-package.md#проверка-пакета-до-установки). Она использует
+`tools/check-installed.ts --root /absolute/path/to/usr/lib/quarto-course-perf`, чужой `deno.json`,
+новый кэш, настоящий summary и отдельный TS trace. Checker сам не создаёт сетевую изоляцию: полный
+запрет сети обеспечивает внешняя среда проверки.
+
+Интеграционная команда для закреплённого Java checkout:
+
+```sh
+deno task check:java --project /absolute/path/to/Java --output /absolute/path/to/evidence
+```
+
+Она создаёт изолированные копии, записывает источники, toolchain, команды, коды и хеши результатов;
+выбранный курс не обновляется. Матрица этой приёмки относится к минимальному Java
+`4a427b7207cb0ea7138034087100c372bec410ab`: root, `tasks`, `slides`, семь полных пакетов, 14
+размещений и 615 файлов пакетов. Эти семь пакетов принадлежат пяти репозиториям: Core, Publisher,
+QRC, PrairieLearn и Download. Print, Moodle и Cloud в этом минимальном курсе отсутствуют; их
+отдельные owner-проверки не расширяют охват Java. Полный кандидат `4036d3a` сохранён отдельно.
+Восемь владельцев реестра не означают исполнения Cloud VM: она в этой матрице не проверяется.
+
+При сопоставлении native/off/summary/cpu значимое учебное содержимое и архивы сравниваются строго.
+Фактически динамические native-файлы перечисляются явно. Общая нормализация HTML не служит
+доказательством равенства. Точные результаты и исходный SHA проверки записываются отдельно; название
+команды не означает, что она уже прошла на произвольном HEAD.
+
+Workflow [`.github/workflows/check.yml`](../.github/workflows/check.yml) закрепляет Quarto `1.11.6`,
+Deno `2.7.14`, Hyperfine `2.0.0` и Perfetto `v58.2`. Локальная основная среда использует системный
+Quarto `1.11.6` с его Deno `2.7.14`; Arch-пакет отдельно проверяется с системным Deno `2.9.8`. Эти
+сведения о средах не заменяют результаты CI и проверки конкретного source SHA.
+
+## Локальная приёмка 24 октября 2026 года
+
+[Публичное свидетельство](evidence/general-use-validation.json) содержит 36 записей проверок, 13
+обезличенных существенных команд, источники, toolchain и хеши результатов. Java-продолжение на
+`bcd76c943314c605499ca243d011bfdd3b414b2e` завершило 23 проверки с 32 командными receipts; его
+runtime совпадает с `0da9e0d2c87304e9c7d802764a1d4785b56bd434`.
+
+| Область                    | Проверенный результат и граница                                                                                    |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Полный suite               | 234 проверки, 13 шагов, 0 отказов на `0da9e0d`; поздний QA assertion имеет отдельный RED/GREEN                     |
+| Native/off student и full  | Успешные baselines `f3da2c3` сохранены с прежним execution SHA; их outputs повторно строго сверены                 |
+| Summary и выбор проекта    | Root student → Publisher `tasks`/`slides`; пять форм cwd/target, включая обычную `tasks/projects` с `../index.qmd` |
+| CPU                        | `slides/index.qmd --profile student --to revealjs`, 53 профиля; один открыт в Speedscope                           |
+| Trace и явная замена       | Два отдельных запуска; в каждом фактически исполнены 12 выбранных TS-функций, outputs совпали строго               |
+| Малые отрицательные случаи | Без Git/разметки, произвольный профиль, нативная ошибка, невалидные данные и сигналы                               |
+| Установленная поставка     | Source `0da9e0d`, Arch без сети с readonly rootfs и пустым кэшем, настоящий summary и TS trace                     |
+
+В явной замене использован полный QRC package owner `b20d8934168e808cdb333e58179fbcd25e47bea8`; его
+package tree совпадает с установленным в Java тегом QRC `3.1.1`. Проверка подтверждает реальное
+исполнение replacement API, а не появление нового содержимого пакета. Все HTML и ZIP сравнивались
+побайтно; допустимый динамический `sitemap.xml` перечислен явно, без glob или нормализации HTML.
+
+Во время приёмки исправлен воспроизведённый race: исчезнувшая запись `/proc/<pid>/stat` могла дать
+ESRCH после успешной сборки. Узкая обработка этого случая прошла RED/GREEN, полный suite и повторное
+фактическое выполнение. Ошибки прав и ввода-вывода по-прежнему не скрываются. Прежний отказ и
+ограничения sandbox сохранены в свидетельствах.
+
+Факты [Perfetto/Speedscope](visualization.md#проверка-текущего-рендера-24-октября-2026-года) и
+[Arch](arch-package.md#проверка-актуальной-реализации-24-октября-2026-года) привязаны к исходникам.
+Пакет с окончательной документацией, финальные CI, Release assets и публикация руководства
+проверяются отдельно. Сведения об успешной локальной приёмке не подтверждают эти действия.
+
+## Владельцы и ручная разметка
+
+Реестр [`docs/operation-registry.json`](operation-registry.json) содержит 230 операций десяти
+пакетов из восьми репозиториев:
+
+| Владелец                     | Пакеты                                                    |
+| ---------------------------- | --------------------------------------------------------- |
+| `quarto-course`              | `course-core`, `course-presentation`, `course-navigation` |
+| `quarto-project-publish`     | `course-site`                                             |
+| `quarto-reference-catalog`   | `reference-catalog`                                       |
+| `quarto-project-download`    | `project-download`                                        |
+| `quarto-course-prairielearn` | `course-prairielearn`                                     |
+| `quarto-course-print`        | `course-print`                                            |
+| `quarto-course-moodle`       | `course-moodle`                                           |
+| `quarto-course-cloud`        | `course-cloud`                                            |
+
+Канонические фасады ABI 1 — [`bridge/bridge.ts`](../bridge/bridge.ts) и
+[`bridge/bridge.lua`](../bridge/bridge.lua). Проверка локальных копий во всех восьми owner roots:
+
+```sh
+deno run -A tools/sync-bridge.ts --check \
+  /absolute/quarto-course \
+  /absolute/quarto-project-publish \
+  /absolute/quarto-reference-catalog \
+  /absolute/quarto-project-download \
+  /absolute/quarto-course-prairielearn \
+  /absolute/quarto-course-print \
+  /absolute/quarto-course-moodle \
+  /absolute/quarto-course-cloud
+```
+
+Print и Moodle используют TS-фасад, Cloud — Lua-фасад; остальные перечисленные пакеты — оба.
+`tools/instrument-owners.ts` служил однократной миграции исходной разметки. Уже размеченные
+источники он отклоняет. Новые операции добавляются у соответствующего владельца вместе с его
+проверками поведения; постоянные пакеты содержат фасады и ручную разметку. Общий runtime курса ради
+наблюдаемости не вводится.
+
+Существование 230 записей не означает покрытия 230 операций конкретным запуском. Для утверждения об
+исполнении нужны реальные события, процессы, контекст и quality этого запуска. Учебная модель, Body
+и контракт конкретного экспорта остаются у владельцев; Performance описывает измерения.
+
+## Границы реализации
+
+| Область                                       | Основные файлы                                                                    |
+| --------------------------------------------- | --------------------------------------------------------------------------------- |
+| Разбор простой команды и передача native argv | `src/cli.ts`, `src/cli/arguments.ts`                                              |
+| Выбор проекта, запуск, staging и сохранение   | `src/adapters/quarto/inspect.ts`, `src/runner/render.ts`, `src/runner/storage.ts` |
+| Изолированный эксперимент и полные пакеты     | `src/cli/experiment.ts`, `src/sources/`                                           |
+| Публичное подключение runtime                 | `src/launchers/`, `src/runner/diagnostic.ts`                                      |
+| Сбор и преобразование наблюдений              | `src/agents/`, `src/instrumentation/`, `src/analysis/normalize.ts`                |
+| Общий отчёт и производный экспорт             | `src/report/run.ts`, `src/report/perfetto.ts`, `src/report/types.ts`              |
+| Явное чтение исторических данных              | `src/analysis/historical.ts`, `src/analysis/report.ts`                            |
+
+Простой `prepareRenderDiagnostic` использует публичные hooks и не патчит Quarto. Расширенный
+`prepareDiagnostic` может применять приватный filter adapter только к диагностической копии.
+Изменение одного пути не следует объявлять подтверждением другого.
+
+Первичные Event/executor-summary v1, новые metadata v2 и производный экспорт имеют отдельные
+контракты. Правила нулей, `null`, clock domains и качества находятся в
+[форматах](general-use-formats.md) и [диагностике](diagnostics.md). Исторические материалы
+[Java-пилота](java-pilot-report.md), [его план и суммы](plan/MANIFEST.md) сохраняются побайтно;
+новые результаты оформляются отдельными свидетельствами с точным SHA.
+
+## Подготовка выпуска
+
+`tools/prepare-arch-source.ts` получает точный коммит и создаёт source archive, отдельный готовый
+`PKGBUILD` и receipt. Git-шаблон рецепта содержит placeholders; его нельзя выдавать за готовый
+рецепт или собирать без подготовки. Source SHA и SHA-256 архива в готовом рецепте должны
+соответствовать опубликованным байтам; контрольная сумма архива не помещается в него самого.
+
+После изменений источника или поставляемой документации архив и пакет готовятся заново для
+окончательного коммита. Предвыпускные проверки записываются с датой и SHA; окончательные Release
+assets и HTTP-ссылки проверяются после публикации. Старые теги, Releases и архив истории не
+перезаписываются. Сайт руководства публикуется штатно из репозитория
+[quarto-template-course](https://github.com/Afonenko-Course-Tools/quarto-template-course), без
+отдельного runtime Performance.
