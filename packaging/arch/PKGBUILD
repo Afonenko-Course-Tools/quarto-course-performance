@@ -4,7 +4,7 @@ pkgver=2.0.0
 pkgrel=1
 pkgdesc='Измерение рендера Quarto и изолированные эксперименты курса'
 arch=('any')
-url='https://github.com/Afonenko-Course-Tools/quarto-course-perf'
+url='https://github.com/Afonenko-Course-Tools/quarto-course-performance'
 # В исходниках нет лицензии; решение правообладателя ещё требуется.
 license=()
 depends=('deno' 'quarto' 'time' 'util-linux')
