@@ -77,7 +77,9 @@ Performance: wall=12.345s; CPU user=9.8; CPU system=1.2; peak RSS=245760 KiB; st
 
 Для разработчика:
 [подготовка зависимостей, проверки, выпуск и владельцы](docs/development.md).
-Проверенные SHA, Arch-поставка и ограничения Cybersecurity — в [отчёте реализации](docs/releases/2026-10-24-arch-cybersecurity.md).
+Исправление JSON в Core 8.2.8, приёмка Cybersecurity и новая полная матрица — в [отчёте обновления](docs/releases/2026-10-25-core-8.2.8-cybersecurity.md).
+
+Arch-поставка и история попытки с Core 8.2.6 сохранены в [предыдущем отчёте](docs/releases/2026-10-24-arch-cybersecurity.md).
 Первоначальные
 [план](https://github.com/Afonenko-Course-Tools/quarto-course-performance/blob/v2.0.0/docs/plan/README.md)
 и

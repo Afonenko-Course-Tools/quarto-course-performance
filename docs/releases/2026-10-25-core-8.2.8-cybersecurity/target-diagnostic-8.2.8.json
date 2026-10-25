@@ -1,0 +1,32 @@
+{
+  "scope": "Одна выбранная презентация после функциональной приёмки курса",
+  "commandWallSeconds": {
+    "native": 19.390891427989118,
+    "off": 23.151598616008414,
+    "summary": 30.102716076013166,
+    "cpu": 42.00779833999695
+  },
+  "order": [
+    "native",
+    "off",
+    "summary",
+    "cpu"
+  ],
+  "repetitions": 1,
+  "coreCommit": "b0dad2522e69a673c060ba3963f8fb0ba1e0b85d",
+  "operations": [
+    {
+      "name": "course-core.infrastructure.native-run.beginNativeRun",
+      "durationSeconds": 15.286264565000002
+    },
+    {
+      "name": "course-core.infrastructure.native-run.commonPathDocument",
+      "durationSeconds": 0.04575337599999999
+    },
+    {
+      "name": "course-core.infrastructure.native-run.withFinishedNativeRun",
+      "durationSeconds": 11.73387391
+    }
+  ],
+  "limits": "Отдельные включающие длительности; не сумма и не утверждение о синхронизации часов разных процессов."
+}
