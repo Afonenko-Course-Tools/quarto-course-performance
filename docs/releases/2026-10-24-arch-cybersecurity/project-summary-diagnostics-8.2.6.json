@@ -1,0 +1,110 @@
+{
+  "at": "2026-10-25T03:00:17.432358+00:00",
+  "scope": "Отдельные подпроекты; одиночные наблюдения, не overhead и не root-course matrix",
+  "coreCommit": "5b3b3a59866226506d9f305aec70289d69151b1d",
+  "courseCandidateTree": "e55e5c9247c4f333a93721144f8d11a306fb4fc9",
+  "rootNativeAndSummaryBothProfiles": "NOT_EXECUTED",
+  "cases": [
+    {
+      "scope": "theory",
+      "status": "PASS",
+      "repetitions": 1,
+      "mode": "summary",
+      "profile": "student",
+      "seed": "Готовый сайт нового student measured3",
+      "externalWallSeconds": 267.54648064199137,
+      "outcome": {
+        "code": 0,
+        "signal": null,
+        "wallSeconds": 261.21671982799995,
+        "cpuUserSeconds": 275.53,
+        "cpuSystemSeconds": 38.69,
+        "peakRssKiB": 398928,
+        "escalated": false,
+        "stdioMode": "separate"
+      },
+      "quality": {
+        "dataValid": true,
+        "errorCount": 0,
+        "droppedEvents": 0,
+        "incompleteSpans": 0,
+        "coverageComplete": false
+      },
+      "observedExtensionIds": [
+        "course-core",
+        "course-presentation",
+        "course-site",
+        "reference-catalog"
+      ],
+      "observedOperationCount": 103
+    },
+    {
+      "scope": "task",
+      "status": "PASS",
+      "repetitions": 1,
+      "mode": "summary",
+      "profile": "student",
+      "seed": "Готовый сайт нового student measured3",
+      "externalWallSeconds": 1065.8349341730063,
+      "outcome": {
+        "code": 0,
+        "signal": null,
+        "wallSeconds": 1047.673043503,
+        "cpuUserSeconds": 1075.33,
+        "cpuSystemSeconds": 163.39,
+        "peakRssKiB": 528404,
+        "escalated": false,
+        "stdioMode": "separate"
+      },
+      "quality": {
+        "dataValid": true,
+        "errorCount": 0,
+        "droppedEvents": 0,
+        "incompleteSpans": 0,
+        "coverageComplete": false
+      },
+      "observedExtensionIds": [
+        "course-core",
+        "course-presentation",
+        "course-site",
+        "project-download",
+        "reference-catalog"
+      ],
+      "observedOperationCount": 128
+    },
+    {
+      "scope": "seminars",
+      "status": "PASS",
+      "repetitions": 1,
+      "mode": "summary",
+      "profile": "student",
+      "seed": "Готовый сайт нового student measured3",
+      "externalWallSeconds": 105.19845590200566,
+      "outcome": {
+        "code": 0,
+        "signal": null,
+        "wallSeconds": 100.201621848,
+        "cpuUserSeconds": 108.53,
+        "cpuSystemSeconds": 15.64,
+        "peakRssKiB": 380332,
+        "escalated": false,
+        "stdioMode": "separate"
+      },
+      "quality": {
+        "dataValid": true,
+        "errorCount": 0,
+        "droppedEvents": 0,
+        "incompleteSpans": 0,
+        "coverageComplete": false
+      },
+      "observedExtensionIds": [
+        "course-core",
+        "course-navigation",
+        "course-presentation",
+        "course-site",
+        "reference-catalog"
+      ],
+      "observedOperationCount": 98
+    }
+  ]
+}
