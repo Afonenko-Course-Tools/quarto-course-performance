@@ -1,0 +1,308 @@
+{
+  "schemaVersion": 1,
+  "applicationVersion": "2.0.0",
+  "quarto": "1.11.6",
+  "deno": "2.9.8",
+  "quartoDeno": "2.7.14",
+  "pandoc": "3.10",
+  "cue": "0.17.1",
+  "excludedWarmups": 1,
+  "series": [
+    {
+      "profile": "student",
+      "matrix": "old",
+      "n": 3,
+      "metrics": {
+        "wallSeconds": {
+          "median": 278.584257276,
+          "min": 257.607577247,
+          "max": 306.669221116,
+          "values": [
+            257.607577247,
+            278.584257276,
+            306.669221116
+          ]
+        },
+        "cpuUserSeconds": {
+          "median": 304.75,
+          "min": 287.95,
+          "max": 328.65,
+          "values": [
+            287.95,
+            304.75,
+            328.65
+          ]
+        },
+        "cpuSystemSeconds": {
+          "median": 23.31,
+          "min": 21.75,
+          "max": 25.73,
+          "values": [
+            21.75,
+            23.31,
+            25.73
+          ]
+        },
+        "peakRssKiB": {
+          "median": 505544,
+          "min": 433360,
+          "max": 520492,
+          "values": [
+            433360,
+            520492,
+            505544
+          ]
+        }
+      }
+    },
+    {
+      "profile": "student",
+      "matrix": "updated",
+      "n": 3,
+      "metrics": {
+        "wallSeconds": {
+          "median": 459.899674616,
+          "min": 457.81219898600006,
+          "max": 462.428457701,
+          "values": [
+            457.81219898600006,
+            459.899674616,
+            462.428457701
+          ]
+        },
+        "cpuUserSeconds": {
+          "median": 518.91,
+          "min": 516.43,
+          "max": 521.02,
+          "values": [
+            516.43,
+            518.91,
+            521.02
+          ]
+        },
+        "cpuSystemSeconds": {
+          "median": 52.49,
+          "min": 52.28,
+          "max": 53.23,
+          "values": [
+            52.28,
+            52.49,
+            53.23
+          ]
+        },
+        "peakRssKiB": {
+          "median": 413472,
+          "min": 405464,
+          "max": 424596,
+          "values": [
+            405464,
+            424596,
+            413472
+          ]
+        }
+      }
+    },
+    {
+      "profile": "full",
+      "matrix": "old",
+      "n": 3,
+      "metrics": {
+        "wallSeconds": {
+          "median": 308.517512334,
+          "min": 304.671402805,
+          "max": 321.415806936,
+          "values": [
+            321.415806936,
+            308.517512334,
+            304.671402805
+          ]
+        },
+        "cpuUserSeconds": {
+          "median": 338.71,
+          "min": 334.82,
+          "max": 345.25,
+          "values": [
+            345.25,
+            338.71,
+            334.82
+          ]
+        },
+        "cpuSystemSeconds": {
+          "median": 25.88,
+          "min": 25.48,
+          "max": 26.28,
+          "values": [
+            26.28,
+            25.88,
+            25.48
+          ]
+        },
+        "peakRssKiB": {
+          "median": 444296,
+          "min": 440472,
+          "max": 449916,
+          "values": [
+            444296,
+            440472,
+            449916
+          ]
+        }
+      }
+    },
+    {
+      "profile": "full",
+      "matrix": "updated",
+      "n": 3,
+      "metrics": {
+        "wallSeconds": {
+          "median": 487.010089631,
+          "min": 483.54898852300005,
+          "max": 488.677439422,
+          "values": [
+            487.010089631,
+            483.54898852300005,
+            488.677439422
+          ]
+        },
+        "cpuUserSeconds": {
+          "median": 548.85,
+          "min": 545.31,
+          "max": 550.28,
+          "values": [
+            548.85,
+            545.31,
+            550.28
+          ]
+        },
+        "cpuSystemSeconds": {
+          "median": 54.63,
+          "min": 54.43,
+          "max": 55.45,
+          "values": [
+            54.43,
+            54.63,
+            55.45
+          ]
+        },
+        "peakRssKiB": {
+          "median": 451060,
+          "min": 446556,
+          "max": 451332,
+          "values": [
+            446556,
+            451060,
+            451332
+          ]
+        }
+      }
+    }
+  ],
+  "scope": "Свежие серии полного render одинакового авторского курса: исходная принята ранее; обновлённая выполнена после отдельной функциональной приёмки опубликованного 8.2.8",
+  "updatedCoreCommit": "b0dad2522e69a673c060ba3963f8fb0ba1e0b85d",
+  "updatedCourseCandidateTree": "bef3e1641317679e4eb812ff5dc2cf6b6bad220b",
+  "authorSourceCommit": "77cb627585c5a92666800845afeecbdcd9c87cce",
+  "baselineCoreVersion": "7.3.0",
+  "updatedCoreVersion": "8.2.8",
+  "updatedCourseCommit": "45d87c43278b76f8afe0b6d43b239455d0c1187f",
+  "deliveredCourseCommit": "70c9a48540bb5789d710bcc787b28c3f499f96ce",
+  "deliveredCourseTree": "6120ce5adf9ac2268bf23e96f6079caca5729792",
+  "deliveryDifference": {
+    "paths": [
+      ".github/workflows/pages.yml"
+    ],
+    "oldTimeoutMinutes": 30,
+    "newTimeoutMinutes": 90,
+    "scope": "Только лимит CI; снимок для измерений сохраняется на updatedCourseCommit."
+  },
+  "matrixVersions": {
+    "old": {
+      "Core/Presentation/Navigation": "7.3.0",
+      "QRC": "3.1.0",
+      "Publisher": "5.1.1",
+      "Download": "3.1.0"
+    },
+    "updated": {
+      "Core/Presentation/Navigation": "8.2.8",
+      "QRC": "3.1.1",
+      "Publisher": "5.1.4",
+      "Download": "3.2.2"
+    }
+  },
+  "limits": [
+    "Наблюдения конкретного ноутбука: n=3 после отдельного прогрева; частота CPU и фоновая нагрузка не фиксировались.",
+    "Матрицы включают изменения Core, QRC, Publisher и Download; эффект не приписывается одному пакету.",
+    "Обе серии выполнены заново для этого сравнения; старые 8.2.6 измерения не подставлены.",
+    "Порядок исходная → новая матрица, внутри student → full; рандомизации нет.",
+    "Во время измерений локальные render/build выполнялись последовательно; лёгкая файловая/Git активность и системный фон не исключены."
+  ],
+  "newToOldMedianRatio": {
+    "student": 1.6508458845194778,
+    "full": 1.5785492562372425
+  },
+  "startedUtc": [
+    {
+      "case": "old-off-student-0",
+      "started": "2026-10-25T11:56:18.903677+00:00"
+    },
+    {
+      "case": "old-off-student-1",
+      "started": "2026-10-25T12:00:27.399627+00:00"
+    },
+    {
+      "case": "old-off-student-2",
+      "started": "2026-10-25T12:04:49.771930+00:00"
+    },
+    {
+      "case": "old-off-student-3",
+      "started": "2026-10-25T12:09:33.099059+00:00"
+    },
+    {
+      "case": "old-off-full-0",
+      "started": "2026-10-25T12:14:45.572454+00:00"
+    },
+    {
+      "case": "old-off-full-1",
+      "started": "2026-10-25T12:19:51.836614+00:00"
+    },
+    {
+      "case": "old-off-full-2",
+      "started": "2026-10-25T12:25:18.234269+00:00"
+    },
+    {
+      "case": "old-off-full-3",
+      "started": "2026-10-25T12:30:32.286209+00:00"
+    },
+    {
+      "case": "updated-off-student-0",
+      "started": "2026-10-25T14:48:56.576671+00:00"
+    },
+    {
+      "case": "updated-off-student-1",
+      "started": "2026-10-25T14:56:31.882278+00:00"
+    },
+    {
+      "case": "updated-off-student-2",
+      "started": "2026-10-25T15:04:13.930755+00:00"
+    },
+    {
+      "case": "updated-off-student-3",
+      "started": "2026-10-25T15:11:58.209862+00:00"
+    },
+    {
+      "case": "updated-off-full-0",
+      "started": "2026-10-25T15:19:44.842423+00:00"
+    },
+    {
+      "case": "updated-off-full-1",
+      "started": "2026-10-25T15:27:54.095383+00:00"
+    },
+    {
+      "case": "updated-off-full-2",
+      "started": "2026-10-25T15:36:05.462833+00:00"
+    },
+    {
+      "case": "updated-off-full-3",
+      "started": "2026-10-25T15:44:13.366627+00:00"
+    }
+  ]
+}
