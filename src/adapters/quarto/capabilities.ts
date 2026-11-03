@@ -57,6 +57,7 @@ export async function probeQuarto(
   pandoc = await executablePath(pandoc, env);
   const help = await run(deno, ["run", "--help"]),
     version = await run(runtimePath, ["--version"]),
+    pandocVersion = await run(pandoc, ["--version"]),
     main = join(share, "filters/main.lua");
   let source: string | undefined;
   try {
@@ -77,15 +78,15 @@ export async function probeQuarto(
     deno: { path: deno, version: await run(deno, ["--version"]), hash: await hashFile(deno) },
     pandoc: {
       path: pandoc,
-      version: await run(pandoc, ["--version"]),
+      version: pandocVersion,
       hash: await hashFile(pandoc),
     },
   };
   return {
-    runtimeHash: await hashFile(join(bin, "quarto.js")),
+    runtimeHash: runtime.quartoBundle.hash,
     denoCpu: help.includes("--cpu-prof-dir"),
     denoPreload: help.includes("--preload"),
-    luaHook: (await run(pandoc, ["--version"])).includes("Lua 5.4"),
+    luaHook: pandocVersion.includes("Lua 5.4"),
     luaSampling: false,
     filterAdapter: source !== undefined &&
       source.includes("function run_emulated_filter(doc, filter, traverser)") &&

@@ -30,9 +30,10 @@ deno task test
 deno task check:perfetto --trace-processor /absolute/path/to/trace_processor_shell
 ```
 
-`check` выполняет typecheck точек входа и проверяет форматирование `src`, `bridge`, `tools`,
-`tests`. `test` включает небольшие native fixtures, поэтому нужны доступные Deno/Quarto/Pandoc и
-зависимости соответствующих действий. `check:perfetto` импортирует контрольные трассы настоящим
+`check` выполняет strict typecheck всех собственных TS-файлов в `src`, `bridge`, `tools`, включая
+entrypoints агентов и launchers, запускаемые по файловому пути, и проверяет форматирование `src`,
+`bridge`, `tools`, `tests`. `test` включает небольшие native fixtures, поэтому нужны доступные
+Deno/Quarto/Pandoc и зависимости соответствующих действий. `check:perfetto` импортирует контрольные трассы настоящим
 Trace Processor и проверяет интервалы, дорожки, идентичность и точные концы связей. Версии и
 контрольные суммы Perfetto приведены в [инструкции визуализации](visualization.md).
 

@@ -74,7 +74,10 @@ Deno.test("probe preserves effective runtime, Deno options, cache and network en
     assert.equal(caps.denoPreload, true);
     assert.equal(JSON.stringify(env), before);
     const calls = (await Deno.readTextFile(log)).trim().split("\n").map((line) => JSON.parse(line));
-    assert(calls.length >= 3);
+    assert.equal(calls.filter((call) => call.args[0] === "--version").length, 2);
+    assert.equal(caps.luaHook, true);
+    assert.equal(caps.runtime.pandoc.version, "Lua 5.4 custom-runtime");
+    assert.equal(caps.runtimeHash, caps.runtime.quartoBundle.hash);
     for (const call of calls) assert.equal(call.env.PERF_TEST_FUNCTIONAL, "inherited");
     for (const call of calls) {
       for (
