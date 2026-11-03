@@ -1,8 +1,8 @@
 import { join, resolve } from "node:path";
 import { preparePandocArgs } from "./pandoc-data.ts";
-import type { ProcessExpectation } from "../report/types.ts";
+import type { NativeCommandTiming, ProcessExpectation, ProcessReceipt } from "../report/types.ts";
 const [kind, ...originalArgs] = Deno.args;
-if (!["deno", "pandoc"].includes(kind)) throw new Error("Неизвестный launcher");
+if (kind !== "deno" && kind !== "pandoc") throw new Error("Неизвестный launcher");
 const env = Deno.env.toObject(), id = crypto.randomUUID();
 const binary = env[kind === "deno" ? "COURSE_PERF_REAL_DENO" : "COURSE_PERF_REAL_PANDOC"];
 if (!binary || binary === env[kind === "deno" ? "QUARTO_DENO" : "QUARTO_PANDOC"]) {
@@ -75,17 +75,23 @@ const expectation: ProcessExpectation = {
     ? { profile_path: `profiles/${id}/cpu.cpuprofile` }
     : {}),
 };
-const receipt = {
+const nativeCommand: NativeCommandTiming = {
+  wall_seconds: null,
+  clock_domain: "monotonic_process",
+  scope: "launcher-spawn-to-status",
+};
+const receipt: ProcessReceipt = {
   process_id: id,
   parent_process_id: parent ?? null,
   parent_link: parent ? "confirmed" : "unlinked",
   kind,
-  os_pid: null as number | null,
+  os_pid: null,
   argv: originalArgs,
   cwd: Deno.cwd(),
-  exit_code: null as number | null,
-  signal: null as Deno.Signal | null,
+  exit_code: null,
+  signal: null,
   expectation,
+  native_command: nativeCommand,
 };
 const receiptPath = join(env.COURSE_PERF_OUTPUT_DIR ?? ".", "processes", id + ".json");
 async function writeReceipt() {
@@ -115,6 +121,7 @@ if (mode && mode !== "off") {
     }
   }
 }
+const commandStarted = requested ? performance.now() : 0;
 const child = new Deno.Command(binary, {
   args,
   env,
@@ -134,6 +141,7 @@ const term = () => forward("SIGTERM"), interrupt = () => forward("SIGINT");
 Deno.addSignalListener("SIGTERM", term);
 Deno.addSignalListener("SIGINT", interrupt);
 const status = await child.status;
+if (requested) nativeCommand.wall_seconds = (performance.now() - commandStarted) / 1000;
 Deno.removeSignalListener("SIGTERM", term);
 Deno.removeSignalListener("SIGINT", interrupt);
 if (requested) {

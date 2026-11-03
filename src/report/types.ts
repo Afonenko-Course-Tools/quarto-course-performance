@@ -69,6 +69,24 @@ export interface ProcessExpectation {
   summary_path?: string;
   profile_path?: string;
 }
+export interface NativeCommandTiming {
+  wall_seconds: number | null;
+  clock_domain: "monotonic_process";
+  scope: "launcher-spawn-to-status";
+}
+export interface ProcessReceipt {
+  process_id: string;
+  parent_process_id: string | null;
+  parent_link: "confirmed" | "unlinked";
+  kind: "deno" | "pandoc";
+  os_pid: number | null;
+  argv: string[];
+  cwd: string;
+  exit_code: number | null;
+  signal: Deno.Signal | null;
+  expectation?: ProcessExpectation;
+  native_command?: NativeCommandTiming;
+}
 export interface DiagnosticExpectations {
   schema_version: 2;
   processes: ProcessExpectation[];

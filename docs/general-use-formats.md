@@ -174,6 +174,22 @@ executor-summary v1 представляет total в области того ж
 интервалы могут перекрываться; их сумма не является wall-временем сборки. Пиковая память, итоговые
 CPU-значения и счётчики без timestamps остаются итогами, из них не создаются временные ряды.
 
+Диагностический launcher сохраняет initial и final состояние в том же `processes/<process_id>.json`.
+Необязательное `native_command` содержит `wall_seconds: number | null`,
+`clock_domain: "monotonic_process"`, `scope: "launcher-spawn-to-status"`. Длительность — разность
+двух локальных `performance.now()` launcher: непосредственно перед spawn и после получения child
+status. Она включает spawn/ожидание native child, минимальное launcher bookkeeping и наблюдаемую
+передачу I/O. Подготовка launcher/data-dir до spawn и запись итогового receipt после status в неё
+не входят. Это не CPU, отдельная стоимость startup или глобальный critical path. Parent/child
+интервалы могут перекрываться; их сумма не является общим wall. Абсолютные start/end и совмещение
+часов не выводятся. В `off` дополнительные clock reads отключены.
+
+До получения status значение равно `null`; spawn failure или отсутствие final write оставляют его
+неизвестным. У реально завершившегося child длительность сохраняется и при nonzero exit/signal.
+В старых receipts отсутствие `native_command` означает unknown, не ноль и не дефект телеметрии.
+Существующие causal/trace metadata сохраняют process receipt вместе с этим полем; отдельные
+события или новые файлы для него не создаются.
+
 ## Повторное построение отчёта
 
 Повторный `experiment report` / `verify` оценивает качество по текущим первичным данным. Если
