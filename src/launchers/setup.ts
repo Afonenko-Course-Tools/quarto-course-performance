@@ -1,5 +1,5 @@
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
-import { copyTree, hashBytes, hashFile } from "../sources/snapshot.ts";
+import { hashBytes, hashFile } from "../sources/snapshot.ts";
 import type { PreparationReceipt } from "../config/types.ts";
 import { appDenoArgs, assetPath } from "../assets.ts";
 const project = assetPath(".");
@@ -26,27 +26,20 @@ export async function prepareLaunchers(
   const root = resolve(options.workspace);
   await Deno.mkdir(root, { recursive: true });
   const deno = await Deno.realPath(options.deno), pandoc = await Deno.realPath(options.pandoc);
-  const backend = join(root, "backend");
-  const directories = ["src", "bridge", "node_modules"];
-  const files = ["deno.json", "deno.lock", "docs/operation-registry.json"];
-  for (const name of directories) {
-    await copyTree(join(project, name), join(backend, name), { materializeFileLinks: true });
-  }
-  await Deno.mkdir(join(backend, "docs"), { recursive: true });
-  for (const name of files) await Deno.copyFile(join(project, name), join(backend, name));
+  // Модули загружаются из установленного дерева; изменяемые данные остаются в workspace.
   const dataDir = join(root, "pandoc-data");
   const receipt = await preparePandocData(
     options.dataDir,
     dataDir,
-    backend + "/src/agents/lua/init.lua",
+    join(project, "src/agents/lua/init.lua"),
     await pandocBuiltinInit(pandoc),
   );
   for (const kind of ["deno", "pandoc"]) {
     const path = join(root, kind);
     await Deno.writeTextFile(
       path,
-      `#!/bin/sh\nexec ${[deno, ...appDenoArgs(backend)].map(shellQuote).join(" ")} ${
-        shellQuote(backend + "/src/launchers/tool.ts")
+      `#!/bin/sh\nexec ${[deno, ...appDenoArgs(project)].map(shellQuote).join(" ")} ${
+        shellQuote(join(project, "src/launchers/tool.ts"))
       } ${kind} "$@"\n`,
     );
     await Deno.chmod(path, 0o755);
@@ -59,11 +52,11 @@ export async function prepareLaunchers(
       COURSE_PERF_REAL_PANDOC: pandoc,
       COURSE_PERF_DATA_DIR: dataDir,
       COURSE_PERF_SOURCE_DATA_DIR: resolve(options.dataDir),
-      COURSE_PERF_INIT_LUA: backend + "/src/agents/lua/init.lua",
-      COURSE_PERF_AGENT_LUA: backend + "/src/agents/lua/agent.lua",
-      COURSE_PERF_AGENT_TS: backend + "/src/agents/ts/bootstrap.ts",
+      COURSE_PERF_INIT_LUA: join(project, "src/agents/lua/init.lua"),
+      COURSE_PERF_AGENT_LUA: join(project, "src/agents/lua/agent.lua"),
+      COURSE_PERF_AGENT_TS: join(project, "src/agents/ts/bootstrap.ts"),
     },
-    bridgePath: join(backend, "bridge/bridge.ts"),
+    bridgePath: join(project, "bridge/bridge.ts"),
     preparation: [receipt],
   };
 }
