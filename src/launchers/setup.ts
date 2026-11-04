@@ -1,5 +1,5 @@
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
-import { copyTree, hashBytes, hashFile, treeHash } from "../sources/snapshot.ts";
+import { copyTree, hashBytes, hashFile } from "../sources/snapshot.ts";
 import type { PreparationReceipt } from "../config/types.ts";
 import { appDenoArgs, assetPath } from "../assets.ts";
 const project = assetPath(".");
@@ -29,19 +29,11 @@ export async function prepareLaunchers(
   const backend = join(root, "backend");
   const directories = ["src", "bridge", "node_modules"];
   const files = ["deno.json", "deno.lock", "docs/operation-registry.json"];
-  const backendHash = async (base: string) =>
-    await hashBytes(new TextEncoder().encode(JSON.stringify([
-      ...await Promise.all(directories.map((name) => treeHash(join(base, name)))),
-      ...await Promise.all(files.map((name) => hashFile(join(base, name)))),
-    ])));
-  const before = await backendHash(project);
   for (const name of directories) {
     await copyTree(join(project, name), join(backend, name), { materializeFileLinks: true });
   }
   await Deno.mkdir(join(backend, "docs"), { recursive: true });
   for (const name of files) await Deno.copyFile(join(project, name), join(backend, name));
-  const after = await backendHash(backend);
-  if (before !== after) throw new Error("Backend изменился при подготовке");
   const dataDir = join(root, "pandoc-data");
   const receipt = await preparePandocData(
     options.dataDir,
@@ -72,12 +64,7 @@ export async function prepareLaunchers(
       COURSE_PERF_AGENT_TS: backend + "/src/agents/ts/bootstrap.ts",
     },
     bridgePath: join(backend, "bridge/bridge.ts"),
-    preparation: [receipt, {
-      kind: "bootstrap" as const,
-      path: backend,
-      sourceHash: before,
-      preparedHash: after,
-    }],
+    preparation: [receipt],
   };
 }
 
