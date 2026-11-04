@@ -56,7 +56,8 @@ const result = {
   firstRunId: first.runId,
   secondRunId: second.runId,
   comparisons,
-  equivalent: comparisons.every((c) => c.equivalent),
+  checkedContentEqual: comparisons.every((c) => c.checkedContentEqual),
+  htmlBytesCompared: config.outputPolicy === "strict",
   performanceAcceptance: "not-a-paired-benchmark",
 };
 await Deno.writeTextFile(
@@ -64,4 +65,4 @@ await Deno.writeTextFile(
   JSON.stringify(result, null, 2) + "\n",
 );
 console.log(JSON.stringify(result));
-if (!result.equivalent) Deno.exit(4);
+if (!result.checkedContentEqual) Deno.exit(4);

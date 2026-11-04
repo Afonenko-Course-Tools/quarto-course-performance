@@ -20,6 +20,13 @@
 
 Финальный функциональный эксперимент `520f454c-bb6a-4f79-bd7b-4d781f7f4d04` — отдельный workspace `performance-20261012/acceptance-v4`. Upstream и clean-control SHAs прежние; Java/workload/runtime не изменены. Полные off/summary, выбранные trace/CPU и экспорт на исправленных owners завершены успешно. [10 итоговых сравнений](evidence/java-pilot-outputs-validation.json) эквивалентны, утечек нет; [повторная сборка](evidence/java-pilot-repeat-validation.json) эквивалентна во всех шести каталогах. Дополнительно [281 HTML-файл совпадает побайтово без нормализации](evidence/java-pilot-repeat-html-bytes.json). Предыдущие данные не переписываются и не выдаются за измерение новой версии.
 
+Обновление tooling от 4 ноября 2026 года: описанные выше normalization и byte comparisons относятся
+к сохранённым историческим экспериментам. Текущие инструменты не исполняют прежний private QRC
+normalizer; Java policy проверяет состав файлов, ресурсы и ZIP, а HTML bytes оставляет
+непроверенными. Новый `checkedContentEqual` не означает HTML semantic equivalence. Подробности —
+[текущая offline policy](development.md#offline-проверка-java-outputs). Исторические результаты и
+manifests сохраняются без переписывания; исполняемый replay прежней нормализации удалён.
+
 ## Накладные расходы off — отложенный критерий
 
 Hyperfine 2.0.0; warmup каждого варианта исключён, затем AB/BA. Медиана парных ratios candidate/control, 95% bootstrap interval, 10 000 resamples, seed 42; нормативный предел 1.01.
