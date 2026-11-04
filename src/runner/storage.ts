@@ -1,5 +1,10 @@
 import { dirname, join, matchesGlob, parse, relative, resolve } from "node:path";
-import type { NativeRenderRequest, RunRecord } from "../report/types.ts";
+import {
+  type NativeRenderRequest,
+  PublicationError,
+  type PublishedRun,
+  type RunRecord,
+} from "../report/types.ts";
 import { explicitOutputDirectory, type ProjectTarget } from "../adapters/quarto/inspect.ts";
 import { writeRunArtifacts } from "../report/run.ts";
 import type { NormalizedRun } from "../analysis/normalize.ts";
@@ -146,24 +151,26 @@ export async function finalizeRun(
   paths: RunPaths,
   record: RunRecord,
   normalized?: NormalizedRun,
-): Promise<string> {
+  previous?: PublishedRun,
+): Promise<PublishedRun> {
+  let published: PublishedRun | undefined = previous;
   try {
     await validateReportTargets(paths.stagingDirectory);
-    await writeRunArtifacts(paths.stagingDirectory, {
-      ...record,
-      outputDirectory: paths.finalDirectory,
-    }, normalized);
+    published = await writeRunArtifacts(paths.stagingDirectory, record, normalized, published);
     await validateMaterials(paths.stagingDirectory);
     await safeDirectory(dirname(paths.finalDirectory));
     // mkdir без recursive не позволяет затереть чужой запуск, файл или ссылку.
     await Deno.mkdir(paths.finalDirectory);
     await copyDirectory(paths.stagingDirectory, paths.finalDirectory);
   } catch (error) {
-    throw new Error(
-      `Не удалось сохранить итоговый отчёт; staging сохранён: ${paths.stagingDirectory}: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-      { cause: error },
+    if (error instanceof PublicationError) throw error;
+    throw new PublicationError(
+      record.runId,
+      paths.finalDirectory,
+      "storage",
+      error,
+      published,
+      record,
     );
   }
   // Полный final уже сохранён. Частичная ошибка cleanup не отменяет этот результат.
@@ -178,5 +185,5 @@ export async function finalizeRun(
       );
     } catch { /* Недоступный stderr не отменяет уже сохранённый полный final. */ }
   }
-  return paths.finalDirectory;
+  return { record, directory: paths.finalDirectory };
 }

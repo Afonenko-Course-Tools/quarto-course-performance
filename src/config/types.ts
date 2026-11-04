@@ -95,16 +95,6 @@ export interface PreparationReceipt {
   preparedHash: string;
   sourceMapPath?: string;
 }
-export interface RunResult {
-  runId: string;
-  buildExitCode: number;
-  dataValid: boolean;
-  outputDirectory: string;
-  preparation: PreparationReceipt[];
-  wallSeconds: number;
-  signal: string | null;
-}
-
 export interface RunPaths {
   runId: string;
   stagingDirectory: string;

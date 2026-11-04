@@ -281,9 +281,10 @@ Deno.test("owned group forwards each signal once through a launcher", async () =
     abort.abort("SIGTERM");
     const result = await running;
     assert.equal(await Deno.readTextFile(count), "x");
-    assert.equal(result.code, 7);
-    assert.equal(result.signal, null);
-    assert.equal(result.escalated, false);
+    assert(result.native);
+    assert.equal(result.native.code, 7);
+    assert.equal(result.native.signal, null);
+    assert.equal(result.native.escalated, false);
   } finally {
     await Deno.remove(root, { recursive: true });
   }

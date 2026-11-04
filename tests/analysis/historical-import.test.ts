@@ -152,8 +152,10 @@ Deno.test("explicit historical CLI report and verify derive v2 artifacts without
           JSON.parse(await Deno.readTextFile(join(output, "runs/r/run.json"))),
         );
         assert.equal(record.collectionDirectory, run);
-        assert.equal(record.outputDirectory, join(output, "runs/r"));
-        assert.equal(record.outcome.cpuUserSeconds, null);
+        assert.equal(record.completion.kind, "complete");
+        assert.equal(record.completion.native?.cpuUserSeconds, null);
+        assert.equal(record.completion.native?.source, "historical-record");
+        assert.equal(record.completion.native?.wallScope, "historical");
         assert.equal(record.git, null);
         assert.deepEqual(record.request.nativeArgv, ["file with spaces.qmd"]);
         const summary = validateRunSummary(
@@ -257,7 +259,7 @@ Deno.test("historical API and CLI preserve partial valid pairs and native failur
       const record = validateRunRecord(
         JSON.parse(await Deno.readTextFile(join(output, "runs/r/run.json"))),
       );
-      assert.equal(record.outcome.code, code);
+      assert.equal(record.completion.native?.code, code);
       assert.equal(record.importProvenance!.sourceStatus.buildExitCode, code);
       const summary = validateRunSummary(
         JSON.parse(await Deno.readTextFile(join(output, "runs/r/summary.json"))),
@@ -451,8 +453,8 @@ for (const entry of ["API", "report", "verify"]) {
         const summary = validateRunSummary(
           JSON.parse(await Deno.readTextFile(join(output, "runs/r/summary.json"))),
         );
-        assert.equal(record.outcome.code, code);
-        assert.equal(record.outcome.wallSeconds, 1.25);
+        assert.equal(record.completion.native?.code, code);
+        assert.equal(record.completion.native?.wallSeconds, 1.25);
         assert.equal(record.importProvenance!.sourceStatus.buildExitCode, code);
         assert.equal(record.importProvenance!.sourceStatus.dataValid, true);
         assert.equal(record.importProvenance!.run.sha256, await hashFile(join(run, "run.json")));

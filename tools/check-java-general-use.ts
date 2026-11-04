@@ -1,9 +1,10 @@
+import { completedNative, validateRunRecord } from "../src/report/types.ts";
 import { strict as assert } from "node:assert";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { copyTree, files, hashBytes, hashFile, treeHash } from "../src/sources/snapshot.ts";
 import { prepareDiagnostic } from "../src/runner/diagnostic.ts";
-import { executeScenario } from "../src/runner/execute.ts";
+import { executeScenario, withScenarioSignals } from "../src/runner/execute.ts";
 import { normalizeRun, operationAttribution } from "../src/analysis/normalize.ts";
 import { installPackages } from "../src/sources/packages.ts";
 import type { SourceManifest, SourceReceipt } from "../src/config/types.ts";
@@ -138,6 +139,16 @@ export async function preflightJava(
 }
 
 export async function checkJava(project: string, output: string, replacementOwner: string) {
+  return await withScenarioSignals((abortSignal) =>
+    checkJavaImpl(project, output, replacementOwner, abortSignal)
+  );
+}
+async function checkJavaImpl(
+  project: string,
+  output: string,
+  replacementOwner: string,
+  abortSignal: AbortSignal,
+) {
   ({ project, output, replacementOwner } = await preflightJava(project, output, replacementOwner));
   await Deno.mkdir(output, { recursive: false });
   const commands: unknown[] = [], gates: unknown[] = [];
@@ -370,8 +381,10 @@ export async function checkJava(project: string, output: string, replacementOwne
     const entries = await Array.fromAsync(Deno.readDir(reports));
     assert.equal(entries.length, 1);
     const directory = join(reports, entries[0].name);
-    const record = JSON.parse(await Deno.readTextFile(join(directory, "run.json")));
-    assert.equal(record.outcome.code, 0);
+    const record = validateRunRecord(
+      JSON.parse(await Deno.readTextFile(join(directory, "run.json"))),
+    );
+    assert.equal(completedNative({ record, directory }).code, 0);
     assert.equal(record.dataValid, true);
     if (mode !== "off") {
       await auditBackend(label, directory);
@@ -382,12 +395,17 @@ export async function checkJava(project: string, output: string, replacementOwne
         label,
         status: "PASS",
         runId: record.runId,
-        outcome: record.outcome,
+        outcome: record.completion.native,
         quality: normalized.quality,
         executors: Object.keys(normalized.executors).length,
         events: normalized.events.length,
       });
-    } else gates.push({ label, status: "PASS", runId: record.runId, outcome: record.outcome });
+    } else {gates.push({
+        label,
+        status: "PASS",
+        runId: record.runId,
+        outcome: record.completion.native,
+      });}
     return { directory, record };
   };
   let studentNative = "";
@@ -570,18 +588,20 @@ export async function checkJava(project: string, output: string, replacementOwne
       );
       const startUTC = new Date().toISOString();
       const result = await executeScenario(scenario, prepared, "trace", {
+        abortSignal,
         outputRoot: join(output, label, "runs"),
         diagnosticEnv: diagnostic.env,
         preparation: diagnostic.preparation,
         coverage: diagnostic.coverage,
       });
+      const native = completedNative(result);
       await auditBackend(label, join(output, label, "diagnostic"));
-      const normalized = await normalizeRun(result.outputDirectory);
+      const normalized = await normalizeRun(result.directory);
       const raw = Object.fromEntries(
         await Promise.all(
-          (await files(result.outputDirectory)).map(async (
+          (await files(result.directory)).map(async (
             p,
-          ) => [relative(result.outputDirectory, p), await hashFile(p)]),
+          ) => [relative(result.directory, p), await hashFile(p)]),
         ),
       );
       const recorded = [
@@ -613,7 +633,7 @@ export async function checkJava(project: string, output: string, replacementOwne
         coverage: diagnostic.coverage,
       };
       await json(join(output, label + ".proof.json"), proof);
-      assert.equal(result.buildExitCode, 0);
+      assert.equal(native.code, 0);
       assert(normalized.dataValid);
       assert(normalized.events.length > 0);
       assert(executedSymbols.length > 0, "Выбранные TS функции не исполнялись");
@@ -621,7 +641,7 @@ export async function checkJava(project: string, output: string, replacementOwne
       gates.push({
         label,
         status: "PASS",
-        runId: result.runId,
+        runId: result.record.runId,
         events: normalized.events.length,
         executors: Object.keys(normalized.executors).length,
         recorded,

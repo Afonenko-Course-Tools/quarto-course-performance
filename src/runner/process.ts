@@ -1,11 +1,17 @@
 import { appDenoArgs, assetPath } from "../assets.ts";
 import { dirname, join, resolve } from "node:path";
-import type { BuildOutcome } from "../report/types.ts";
+import {
+  type BuildOutcome,
+  type CommandResult,
+  type ProcessObservation,
+  readNativeStatus,
+  type StreamState,
+} from "../report/types.ts";
 import { recordCancellation } from "./resource-child.ts";
 
 /** Ошибка измерения после остановки дерева; outcome — только для реально запущенного native. */
 export class OwnedProcessError extends Error {
-  constructor(error: unknown, readonly outcome?: BuildOutcome) {
+  constructor(error: unknown, readonly observation: ProcessObservation) {
     super(error instanceof Error ? error.message : String(error), { cause: error });
     this.name = "OwnedProcessError";
   }
@@ -21,6 +27,7 @@ export interface OwnedProcessOptions {
   stdout?: WritableStream<Uint8Array>;
   stderr?: WritableStream<Uint8Array>;
   abortSignal?: AbortSignal;
+  onObservation?: (observation: ProcessObservation) => void;
   graceMilliseconds?: number;
   timeExecutable?: string | null;
 }
@@ -138,18 +145,26 @@ async function tee(
   path: string,
   output: WritableStream<Uint8Array>,
   failed: (error: unknown) => void,
+  state: (state: StreamState) => void,
 ) {
   let log: Deno.FsFile | undefined;
   let sink: WritableStreamDefaultWriter<Uint8Array> | undefined;
+  let eof = false;
+  const fail = (error: unknown) => {
+    state("failed");
+    failed(error);
+  };
+  // This pump owns its actual input channel now; opening the log can still fail.
+  state("open");
   try {
     log = await Deno.open(path, { write: true, create: true, truncate: true });
   } catch (error) {
-    failed(error);
+    fail(error);
   }
   try {
     sink = output.getWriter();
   } catch (error) {
-    failed(error);
+    fail(error);
   }
   try {
     for await (const chunk of input) {
@@ -158,8 +173,12 @@ async function tee(
           let offset = 0;
           while (offset < chunk.length) offset += await log.write(chunk.subarray(offset));
         } catch (error) {
-          failed(error);
-          log.close();
+          fail(error);
+          try {
+            log.close();
+          } catch (closeError) {
+            fail(closeError);
+          }
           log = undefined;
         }
       }
@@ -167,22 +186,37 @@ async function tee(
         try {
           await sink.write(chunk);
         } catch (error) {
-          failed(error);
-          sink.releaseLock();
+          fail(error);
+          try {
+            sink.releaseLock();
+          } catch (closeError) {
+            fail(closeError);
+          }
           sink = undefined;
         }
       }
     }
+    eof = true;
   } catch (error) {
-    failed(error);
+    fail(error);
   } finally {
-    sink?.releaseLock();
-    log?.close();
+    try {
+      sink?.releaseLock();
+    } catch (error) {
+      fail(error);
+    }
+    try {
+      log?.close();
+    } catch (error) {
+      fail(error);
+    }
+    // A failed log stays failed even when its input was subsequently drained.
+    if (eof) state("eof");
   }
 }
 
 /** Одна собственная Linux group; сигналы не пересылаются повторно внутри дерева. */
-export async function runOwnedProcess(options: OwnedProcessOptions): Promise<BuildOutcome> {
+export async function runOwnedProcess(options: OwnedProcessOptions): Promise<ProcessObservation> {
   if (Deno.build.os !== "linux") throw new Error("Нативный supervisor требует Linux setsid");
   const directory = dirname(resolve(options.stdoutPath));
   await Deno.mkdir(directory, { recursive: true });
@@ -259,8 +293,32 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
     escalated = false,
     failure: unknown;
   const sent = new Set<number>();
+  let nativeOutcome: BuildOutcome | null = null, commandResult: CommandResult | null = null;
+  let streamsFinished = false;
+  const streamFacts: ProcessObservation["streams"] = {
+    stdout: "not-started",
+    stderr: "not-started",
+  };
+  const observed = (): ProcessObservation => ({
+    native: nativeOutcome,
+    command: commandResult,
+    streams: { ...streamFacts },
+    stdioMode: streamFacts.stdout === "not-started" && streamFacts.stderr === "not-started"
+      ? null
+      : terminal && !mixed
+      ? "pty-combined"
+      : "separate",
+    errors: failure ? [failure instanceof Error ? failure.message : String(failure)] : [],
+    observedWallSeconds: (performance.now() - start) / 1000,
+  });
   const failed = (error: unknown) => {
     failure ??= error instanceof Error ? error : new Error("Ошибка supervisor", { cause: error });
+    options.onObservation?.(observed());
+  };
+  const streamState = (channel: "stdout" | "stderr" | null) => (state: StreamState) => {
+    if (channel === null || streamFacts[channel] === "failed") return;
+    streamFacts[channel] = state;
+    options.onObservation?.(observed());
   };
   const signalGroup = (target: number, signal: Deno.Signal) => {
     try {
@@ -296,14 +354,10 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
       sent.add(group);
     }
   };
-  const term = () => send("SIGTERM"), interrupt = () => send("SIGINT");
+  const start = performance.now();
   const abort = () => send(options.abortSignal?.reason === "SIGINT" ? "SIGINT" : "SIGTERM");
-  Deno.addSignalListener("SIGTERM", term);
-  Deno.addSignalListener("SIGINT", interrupt);
   options.abortSignal?.addEventListener("abort", abort);
   if (options.abortSignal?.aborted) abort();
-  const start = performance.now();
-  let outcome: BuildOutcome | undefined, knownNativeOutcome: BuildOutcome | undefined;
   let processStarted = false, drained = false;
   try {
     const child = new Deno.Command("setsid", {
@@ -329,41 +383,69 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
           stdoutTerminal ? options.stdoutPath : options.stderrPath,
           stdoutTerminal ? Deno.stdout.writable : Deno.stderr.writable,
           failed,
+          streamState(stdoutTerminal ? "stdout" : "stderr"),
         ),
         tee(
           child.stderr,
           mixed ? receipt + ".supervisor-stderr" : options.stderrPath,
           mixed ? new WritableStream({ write() {} }) : Deno.stderr.writable,
           failed,
+          // With two TTYs this is supervisor stderr, not independent native stderr.
+          // With mixed redirection it has no public log channel at all.
+          streamState(mixed ? null : "stderr"),
         ),
         ...(redirected
           ? [(async () => {
-            const file = await redirected;
-            await tee(
-              file!.readable,
-              stdoutTerminal ? options.stderrPath : options.stdoutPath,
-              stdoutTerminal
-                ? (options.stderr ?? Deno.stderr.writable)
-                : (options.stdout ?? Deno.stdout.writable),
-              failed,
-            );
+            const channel = stdoutTerminal ? "stderr" : "stdout";
+            try {
+              const file = await redirected;
+              await tee(
+                file!.readable,
+                stdoutTerminal ? options.stderrPath : options.stdoutPath,
+                stdoutTerminal
+                  ? (options.stderr ?? Deno.stderr.writable)
+                  : (options.stdout ?? Deno.stdout.writable),
+                failed,
+                streamState(channel),
+              );
+            } catch (error) {
+              streamState(channel)("failed");
+              failed(error);
+            }
           })()]
           : []),
       ]
       : [
-        tee(child.stdout, options.stdoutPath, options.stdout ?? Deno.stdout.writable, failed),
-        tee(child.stderr, options.stderrPath, options.stderr ?? Deno.stderr.writable, failed),
+        tee(
+          child.stdout,
+          options.stdoutPath,
+          options.stdout ?? Deno.stdout.writable,
+          failed,
+          streamState("stdout"),
+        ),
+        tee(
+          child.stderr,
+          options.stderrPath,
+          options.stderr ?? Deno.stderr.writable,
+          failed,
+          streamState("stderr"),
+        ),
       ];
-    const observed = streams.map((stream) => stream.catch(failed));
-    let streamsFinished = false;
-    const drainedStreams = Promise.all(observed).then(() => {
+    const observedStreams = streams.map((stream) => stream.catch(failed));
+    const drainedStreams = Promise.all(observedStreams).then(() => {
       streamsFinished = true;
     });
     const sessions = new Set([child.pid]);
     let status: Deno.CommandStatus | undefined;
     const completed = child.status.then((s) => {
       status = s;
-    });
+      commandResult = {
+        code: s.code,
+        signal: s.signal,
+        wallSeconds: (performance.now() - start) / 1000,
+      };
+      options.onObservation?.(observed());
+    }, failed);
     while (true) {
       if (!group && !failure) {
         try {
@@ -456,18 +538,17 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
     await completed;
     await drainedStreams;
     drained = true;
-    let nativeStatus = status!;
+    let nativeStatus:
+      | { code: number; signal: Deno.Signal | null; toolWallSeconds?: number }
+      | undefined;
     let nativeReceipt = false;
     for (const path of [receipt, ...(time ? [receipt + ".native"] : [])]) {
       try {
-        nativeStatus = JSON.parse(await Deno.readTextFile(path));
+        nativeStatus = readNativeStatus(JSON.parse(await Deno.readTextFile(path)));
         if (path.endsWith(".native") || !time) nativeReceipt = true;
       } catch (e) {
         if (!(e instanceof Deno.errors.NotFound)) failed(e);
       }
-    }
-    if (escalated && !nativeReceipt) {
-      nativeStatus = { code: 137, signal: "SIGKILL", success: false };
     }
     let cpuUserSeconds: number | null = null,
       cpuSystemSeconds: number | null = null,
@@ -483,22 +564,36 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
         if (!(e instanceof Deno.errors.NotFound)) failed(e);
       }
     }
-    outcome = {
-      code: nativeStatus.code,
-      signal: nativeStatus.signal,
-      wallSeconds: (performance.now() - start) / 1000,
-      cpuUserSeconds,
-      cpuSystemSeconds,
-      peakRssKiB,
-      escalated,
-      stdioMode: terminal && !mixed ? "pty-combined" : "separate",
-    };
     try {
       const started = await Deno.stat(receipt + (time ? ".native.started" : ".started"));
-      if (started.isFile && (nativeReceipt || escalated)) knownNativeOutcome = outcome;
+      if (started.isFile && nativeReceipt && nativeStatus) {
+        if (
+          !Number.isInteger(nativeStatus.code) || !Number.isFinite(nativeStatus.toolWallSeconds)
+        ) {
+          throw new Error("Неполный actual native receipt");
+        }
+        nativeOutcome = {
+          code: nativeStatus.code,
+          signal: nativeStatus.signal,
+          wallSeconds: nativeStatus.toolWallSeconds!,
+          cpuUserSeconds,
+          cpuSystemSeconds,
+          peakRssKiB,
+          escalated,
+          wallScope: "resource-helper-envelope",
+          source: "native-receipt",
+          resourceScope: time ? "tool-and-resource-helper" : "unavailable",
+        };
+      }
     } catch (e) {
       if (!(e instanceof Deno.errors.NotFound)) failed(e);
     }
+    if (!nativeOutcome) {
+      failed(
+        new Error("Actual native outcome отсутствует; wrapper/escalation не заменяют receipt"),
+      );
+    }
+    options.onObservation?.(observed());
   } finally {
     try {
       fifoKeeper?.close();
@@ -514,10 +609,8 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
         if (!(error instanceof Deno.errors.NotFound)) failed(error);
       }
     }
-    Deno.removeSignalListener("SIGTERM", term);
-    Deno.removeSignalListener("SIGINT", interrupt);
     options.abortSignal?.removeEventListener("abort", abort);
   }
-  if (failure) throw new OwnedProcessError(failure, knownNativeOutcome);
-  return outcome!;
+  if (failure) throw new OwnedProcessError(failure, observed());
+  return observed();
 }

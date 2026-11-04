@@ -13,13 +13,63 @@ export type RunRequest = Omit<NativeRenderRequest, "mode"> & { mode: Mode };
 
 export interface BuildOutcome {
   escalated?: boolean;
-  stdioMode?: "separate" | "pty-combined";
   code: number;
   signal: Deno.Signal | null;
   wallSeconds: number;
   cpuUserSeconds: number | null;
   cpuSystemSeconds: number | null;
   peakRssKiB: number | null;
+  wallScope:
+    | "direct-spawn-to-status"
+    | "resource-helper-envelope"
+    | "hyperfine-command"
+    | "historical";
+  source: "direct-status" | "native-receipt" | "hyperfine" | "historical-record";
+  resourceScope:
+    | "tool-and-resource-helper"
+    | "native-hyperfine-command"
+    | "unavailable"
+    | "historical";
+}
+export interface CommandResult {
+  code: number;
+  signal: Deno.Signal | null;
+  wallSeconds: number;
+}
+export type StreamState = "not-started" | "open" | "eof" | "failed";
+export interface ProcessObservation {
+  native: BuildOutcome | null;
+  command: CommandResult | null;
+  /** Owned log channels; combined PTY stdout is not independent native stdout. */
+  streams: { stdout: StreamState; stderr: StreamState };
+  stdioMode: "separate" | "pty-combined" | null;
+  errors: string[];
+  observedWallSeconds: number;
+}
+export type RunCompletion =
+  | { kind: "complete"; native: BuildOutcome }
+  | {
+    kind: "incomplete";
+    reason: "not-finalized" | "interrupted" | "observation-error";
+    requestedSignal: "SIGTERM" | "SIGINT" | null;
+    native: BuildOutcome | null;
+  };
+export interface PublishedRun {
+  record: RunRecord;
+  directory: string;
+}
+export class PublicationError extends Error {
+  constructor(
+    readonly runId: string,
+    readonly directory: string,
+    readonly phase: "record" | "derived" | "storage",
+    cause: unknown,
+    readonly published?: PublishedRun,
+    readonly attempted?: RunRecord,
+  ) {
+    super(`Не удалось сохранить ${phase} запуска ${runId}: ${directory}`, { cause });
+    this.name = "PublicationError";
+  }
 }
 export interface GitProvenance {
   root: string;
@@ -40,15 +90,25 @@ export interface RunRecord {
   schema_version: 2;
   runId: string;
   request: RunRequest;
-  outcome: BuildOutcome;
+  completion: RunCompletion;
+  command: CommandResult | null;
+  streams: ProcessObservation["streams"];
+  stdioMode: ProcessObservation["stdioMode"];
+  observedWallSeconds: number;
   preparation: PreparationReceipt[];
   dataValid: boolean;
   quality: QualitySummary;
   versions: { tool: string; quarto: string; deno: string | null; pandoc: string | null };
   git: GitProvenance | null;
   collectionDirectory: string;
-  outputDirectory: string;
   artifacts: Record<string, string>;
+  scenario?: string;
+  variant?: string;
+  mode?: Mode;
+  argv?: string[];
+  cwd?: string;
+  cachePolicy?: string;
+  experimentId?: string;
 }
 export interface CounterAggregate {
   processId: string;
@@ -106,6 +166,8 @@ export interface RunSummary {
   importProvenance?: ImportProvenance;
   schema_version: 2;
   runId: string;
+  completion: RunCompletion["kind"];
+  normalization: "available" | "not-processed";
   dataValid: boolean;
   quality: QualitySummary;
   operations: OperationAggregate[];
@@ -187,6 +249,25 @@ const signals: readonly Deno.Signal[] = [
   "SIGXFSZ",
 ];
 
+/** Consumed fields of the existing resource-child status file, not a new receipt. */
+export function readNativeStatus(value: unknown): {
+  code: number;
+  signal: Deno.Signal | null;
+  toolWallSeconds: number;
+} {
+  const v = object(value, "native status");
+  if (typeof v.code !== "number" || !Number.isSafeInteger(v.code) || v.code < 0) {
+    invalid("native status.code");
+  }
+  if (
+    typeof v.toolWallSeconds !== "number" || !Number.isFinite(v.toolWallSeconds) ||
+    v.toolWallSeconds < 0
+  ) invalid("native status.wall");
+  const signal = signals.find((signal) => signal === v.signal);
+  if (v.signal !== null && signal === undefined) invalid("native status.signal");
+  return { code: v.code, signal: signal ?? null, toolWallSeconds: v.toolWallSeconds };
+}
+
 export function validateRunRecord(value: unknown): RunRecord {
   const r = metadata(value), request = object(r.request, "request");
   string(request.cwd, "request.cwd");
@@ -194,20 +275,73 @@ export function validateRunRecord(value: unknown): RunRecord {
   strings(request.nativeArgv, "request.nativeArgv");
   if (!["off", "summary", "cpu", "trace"].includes(request.mode as string)) invalid("request.mode");
   if (request.outputParent !== undefined) string(request.outputParent, "request.outputParent");
-  const outcome = object(r.outcome, "outcome");
-  number(outcome.code, "outcome.code", false, true);
-  if (outcome.escalated !== undefined) boolean(outcome.escalated, "outcome.escalated");
-  if (
-    outcome.stdioMode !== undefined &&
-    !["separate", "pty-combined"].includes(outcome.stdioMode as string)
-  ) invalid("outcome.stdioMode");
-  if (outcome.signal !== null && !signals.includes(outcome.signal as Deno.Signal)) {
-    invalid("outcome.signal");
+  const completion = object(r.completion, "completion");
+  if (completion.kind !== "complete" && completion.kind !== "incomplete") {
+    invalid("completion.kind");
   }
-  number(outcome.wallSeconds, "outcome.wallSeconds");
-  number(outcome.cpuUserSeconds, "outcome.cpuUserSeconds", true);
-  number(outcome.cpuSystemSeconds, "outcome.cpuSystemSeconds", true);
-  number(outcome.peakRssKiB, "outcome.peakRssKiB", true);
+  if (completion.kind === "incomplete") {
+    if (
+      typeof completion.reason !== "string" ||
+      !["not-finalized", "interrupted", "observation-error"].includes(completion.reason)
+    ) invalid("completion.reason");
+    if (
+      completion.requestedSignal !== null && completion.requestedSignal !== "SIGINT" &&
+      completion.requestedSignal !== "SIGTERM"
+    ) invalid("completion.requestedSignal");
+    if (r.dataValid !== false || object(r.quality, "quality").coverageComplete !== false) {
+      invalid("incomplete.quality");
+    }
+  }
+  if (completion.native !== null) {
+    const outcome = object(completion.native, "completion.native");
+    number(outcome.code, "native.code", false, true);
+    if (outcome.signal !== null && !signals.includes(outcome.signal as Deno.Signal)) {
+      invalid("native.signal");
+    }
+    number(outcome.wallSeconds, "native.wallSeconds");
+    if (outcome.escalated !== undefined) boolean(outcome.escalated, "native.escalated");
+    for (const field of ["cpuUserSeconds", "cpuSystemSeconds", "peakRssKiB"]) {
+      number(outcome[field], `native.${field}`, true);
+    }
+    if (
+      typeof outcome.wallScope !== "string" ||
+      !["direct-spawn-to-status", "resource-helper-envelope", "hyperfine-command", "historical"]
+        .includes(outcome.wallScope)
+    ) invalid("native.wallScope");
+    if (
+      typeof outcome.source !== "string" ||
+      !["direct-status", "native-receipt", "hyperfine", "historical-record"].includes(
+        outcome.source,
+      )
+    ) invalid("native.source");
+    if (
+      typeof outcome.resourceScope !== "string" ||
+      !["tool-and-resource-helper", "native-hyperfine-command", "unavailable", "historical"]
+        .includes(outcome.resourceScope)
+    ) invalid("native.resourceScope");
+  } else if (completion.kind === "complete") invalid("complete.native");
+  if (r.command !== null) {
+    const command = object(r.command, "command");
+    number(command.code, "command.code", false, true);
+    number(command.wallSeconds, "command.wallSeconds");
+    if (command.signal !== null && !signals.includes(command.signal as Deno.Signal)) {
+      invalid("command.signal");
+    }
+  }
+  const streams = object(r.streams, "streams");
+  if (r.stdioMode !== null && r.stdioMode !== "separate" && r.stdioMode !== "pty-combined") {
+    invalid("stdioMode");
+  }
+  for (const name of ["stdout", "stderr"]) {
+    if (
+      typeof streams[name] !== "string" ||
+      !["not-started", "open", "eof", "failed"].includes(streams[name])
+    ) invalid(`streams.${name}`);
+    if (completion.kind === "complete" && streams[name] !== "eof") {
+      invalid(`complete.streams.${name}`);
+    }
+  }
+  number(r.observedWallSeconds, "observedWallSeconds");
   if (!Array.isArray(r.preparation)) invalid("preparation");
   for (const receipt of r.preparation) {
     const p = object(receipt, "preparation");
@@ -233,7 +367,14 @@ export function validateRunRecord(value: unknown): RunRecord {
     boolean(git.dirty, "git.dirty");
   }
   string(r.collectionDirectory, "collectionDirectory");
-  string(r.outputDirectory, "outputDirectory");
+  for (const field of ["scenario", "variant", "cwd", "cachePolicy", "experimentId"]) {
+    if (r[field] !== undefined) string(r[field], field);
+  }
+  if (r.argv !== undefined) strings(r.argv, "argv");
+  if (
+    r.mode !== undefined && r.mode !== "off" && r.mode !== "summary" && r.mode !== "cpu" &&
+    r.mode !== "trace"
+  ) invalid("mode");
   const artifacts = object(r.artifacts, "artifacts");
   for (const [name, path] of Object.entries(artifacts)) string(path, `artifacts.${name}`);
   return r as unknown as RunRecord;
@@ -241,6 +382,14 @@ export function validateRunRecord(value: unknown): RunRecord {
 
 export function validateRunSummary(value: unknown): RunSummary {
   const s = metadata(value);
+  if (s.completion !== "complete" && s.completion !== "incomplete") invalid("summary.completion");
+  if (s.normalization !== "available" && s.normalization !== "not-processed") {
+    invalid("summary.normalization");
+  }
+  if (
+    s.completion === "incomplete" &&
+    (s.dataValid !== false || object(s.quality, "quality").coverageComplete !== false)
+  ) invalid("incomplete.summary");
   if (!Array.isArray(s.counters)) invalid("counters");
   for (const counter of s.counters) {
     const c = object(counter, "counters");
@@ -302,4 +451,12 @@ export function validateDiagnosticExpectations(value: unknown): DiagnosticExpect
     }
   }
   return e as unknown as DiagnosticExpectations;
+}
+
+/** Incomplete captures never enter benchmarks, acceptance or comparison. */
+export function completedNative(publication: PublishedRun): BuildOutcome {
+  if (publication.record.completion.kind !== "complete") {
+    throw new Error(`Неполный запуск: ${publication.directory}`);
+  }
+  return publication.record.completion.native;
 }

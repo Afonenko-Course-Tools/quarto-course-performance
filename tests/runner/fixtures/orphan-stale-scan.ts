@@ -1,4 +1,5 @@
-import { runOwnedProcess } from "../../../src/runner/process.ts";
+import { OwnedProcessError, runOwnedProcess } from "../../../src/runner/process.ts";
+import type { ProcessObservation } from "../../../src/report/types.ts";
 const root = Deno.args[0];
 const fault = Deno.args[1] === "failure";
 const doubleEmpty = Deno.args[1] === "double-empty";
@@ -112,7 +113,8 @@ const prepared = fault ? Promise.resolve() : (async () => {
   }
   throw new Error("Нет parent readiness для stale snapshot");
 })();
-let outcome, error: unknown;
+let outcome: ProcessObservation | undefined;
+let error: unknown;
 try {
   const running = runOwnedProcess({
     executable: "/bin/sh",
@@ -139,7 +141,8 @@ try {
   [outcome] = await Promise.all([running, prepared]);
 } catch (caught) {
   error = caught;
-  outcome = (caught as { outcome?: unknown }).outcome;
+  if (!(caught instanceof OwnedProcessError)) throw caught;
+  outcome = caught.observation;
   if (!fault) throw caught;
 }
 let doneAtReturn = false;

@@ -1,7 +1,8 @@
 import { strict as assert } from "node:assert";
 import { cleanEnvironment, executeScenario } from "../../src/runner/execute.ts";
-import type { PreparedVariant, RunResult, Scenario } from "../../src/config/types.ts";
+import type { PreparedVariant, Scenario } from "../../src/config/types.ts";
 import { join } from "node:path";
+import { completedNative, type PublishedRun, validateRunRecord } from "../../src/report/types.ts";
 Deno.test("off clears inherited diagnostics but retains functional course profile", () => {
   const env = cleanEnvironment({
     COURSE_PERF_MODE: "trace",
@@ -18,7 +19,7 @@ Deno.test("off clears inherited diagnostics but retains functional course profil
 Deno.test("runner keeps argv, cwd, outputs and build exit code and off creates no telemetry", async () => {
   const root = await Deno.makeTempDir({ prefix: "perf runner " });
   const release = join(root, "release");
-  let running: Promise<RunResult> | undefined;
+  let running: Promise<PublishedRun> | undefined;
   try {
     const path = join(root, "fake.ts");
     await Deno.writeTextFile(
@@ -107,22 +108,31 @@ throw new Error('Контрольный child не был освобождён')
     assert.equal(finished, false, "Child завершился до открытия gate");
     assert.deepEqual(await Deno.readFile(join(directory, "stdout.log")), expectedOut);
     assert.deepEqual(await Deno.readFile(join(directory, "stderr.log")), expectedErr);
+    const initial = validateRunRecord(
+      JSON.parse(await Deno.readTextFile(join(directory, "run.json"))),
+    );
+    assert.equal(initial.completion.kind, "incomplete");
+    assert.equal(initial.dataValid, false);
     await Deno.writeTextFile(release, "");
     const result = await running;
-    assert.equal(result.buildExitCode, 23);
-    assert.equal(result.dataValid, true);
-    assert.equal(result.preparation.length, 0);
     assert.deepEqual(
-      await Deno.readFile(join(result.outputDirectory, "stdout.log")),
+      JSON.parse(await Deno.readTextFile(join(result.directory, "run.json"))),
+      result.record,
+    );
+    assert.equal(completedNative(result).code, 23);
+    assert.equal(result.record.dataValid, true);
+    assert.equal(result.record.preparation.length, 0);
+    assert.deepEqual(
+      await Deno.readFile(join(result.directory, "stdout.log")),
       expectedOut,
     );
     assert.deepEqual(
-      await Deno.readFile(join(result.outputDirectory, "stderr.log")),
+      await Deno.readFile(join(result.directory, "stderr.log")),
       expectedErr,
     );
-    assert(result.wallSeconds > 0);
+    assert(completedNative(result).wallSeconds > 0);
     await assert.rejects(
-      () => Deno.stat(join(result.outputDirectory, "events")),
+      () => Deno.stat(join(result.directory, "events")),
       Deno.errors.NotFound,
     );
   } finally {
@@ -168,13 +178,13 @@ Deno.test("Hyperfine 2 records raw resource metrics and literal argv without exe
       outputRoot: join(root, "runs"),
       useHyperfine: true,
     });
-    assert.equal(result.buildExitCode, 23);
+    assert.equal(completedNative(result).code, 23);
     assert.deepEqual(JSON.parse(await Deno.readTextFile(join(root, "args.json"))), [literal]);
     await assert.rejects(() => Deno.stat(join(root, "forbidden")), Deno.errors.NotFound);
-    const raw = JSON.parse(await Deno.readTextFile(join(result.outputDirectory, "hyperfine.json")));
+    const raw = JSON.parse(await Deno.readTextFile(join(result.directory, "hyperfine.json")));
     assert.equal(raw.schema_version, 2);
     assert.equal(raw.results[0].measurements[0].exit_code, 23);
-    assert(result.wallSeconds > 0);
+    assert(completedNative(result).wallSeconds > 0);
     assert(raw.results[0].measurements[0].time_cpu.value >= 0);
   } finally {
     await Deno.remove(root, { recursive: true });
@@ -218,14 +228,14 @@ Deno.test("resource measurement retains the tool signal separately from a numeri
     const result = await executeScenario(scenario, prepared, "off", {
       outputRoot: join(root, "runs"),
     });
-    assert.equal(result.signal, "SIGTERM");
-    assert.equal(result.buildExitCode, 143);
+    assert.equal(completedNative(result).signal, "SIGTERM");
+    assert.equal(completedNative(result).code, 143);
     await Deno.writeTextFile(script, "Deno.exit(143);");
     const numeric = await executeScenario(scenario, prepared, "off", {
       outputRoot: join(root, "runs"),
     });
-    assert.equal(numeric.signal, null);
-    assert.equal(numeric.buildExitCode, 143);
+    assert.equal(completedNative(numeric).signal, null);
+    assert.equal(completedNative(numeric).code, 143);
   } finally {
     await Deno.remove(root, { recursive: true });
   }

@@ -25,14 +25,15 @@ Deno.test("single off report is versioned, portable and does not invent diagnost
       sourceHash: "s",
       preparedHash: "p",
     }];
-    await writeRunArtifacts(dir, r);
+    const published = await writeRunArtifacts(dir, r);
+    assert.equal(published.record, r);
+    assert.equal(published.directory, dir);
     const moved = join(root, "moved");
     await Deno.rename(dir, moved);
     const metadata = validateRunRecord(
       JSON.parse(await Deno.readTextFile(join(moved, "run.json"))),
     );
     assert.equal(metadata.collectionDirectory, dir);
-    assert.equal(metadata.outputDirectory, "/final/test");
     assert.equal(metadata.preparation[0].path, "/original/bootstrap");
     const summary = validateRunSummary(
       JSON.parse(await Deno.readTextFile(join(moved, "summary.json"))),
@@ -197,7 +198,7 @@ Deno.test("trace bundle and versioned export survive staging with relative exist
     assert.match(report, /общая wall-шкала/);
     assert.match(report, /локальная wall-шкала/);
     assert.match(report, /Lua CPU/);
-    assert.match(report, /run\.json: outcome\.peakRssKiB/);
+    assert.match(report, /run\.json: completion\.native\.peakRssKiB/);
     for (const link of report.matchAll(/\]\(([^)]+)\)/g)) {
       await Deno.stat(resolve(final, decodeURI(link[1])));
     }

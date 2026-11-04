@@ -47,12 +47,14 @@ Deno.test("report separates clock totals, does not claim self time, and retains 
       null,
     ], ["process_cpu", 10, null]]);
     await Deno.mkdir(join(root, "runs/r"), { recursive: true });
+    const failed = record(root, "r");
+    assert(failed.completion.kind === "complete");
+    failed.completion.native.code = 23;
     await Deno.writeTextFile(
       join(root, "runs/r/run.json"),
       JSON.stringify({
-        ...record(root, "r"),
-        request: { ...record(root, "r").request, mode: "trace" },
-        buildExitCode: 23,
+        ...failed,
+        request: { ...failed.request, mode: "trace" },
         mode: "trace",
       }),
     );
@@ -68,7 +70,7 @@ Deno.test("report separates clock totals, does not claim self time, and retains 
       run,
     ], root);
     assert.equal(
-      JSON.parse(await Deno.readTextFile(join(root, "builds.json")))[0].buildExitCode,
+      JSON.parse(await Deno.readTextFile(join(root, "builds.json")))[0].completion.native.code,
       23,
     );
     assert((await Deno.readTextFile(join(root, "report.md"))).includes("23"));
@@ -280,7 +282,6 @@ Deno.test("experiment links survive relocation with trace CPU and off adapters",
     );
     const metadata = JSON.parse(await Deno.readTextFile(join(final, "runs/fixture/run.json")));
     assert.equal(metadata.collectionDirectory, join(stage, "runs/fixture"));
-    assert.equal(metadata.outputDirectory, "/final/test");
   } finally {
     await Deno.remove(root, { recursive: true });
   }

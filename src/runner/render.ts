@@ -1,8 +1,10 @@
 import { join, relative, resolve } from "node:path";
 import type {
-  BuildOutcome,
   GitProvenance,
   NativeRenderRequest,
+  ProcessObservation,
+  PublishedRun,
+  RunCompletion,
   RunRecord,
 } from "../report/types.ts";
 import { OwnedProcessError, runOwnedProcess } from "./process.ts";
@@ -10,16 +12,21 @@ import { resolveRenderProject } from "../adapters/quarto/inspect.ts";
 import { finalizeRun, prepareRunStorage } from "./storage.ts";
 import { prepareRenderDiagnostic } from "./diagnostic.ts";
 import { type NormalizedRun, normalizeRun } from "../analysis/normalize.ts";
-import { jsonFiles } from "../report/run.ts";
-import type { PreparationReceipt } from "../config/types.ts";
+import { writeRunArtifacts } from "../report/run.ts";
+import { PublicationError } from "../report/types.ts";
 import { validateTelemetryEnvironment } from "./environment.ts";
 
 export async function runNativeRender(
   request: NativeRenderRequest,
   stagingDirectory: string,
   diagnosticEnv: Record<string, string> = {},
-): Promise<BuildOutcome> {
+  lifecycle: {
+    abortSignal?: AbortSignal;
+    onObservation?: (observation: ProcessObservation) => void;
+  } = {},
+): Promise<ProcessObservation> {
   return await runOwnedProcess({
+    ...lifecycle,
     executable: request.quarto,
     args: ["render", ...request.nativeArgv],
     cwd: request.cwd,
@@ -48,7 +55,7 @@ async function gitProvenance(cwd: string, outputParent?: string): Promise<GitPro
             const previous = JSON.parse(await Deno.readTextFile(join(directory, "run.json")));
             if (
               previous.schema_version === 2 && previous.runId === entry.name &&
-              previous.outputDirectory === directory
+              previous.completion?.kind === "complete"
             ) exclusions.push(`:(exclude,top,literal)${rel}`);
           } catch (e) {
             if (!(e instanceof Deno.errors.NotFound) && !(e instanceof SyntaxError)) throw e;
@@ -127,132 +134,161 @@ export async function renderCommand(request: NativeRenderRequest): Promise<numbe
       JSON.stringify({ mode: request.mode, runId: paths.runId, experimentId: paths.runId }),
     );
   }
-  let externalSignal: Deno.Signal | null = null;
-  const rememberInt = () => {
-    externalSignal ??= "SIGINT";
+  const started = performance.now(), cancellation = new AbortController();
+  let externalSignal: "SIGINT" | "SIGTERM" | null = null;
+  let observation: ProcessObservation = {
+    native: null,
+    command: null,
+    streams: { stdout: "not-started", stderr: "not-started" },
+    stdioMode: null,
+    errors: [],
+    observedWallSeconds: 0,
   };
-  const rememberTerm = () => {
-    externalSignal ??= "SIGTERM";
+  let normalized: NormalizedRun | undefined, selected: RunRecord | undefined;
+  let notify: (record: RunRecord) => void = () => {};
+  const terminal = new Promise<RunRecord>((resolve) => {
+    notify = resolve;
+  });
+  const snapshot = (completion: RunCompletion): RunRecord => ({
+    schema_version: 2,
+    runId: paths.runId,
+    request,
+    completion,
+    command: observation.command,
+    streams: { ...observation.streams },
+    stdioMode: observation.stdioMode,
+    observedWallSeconds: (performance.now() - started) / 1000,
+    preparation: [...prepared?.preparation ?? []],
+    dataValid: completion.kind === "complete" && (normalized?.dataValid ?? !prepared),
+    quality: {
+      droppedEvents: normalized?.quality.droppedEvents ?? 0,
+      incompleteSpans: normalized?.quality.incompleteSpans ?? 0,
+      coverageComplete: completion.kind === "complete" &&
+        (normalized?.quality.coverageComplete ?? false),
+      errors: [...normalized?.quality.errors ?? [], ...observation.errors],
+    },
+    versions: {
+      tool: "2.0.0",
+      quarto: new TextDecoder().decode(version.stdout).trim(),
+      deno: prepared?.coverage.runtime.runtime.deno?.version ?? null,
+      pandoc: prepared?.coverage.runtime.runtime.pandoc?.version ?? null,
+    },
+    git,
+    collectionDirectory: paths.stagingDirectory,
+    artifacts: {},
+  });
+  const choose = (completion: RunCompletion) => {
+    if (selected) return;
+    selected = snapshot(completion);
+    notify(selected);
   };
-  Deno.addSignalListener("SIGINT", rememberInt);
-  Deno.addSignalListener("SIGTERM", rememberTerm);
-  let outcome: BuildOutcome | undefined, failure: unknown;
-  let diagnosticValid = true;
-  let savedDirectory = paths.stagingDirectory;
+  const remember = (signal: "SIGINT" | "SIGTERM") => {
+    externalSignal ??= signal;
+    if (!selected) {
+      choose({
+        kind: "incomplete",
+        reason: "interrupted",
+        requestedSignal: externalSignal,
+        native: observation.native,
+      });
+    }
+    // Existing process owner alone forwards to its owned group.
+    if (!cancellation.signal.aborted) cancellation.abort(externalSignal);
+  };
+  const interrupt = () => remember("SIGINT"), term = () => remember("SIGTERM");
+  Deno.addSignalListener("SIGINT", interrupt);
+  Deno.addSignalListener("SIGTERM", term);
+  let previous: PublishedRun | undefined;
   try {
     try {
-      outcome = await runNativeRender(request, paths.stagingDirectory, diagnosticEnv);
-    } catch (error) {
-      failure = error;
-      if (error instanceof OwnedProcessError) outcome = error.outcome;
+      previous = await writeRunArtifacts(
+        paths.stagingDirectory,
+        snapshot({
+          kind: "incomplete",
+          reason: "not-finalized",
+          requestedSignal: null,
+          native: null,
+        }),
+      );
+    } catch (cause) {
+      if (cause instanceof PublicationError) previous = cause.published;
+      if (!selected) throw cause;
     }
-    if (outcome) {
-      const errors = failure ? [failure instanceof Error ? failure.message : String(failure)] : [];
-      let normalized: NormalizedRun | undefined;
-      const preparation = [...prepared?.preparation ?? []];
-      if (prepared) {
+    if (!selected) {
+      void (async () => {
         try {
-          normalized = await normalizeRun(paths.stagingDirectory);
-          preparation.push(
-            ...await jsonFiles(
-              join(paths.stagingDirectory, "preparation"),
-              ".json",
-            ) as unknown as PreparationReceipt[],
-          );
-        } catch (error) {
-          failure ??= error;
-          errors.push(error instanceof Error ? error.message : String(error));
-        }
-      }
-      diagnosticValid = !failure && (normalized?.dataValid ?? !prepared);
-      const record: RunRecord = {
-        schema_version: 2,
-        runId: paths.runId,
-        request,
-        outcome,
-        preparation,
-        dataValid: diagnosticValid,
-        quality: normalized
-          ? {
-            ...normalized.quality,
-            coverageComplete: false,
-            errors: [...normalized.quality.errors, ...errors],
-          }
-          : { droppedEvents: 0, incompleteSpans: 0, coverageComplete: false, errors },
-        versions: {
-          tool: "2.0.0",
-          quarto: new TextDecoder().decode(version.stdout).trim(),
-          deno: prepared?.coverage.runtime.runtime.deno?.version ?? null,
-          pandoc: prepared?.coverage.runtime.runtime.pandoc?.version ?? null,
-        },
-        git,
-        collectionDirectory: paths.stagingDirectory,
-        outputDirectory: paths.finalDirectory,
-        artifacts: {},
-      };
-      try {
-        savedDirectory = await finalizeRun(paths, record, normalized);
-        const unavailable = (value: number | null) => value === null ? "недоступно" : String(value);
-        const printError = diagnostic(
-          `Performance: wall=${outcome.wallSeconds.toFixed(3)}s; CPU user=${
-            unavailable(outcome.cpuUserSeconds)
-          }; CPU system=${unavailable(outcome.cpuSystemSeconds)}; peak RSS=${
-            unavailable(outcome.peakRssKiB)
-          } KiB; status=${outcome.signal ?? outcome.code}; data=${
-            diagnosticValid ? "VALID" : "INVALID"
-          }\nОтчёт Performance: ${savedDirectory}`,
-        );
-        failure ??= printError;
-      } catch (error) {
-        failure ??= error;
-        diagnostic(error instanceof Error ? error.message : String(error));
-      }
-      if (failure) {
-        diagnostic(failure instanceof Error ? failure.message : String(failure));
-        // Даже отказ stderr не должен заменить известный child exit/signal.
-        try {
-          const directory = await Deno.lstat(savedDirectory);
-          if (!directory.isDirectory || directory.isSymlink) {
-            throw new Error("Недопустимый каталог диагностики");
-          }
-          const receipt = await Deno.open(join(savedDirectory, "performance-error.json"), {
-            write: true,
-            createNew: true,
+          observation = await runNativeRender(request, paths.stagingDirectory, diagnosticEnv, {
+            abortSignal: cancellation.signal,
+            onObservation(current) {
+              observation = current;
+              if (current.errors.length) {
+                choose({
+                  kind: "incomplete",
+                  reason: "observation-error",
+                  requestedSignal: null,
+                  native: current.native,
+                });
+              }
+            },
           });
-          try {
-            const data = new TextEncoder().encode(
-              JSON.stringify(
-                {
-                  schema_version: 2,
-                  error: failure instanceof Error ? failure.message : String(failure),
-                },
-                null,
-                2,
-              ) + "\n",
-            );
-            let offset = 0;
-            while (offset < data.length) offset += await receipt.write(data.subarray(offset));
-          } finally {
-            receipt.close();
+          if (selected) return;
+          if (
+            !observation.native || observation.streams.stdout !== "eof" ||
+            observation.streams.stderr !== "eof"
+          ) throw new Error("Неполное наблюдение Native");
+          if (prepared) {
+            normalized = await normalizeRun(paths.stagingDirectory);
+            if (!normalized.dataValid) throw new Error("Невалидное наблюдение диагностики");
           }
-        } catch { /* Доступные raw/report уже сохранены; исходный результат приоритетен. */ }
-      }
-    } else {
-      diagnostic(`Материалы запуска сохранены: ${paths.stagingDirectory}`);
+          if (!selected) choose({ kind: "complete", native: observation.native });
+        } catch (cause) {
+          if (cause instanceof OwnedProcessError) observation = cause.observation;
+          if (!selected) {
+            observation = {
+              ...observation,
+              errors: [
+                ...observation.errors,
+                cause instanceof Error ? cause.message : String(cause),
+              ],
+            };
+            choose({
+              kind: "incomplete",
+              reason: "observation-error",
+              requestedSignal: null,
+              native: observation.native,
+            });
+          }
+        }
+      })();
     }
+    const record = await terminal;
+    const publication = record.completion.kind === "complete"
+      ? await finalizeRun(paths, record, normalized, previous)
+      : await writeRunArtifacts(paths.stagingDirectory, record, undefined, previous);
+    diagnostic(
+      `Отчёт Performance: ${publication.directory}; completion=${record.completion.kind}; data=${
+        record.dataValid ? "VALID" : "INVALID"
+      }`,
+    );
+    return record.completion.kind === "complete"
+      ? record.completion.native.code || (record.dataValid ? 0 : 4)
+      : 4;
+  } catch (cause) {
+    if (cause instanceof PublicationError) {
+      diagnostic(
+        `Ошибка публикации: ${cause.directory}; last confirmed: ${
+          cause.published?.directory ?? "нет"
+        }`,
+      );
+    }
+    throw cause;
   } finally {
-    Deno.removeSignalListener("SIGINT", rememberInt);
-    Deno.removeSignalListener("SIGTERM", rememberTerm);
+    Deno.removeSignalListener("SIGINT", interrupt);
+    Deno.removeSignalListener("SIGTERM", term);
+    // Also leave the interrupted lifecycle if publication failed.
+    if (externalSignal) {
+      Deno.kill(Deno.pid, externalSignal);
+      await new Promise<never>(() => {});
+    }
   }
-  const signal = externalSignal ?? outcome?.signal;
-  if (signal) {
-    Deno.kill(Deno.pid, signal);
-    await new Promise(() => {});
-  }
-  if (outcome?.code) return outcome.code;
-  if (failure || !diagnosticValid) {
-    if (!outcome) throw failure;
-    return 4;
-  }
-  return 0;
 }

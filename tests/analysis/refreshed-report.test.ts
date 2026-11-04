@@ -44,7 +44,7 @@ Deno.test("lazy re-normalization refreshes builds, coverage, summary and both re
     );
     assert.equal(result.dataValid, false);
     assert.equal((await load("runs/r/run.json")).dataValid, false);
-    assert.equal((await load("runs/r/run.json")).outcome.code, 7);
+    assert.equal((await load("runs/r/run.json")).completion.native.code, 7);
     assert.equal((await load("builds.json"))[0].dataValid, false);
     assert.equal((await load("summary.json")).runs[0].data_valid, false);
     assert.equal((await load("runs/r/summary.json")).dataValid, false);

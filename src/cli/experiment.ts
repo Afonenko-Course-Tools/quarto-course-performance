@@ -4,7 +4,8 @@ import { resolveSources } from "../sources/resolve.ts";
 import { freezeVariants } from "../sources/freeze.ts";
 import { prepareVariant } from "../sources/prepare.ts";
 import { executablePath, probeQuarto } from "../adapters/quarto/capabilities.ts";
-import { executeScenario } from "../runner/execute.ts";
+import { executeScenario, withScenarioSignals } from "../runner/execute.ts";
+import { completedNative, validateRunRecord } from "../report/types.ts";
 import { benchmarkPair } from "../runner/benchmark.ts";
 import { hashFile } from "../sources/snapshot.ts";
 import { compareBenchmarks } from "../analysis/compare.ts";
@@ -56,6 +57,14 @@ function parseFlags(args: readonly string[]): Record<string, string> {
   return flags;
 }
 export async function experimentCommand(argv: readonly string[]): Promise<number> {
+  return argv[0] === "run" || argv[0] === "benchmark"
+    ? await withScenarioSignals((signal) => experimentCommandImpl(argv, signal))
+    : await experimentCommandImpl(argv);
+}
+async function experimentCommandImpl(
+  argv: readonly string[],
+  abortSignal?: AbortSignal,
+): Promise<number> {
   const [command, ...args] = argv;
   const flags = parseFlags(args);
   if (
@@ -184,6 +193,7 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
             cleanPaths: config.cleanPaths,
             useHyperfine: true,
             runtimeRegistry,
+            abortSignal,
           },
           onProgress: async (progress) => {
             await Deno.writeTextFile(
@@ -233,10 +243,12 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
       diagnosticEnv: diagnostic?.env,
       coverage: diagnostic?.coverage,
       runtimeRegistry,
+      abortSignal,
     });
+    const native = completedNative(result);
     if (diagnostic) {
       const coverage = JSON.parse(
-        await Deno.readTextFile(join(result.outputDirectory, "coverage.json")),
+        await Deno.readTextFile(join(result.directory, "coverage.json")),
       );
       const observations = Object.fromEntries(
         diagnostic.coverage.requestedExtensions.map((ext) => [
@@ -250,16 +262,16 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
         ]),
       );
       await Deno.writeTextFile(
-        join(result.outputDirectory, "coverage.json"),
+        join(result.directory, "coverage.json"),
         JSON.stringify({ ...coverage, observations }, null, 2) + "\n",
       );
     }
     await Deno.writeTextFile(
-      join(result.outputDirectory, "manifest.json"),
+      join(result.directory, "manifest.json"),
       JSON.stringify(prepared.manifest, null, 2) + "\n",
     );
     console.log(JSON.stringify(result));
-    return result.buildExitCode ? 3 : result.dataValid ? 0 : 4;
+    return native.code ? 3 : result.record.dataValid ? 0 : 4;
   }
   if (command === "report" || command === "verify") {
     if (flags["--import-historical"]) {
@@ -282,12 +294,12 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
           const dir = join(runRoot, item.name);
           let meta;
           try {
-            meta = JSON.parse(await Deno.readTextFile(join(dir, "run.json")));
+            meta = validateRunRecord(JSON.parse(await Deno.readTextFile(join(dir, "run.json"))));
           } catch (e) {
             if (e instanceof Deno.errors.NotFound) continue;
             throw e;
           }
-          if (meta.request.mode !== "off") {
+          if (meta.completion.kind === "complete" && meta.request.mode !== "off") {
             yield await normalizeRun(dir);
           } else {
             yield {
@@ -311,12 +323,15 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
       if (!item.isDirectory) continue;
       let meta;
       try {
-        meta = JSON.parse(await Deno.readTextFile(join(runRoot, item.name, "run.json")));
+        meta = validateRunRecord(
+          JSON.parse(await Deno.readTextFile(join(runRoot, item.name, "run.json"))),
+        );
       } catch (e) {
         if (e instanceof Deno.errors.NotFound) return 4;
         throw e;
       }
-      if (meta.outcome.code !== 0) return 3;
+      if (meta.completion.kind !== "complete") return 4;
+      if (meta.completion.native.code !== 0) return 3;
     }
     return report.dataValid ? 0 : 4;
   }
