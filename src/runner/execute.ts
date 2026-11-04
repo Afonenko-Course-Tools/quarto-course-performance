@@ -22,6 +22,46 @@ export interface ExecuteOptions {
   useHyperfine?: boolean;
   runtimeRegistry?: string;
 }
+async function streamLog(
+  input: ReadableStream<Uint8Array>,
+  path: string,
+  failed: (error: unknown) => void,
+) {
+  let log: Deno.FsFile | undefined;
+  const close = () => {
+    try {
+      log?.close();
+    } catch (error) {
+      failed(error);
+    }
+    log = undefined;
+  };
+  try {
+    log = await Deno.open(path, { write: true, create: true, truncate: true });
+  } catch (error) {
+    failed(error);
+  }
+  try {
+    for await (const chunk of input) {
+      if (!log) continue;
+      try {
+        let offset = 0;
+        while (offset < chunk.length) {
+          const written = await log.write(chunk.subarray(offset));
+          if (written <= 0) throw new Error("Запись лога не продвинулась");
+          offset += written;
+        }
+      } catch (error) {
+        failed(error);
+        close();
+      }
+    }
+  } catch (error) {
+    failed(error);
+  } finally {
+    close();
+  }
+}
 export async function executeScenario(
   scenario: Scenario,
   prepared: PreparedVariant,
@@ -129,7 +169,7 @@ export async function executeScenario(
     ]
     : argv;
   const start = performance.now();
-  const out = await new Deno.Command(executable, {
+  const child = new Deno.Command(executable, {
     args,
     cwd,
     env,
@@ -137,12 +177,25 @@ export async function executeScenario(
     stdin: "inherit",
     stdout: "piped",
     stderr: "piped",
-  }).output();
+  }).spawn();
+  const errors: unknown[] = [];
+  const failed = (error: unknown) => {
+    if (!errors.length) errors.push(error);
+  };
+  const [status] = await Promise.allSettled([
+    child.status.catch((error) => {
+      failed(error);
+      throw error;
+    }),
+    streamLog(child.stdout, join(outputDirectory, "stdout.log"), failed),
+    streamLog(child.stderr, join(outputDirectory, "stderr.log"), failed),
+  ]);
+  if (errors.length) throw errors[0];
+  if (status.status === "rejected") throw status.reason;
+  const out = status.value;
   let wallSeconds = (performance.now() - start) / 1000,
     buildExitCode = out.code,
     signal = out.signal;
-  await Deno.writeFile(join(outputDirectory, "stdout.log"), out.stdout);
-  await Deno.writeFile(join(outputDirectory, "stderr.log"), out.stderr);
   let resources: {
     cpu_user_seconds: number | null;
     cpu_system_seconds: number | null;
