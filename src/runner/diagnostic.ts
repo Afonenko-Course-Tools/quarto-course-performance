@@ -139,10 +139,6 @@ export async function prepareRenderDiagnostic(
     preparation: setup.preparation,
     coverage: {
       complete: false,
-      packageCoverage: await collectPackageCoverage(target.projectRoot, [], [
-        workspace,
-        ...(target.outputDirectory ? [target.outputDirectory] : []),
-      ]),
       installed: { ts: true, lua: true },
       instrumented: { ts: true, lua: true },
       observed: { ts: false, lua: false },

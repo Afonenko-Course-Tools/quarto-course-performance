@@ -14,7 +14,7 @@ export interface InstrumentedModule {
 export function instrumentModule(
   source: string,
   path: string,
-  scope: { strict: boolean; bridgeUrl?: string },
+  scope: { strict: boolean; bridgeUrl?: string; topLevelFunctions?: readonly string[] },
 ): InstrumentedModule {
   const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS),
     symbols: SymbolReceipt[] = [],
@@ -23,8 +23,27 @@ export function instrumentModule(
   if (
     (file as ts.SourceFile & { parseDiagnostics: readonly ts.Diagnostic[] }).parseDiagnostics.length
   ) throw new Error("Ошибка разбора TypeScript");
+  // Явный partial scope не добавляет wrappers во вложенные функции.
+  const functions = scope.topLevelFunctions;
+  const selected = functions === undefined ? undefined : new Set<ts.FunctionDeclaration>();
+  if (functions !== undefined && selected) {
+    const names = new Set(functions);
+    if (names.size !== functions.length) {
+      throw new Error("Неполное coverage: повтор выбранного имени функции");
+    }
+    for (const name of names) {
+      const matches = file.statements.filter((node): node is ts.FunctionDeclaration =>
+        ts.isFunctionDeclaration(node) && node.name?.text === name
+      );
+      if (matches.length !== 1 || !matches[0].body) {
+        throw new Error(`Неполное coverage: нет единственной функции с body: ${name}`);
+      }
+      selected.add(matches[0]);
+    }
+  }
   const manuallyWrapped = new Set<string>();
-  function findManual(node: ts.Node) {
+  function findManual(node: ts.Node, active = selected === undefined) {
+    const observed = active || ts.isFunctionDeclaration(node) && !!selected?.has(node);
     if (
       ts.isBinaryExpression(node) && ts.isIdentifier(node.left) &&
       ts.isCallExpression(node.right) && ts.isPropertyAccessExpression(node.right.expression) &&
@@ -36,13 +55,15 @@ export function instrumentModule(
         file.statements.some((s) => ts.isFunctionDeclaration(s) && s.name?.text === name && s.body)
       ) {
         manuallyWrapped.add(name);
-      } else {skipped.push({
+      } else if (observed) {
+        skipped.push({
           position: node.getStart(file),
           reason: "Local/aliased manual rebind не поддержан",
-        });}
+        });
+      }
     }
     if (
-      ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) &&
+      observed && ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) &&
       /^wrap(Sync|Async|Walk)$/.test(node.expression.name.text) &&
       node.arguments.some((a) => ts.isArrowFunction(a) || ts.isFunctionExpression(a))
     ) {
@@ -51,10 +72,17 @@ export function instrumentModule(
         reason: "Inline manual callback не поддержан",
       });
     }
-    ts.forEachChild(node, findManual);
+    ts.forEachChild(node, (child) => findManual(child, observed));
   }
   findManual(file);
   function walk(node: ts.Node) {
+    if (selected) {
+      if (node === file) {
+        for (const declaration of selected) walk(declaration);
+        return;
+      }
+      if (!ts.isFunctionDeclaration(node) || !selected.has(node)) return;
+    }
     if (
       ts.isConstructorDeclaration(node) || ts.isGetAccessorDeclaration(node) ||
       ts.isSetAccessorDeclaration(node)
@@ -101,7 +129,7 @@ export function instrumentModule(
     ts.forEachChild(node, walk);
   }
   walk(file);
-  if (scope.strict && skipped.length) {
+  if ((scope.strict || selected !== undefined) && skipped.length) {
     throw new Error(`Неполное coverage: ${JSON.stringify(skipped)}`);
   }
   let result = source;

@@ -1,6 +1,5 @@
-// Строгое сравнение сохранившихся outputs; запускать после завершения benchmark/diagnostics.
+// Проверка состава и выбранного содержимого outputs после benchmark/diagnostics.
 import { dirname, join, resolve } from "node:path";
-import { loadOwnerNormalizer } from "./owner-normalizer.ts";
 import { validateConfig } from "../src/config/validate.ts";
 import { compareOutputs } from "../src/analysis/outputs.ts";
 import { importSourceManifest } from "../src/config/types.ts";
@@ -9,10 +8,6 @@ const workspace = resolve(Deno.args[0]), upstreamWorkspace = resolve(Deno.args[1
 const config = validateConfig(
   JSON.parse(await Deno.readTextFile(new URL("../scenarios/java.json", import.meta.url))),
 );
-const normalizer = await loadOwnerNormalizer(
-  Deno.args[2] ?? join(workspace, "candidate.manifest.json"),
-);
-const canonicalizeMetadata = normalizer.normalizeHtml;
 type Build = {
   runId: string;
   scenario: string;
@@ -55,7 +50,7 @@ async function findRun(
   return run;
 }
 const comparisons: unknown[] = [], leaks: string[] = [];
-let equivalent = true;
+let checkedContentEqual = true;
 async function exists(path: string) {
   try {
     return (await Deno.stat(path)).isDirectory;
@@ -85,13 +80,14 @@ async function compareBuilds(a: Build, b: Build, label: string) {
     const result = hasA && hasB
       ? await compareOutputs(left, right, {
         outputPolicy: config.outputPolicy,
-        leftSourceRoot: root(a),
-        rightSourceRoot: root(b),
-        normalizeHtml: canonicalizeMetadata,
       })
-      : { equivalent: false, differences: ["Output directory отсутствует в одном варианте"] };
+      : {
+        checkedContentEqual: false,
+        htmlBytesCompared: config.outputPolicy === "strict",
+        differences: ["Output directory отсутствует в одном варианте"],
+      };
     checks.push({ path, ...result });
-    equivalent &&= result.equivalent;
+    checkedContentEqual &&= result.checkedContentEqual;
     if (hasB) {
       for (const file of await files(right)) {
         if (
@@ -172,10 +168,8 @@ await compareBuilds(
 const result = {
   comparisons,
   leaks,
-  equivalent: equivalent && !leaks.length,
-  ownerNormalizer: normalizer.receipt,
-  normalization:
-    "QRC owner metadata.ts (candidate SHA) + historical Core exercise attribute order; values/content/ZIP bytes strict",
+  checkedContentEqual: checkedContentEqual && !leaks.length,
+  htmlBytesCompared: config.outputPolicy === "strict",
   upstreamProvenance: "previous experiment, identical immutable upstream source set",
 };
 await Deno.writeTextFile(
@@ -183,4 +177,4 @@ await Deno.writeTextFile(
   JSON.stringify(result, null, 2) + "\n",
 );
 console.log(JSON.stringify(result));
-if (!result.equivalent) Deno.exit(4);
+if (!result.checkedContentEqual) Deno.exit(4);

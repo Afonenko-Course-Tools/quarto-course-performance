@@ -21,6 +21,13 @@ export interface BuildOutcome {
   cpuSystemSeconds: number | null;
   peakRssKiB: number | null;
 }
+export interface IncompleteOutcome extends Omit<BuildOutcome, "code" | "wallSeconds"> {
+  completion: "incomplete";
+  code: number | null;
+  wallSeconds: number | null;
+  interruptionSignal: "SIGTERM" | "SIGINT";
+  observedWallSeconds: number;
+}
 export interface GitProvenance {
   root: string;
   head: string | null;
@@ -40,7 +47,7 @@ export interface RunRecord {
   schema_version: 2;
   runId: string;
   request: RunRequest;
-  outcome: BuildOutcome;
+  outcome: BuildOutcome | IncompleteOutcome;
   preparation: PreparationReceipt[];
   dataValid: boolean;
   quality: QualitySummary;
@@ -68,6 +75,24 @@ export interface ProcessExpectation {
   executed: boolean;
   summary_path?: string;
   profile_path?: string;
+}
+export interface NativeCommandTiming {
+  wall_seconds: number | null;
+  clock_domain: "monotonic_process";
+  scope: "launcher-spawn-to-status";
+}
+export interface ProcessReceipt {
+  process_id: string;
+  parent_process_id: string | null;
+  parent_link: "confirmed" | "unlinked";
+  kind: "deno" | "pandoc";
+  os_pid: number | null;
+  argv: string[];
+  cwd: string;
+  exit_code: number | null;
+  signal: Deno.Signal | null;
+  expectation?: ProcessExpectation;
+  native_command?: NativeCommandTiming;
 }
 export interface DiagnosticExpectations {
   schema_version: 2;
@@ -177,7 +202,9 @@ export function validateRunRecord(value: unknown): RunRecord {
   if (!["off", "summary", "cpu", "trace"].includes(request.mode as string)) invalid("request.mode");
   if (request.outputParent !== undefined) string(request.outputParent, "request.outputParent");
   const outcome = object(r.outcome, "outcome");
-  number(outcome.code, "outcome.code", false, true);
+  const incomplete = outcome.completion === "incomplete";
+  if (outcome.completion !== undefined && !incomplete) invalid("outcome.completion");
+  number(outcome.code, "outcome.code", incomplete, true);
   if (outcome.escalated !== undefined) boolean(outcome.escalated, "outcome.escalated");
   if (
     outcome.stdioMode !== undefined &&
@@ -186,10 +213,26 @@ export function validateRunRecord(value: unknown): RunRecord {
   if (outcome.signal !== null && !signals.includes(outcome.signal as Deno.Signal)) {
     invalid("outcome.signal");
   }
-  number(outcome.wallSeconds, "outcome.wallSeconds");
+  number(outcome.wallSeconds, "outcome.wallSeconds", incomplete);
   number(outcome.cpuUserSeconds, "outcome.cpuUserSeconds", true);
   number(outcome.cpuSystemSeconds, "outcome.cpuSystemSeconds", true);
   number(outcome.peakRssKiB, "outcome.peakRssKiB", true);
+  if (incomplete) {
+    if (r.dataValid !== false || object(r.quality, "quality").coverageComplete !== false) {
+      invalid("incomplete quality");
+    }
+    if (outcome.interruptionSignal !== "SIGTERM" && outcome.interruptionSignal !== "SIGINT") {
+      invalid("outcome.interruptionSignal");
+    }
+    number(outcome.observedWallSeconds, "outcome.observedWallSeconds");
+    if (outcome.code === null) {
+      for (
+        const field of ["signal", "wallSeconds", "cpuUserSeconds", "cpuSystemSeconds", "peakRssKiB"]
+      ) {
+        if (outcome[field] !== null) invalid(`unknown outcome.${field}`);
+      }
+    } else if (outcome.wallSeconds === null) invalid("outcome.wallSeconds");
+  }
   if (!Array.isArray(r.preparation)) invalid("preparation");
   for (const receipt of r.preparation) {
     const p = object(receipt, "preparation");

@@ -114,11 +114,106 @@ export function summarizeRunRecord(record: RunRecord, normalized?: NormalizedRun
     ],
   };
 }
+/** Представление уже прочитанных receipts; аргументы команд в отчёт не попадают. */
+export function nativeCommandMarkdown(processes: readonly Record<string, unknown>[]): string[] {
+  const displayedId = (value: unknown) =>
+    typeof value === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+      ? value
+      : "не показан";
+  const runFlags = new Set([
+    "--unstable-ffi",
+    "--unstable-kv",
+    "--no-config",
+    "--no-lock",
+    "--cached-only",
+    "--allow-all",
+    "-A",
+    "--no-check",
+  ]);
+  const rows = processes.map((process) => {
+    const timing = process.native_command;
+    const seconds = timing && typeof timing === "object" && "wall_seconds" in timing &&
+        "clock_domain" in timing && timing.clock_domain === "monotonic_process" &&
+        "scope" in timing && timing.scope === "launcher-spawn-to-status" &&
+        typeof timing.wall_seconds === "number" && Number.isFinite(timing.wall_seconds) &&
+        timing.wall_seconds >= 0
+      ? timing.wall_seconds
+      : null;
+    let category = process.kind === "pandoc" ? "Pandoc" : "Deno";
+    if (process.kind === "deno" && Array.isArray(process.argv)) {
+      const argv: readonly unknown[] = process.argv;
+      let entry = 0;
+      if (argv[0] === "run") {
+        entry = 1;
+        while (true) {
+          const flag = argv[entry];
+          if (typeof flag !== "string" || !(runFlags.has(flag) || flag.startsWith("--v8-flags="))) {
+            break;
+          }
+          entry++;
+        }
+        if (argv[entry] === "--") entry++;
+      }
+      const script = argv[entry], verb = argv[entry + 1];
+      if (
+        typeof script === "string" && /(?:^|[/\\])quarto\.js$/.test(script) &&
+        (verb === "render" || verb === "inspect" || verb === "pandoc" || verb === "run")
+      ) {
+        category = `Quarto ${verb}`;
+      }
+    }
+    const exit = typeof process.exit_code === "number" && Number.isInteger(process.exit_code)
+      ? String(process.exit_code)
+      : "неизвестно";
+    const signal = typeof process.signal === "string" && /^SIG[A-Z0-9]+$/.test(process.signal)
+      ? process.signal
+      : process.signal === null
+      ? "—"
+      : "неизвестно";
+    return {
+      seconds,
+      line: `| ${category} | ${
+        seconds === null ? "неизвестно" : seconds.toFixed(3)
+      } | ${exit} | ${signal} | ${displayedId(process.process_id)} | ${
+        process.parent_link === "confirmed"
+          ? displayedId(process.parent_process_id)
+          : "не подтверждён"
+      } |`,
+    };
+  });
+  if (!rows.length) return [];
+  rows.sort((a, b) => (b.seconds ?? -1) - (a.seconds ?? -1));
+  return [
+    "## Наблюдаемые интервалы команд",
+    "",
+    "Wall от запуска launcher до получения статуса; это inclusive интервалы, их нельзя складывать. Это не self time, CPU, критический путь или полный список процессов ОС. Покрытие частичное; отсутствие времени означает неизвестное значение, а не ноль.",
+    "",
+    "| Категория | Wall, с | Exit | Сигнал | Процесс | Подтверждённый родитель |",
+    "| --- | ---: | --- | --- | --- | --- |",
+    ...rows.map((row) => row.line),
+    "",
+  ];
+}
 export async function writeRunArtifacts(
   directory: string,
   record: RunRecord,
   normalized?: NormalizedRun,
 ): Promise<void> {
+  if ("completion" in record.outcome) {
+    const error = `Запуск прерван внешним ${record.outcome.interruptionSignal}; итог неполон`;
+    record = {
+      ...record,
+      dataValid: false,
+      quality: {
+        ...record.quality,
+        coverageComplete: false,
+        errors: record.quality.errors.includes(error)
+          ? record.quality.errors
+          : [...record.quality.errors, error],
+      },
+    };
+  }
   await Deno.mkdir(directory, { recursive: true });
   if (normalized?.coverage) {
     await Deno.writeTextFile(
@@ -161,8 +256,10 @@ export async function writeRunArtifacts(
   }
   const views: { path: string; clock: string; process_id?: string; executor_id?: string }[] = [];
   const profiles: { path: string; process_id: string }[] = [];
+  let commandLines: string[] = [];
   if (normalized && record.request.mode !== "off") {
     const processes = await jsonFiles(join(directory, "processes"), ".json");
+    commandLines = nativeCommandMarkdown(processes);
     const trace = traces(normalized, processes);
     await Deno.writeTextFile(join(directory, "wall.trace.json"), JSON.stringify(trace.wall));
     await Deno.writeTextFile(join(directory, "lua-cpu.trace.json"), JSON.stringify(trace.luaCpu));
@@ -260,15 +357,23 @@ export async function writeRunArtifacts(
   const lines = [
     "# Отчёт Performance",
     "",
-    `Запуск: \`${record.runId}\`. Режим: \`${record.request.mode}\`. Код Quarto: ${record.outcome.code}. Сигнал: ${
-      record.outcome.signal ?? "—"
-    }.`,
+    `Запуск: \`${record.runId}\`. Режим: \`${record.request.mode}\`. Код Quarto: ${
+      record.outcome.code ?? "неизвестно"
+    }. Сигнал: ${record.outcome.signal ?? (record.outcome.code === null ? "неизвестно" : "—")}.`,
+    ...("completion" in record.outcome
+      ? [
+        `Неполный запуск: внешний ${record.outcome.interruptionSignal}. Наблюдённый wall runner: ${
+          record.outcome.observedWallSeconds.toFixed(3)
+        } с; он не заменяет неизвестный Native outcome.`,
+        "",
+      ]
+      : []),
     "",
-    `Wall: ${record.outcome.wallSeconds.toFixed(3)} с. CPU user: ${
-      record.outcome.cpuUserSeconds ?? "недоступно"
-    }; CPU system: ${record.outcome.cpuSystemSeconds ?? "недоступно"}; peak RSS, KiB: ${
-      record.outcome.peakRssKiB ?? "недоступно"
-    }.`,
+    `Wall: ${
+      record.outcome.wallSeconds === null ? "неизвестно" : record.outcome.wallSeconds.toFixed(3)
+    } с. CPU user: ${record.outcome.cpuUserSeconds ?? "недоступно"}; CPU system: ${
+      record.outcome.cpuSystemSeconds ?? "недоступно"
+    }; peak RSS, KiB: ${record.outcome.peakRssKiB ?? "недоступно"}.`,
     "",
     record.request.mode === "off"
       ? "Диагностические наблюдения в режиме off не собираются."
@@ -276,6 +381,7 @@ export async function writeRunArtifacts(
     "",
     `Качество данных: ${record.dataValid ? "VALID" : "INVALID"}.`,
     "",
+    ...commandLines,
     ...(record.outcome.stdioMode === "pty-combined"
       ? [
         "stdout.log содержит общий терминальный поток stdout/stderr; пустой stderr.log не означает отсутствия ошибок.",
