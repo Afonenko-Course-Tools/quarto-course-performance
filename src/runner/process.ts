@@ -401,6 +401,13 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
         fifoKeeper.close();
         fifoKeeper = undefined;
       }
+      // До status состав подтверждённой group не влияет на normal completion.
+      // Сигнал/ошибка сразу возвращают stop/escalation; после status scanner
+      // по-прежнему ждёт живых потомков и отличает их от zombie-only group.
+      if (group && !status && !failure && !pending && !signalledAt) {
+        await pause(10);
+        continue;
+      }
       let remaining = new Set<number>(), scannerFailed = false;
       try {
         remaining = failure

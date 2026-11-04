@@ -20,6 +20,7 @@ const readDir = Deno.readDir;
 let injected = false;
 Deno.readDir = ((path: string | URL) => {
   if (path !== "/proc") return readDir(path);
+  if (!fault && !staleEntries) return readDir(path);
   if (injected) {
     if (doubleEmpty && !repeated && staleEntries) {
       repeated = true;
@@ -45,12 +46,12 @@ Deno.readDir = ((path: string | URL) => {
     }
   }
   injected = true;
-  const entries = [...Deno.readDirSync("/proc")];
+  const entries = staleEntries ?? [...Deno.readDirSync("/proc")];
   staleEntries = entries;
   return {
     async *[Symbol.asyncIterator]() {
       injectedSnapshots++;
-      Deno.writeTextFileSync(root + "/release", "");
+      if (fault) Deno.writeTextFileSync(root + "/release", "");
       await ownedDone;
       const ready = [...Deno.readDirSync(root)].find((e) => e.name.endsWith(".ready"))!;
       const { group } = JSON.parse(Deno.readTextFileSync(root + "/" + ready.name));
@@ -96,9 +97,24 @@ Deno.readDir = ((path: string | URL) => {
 const native = fault
   ? `trap '' HUP TERM INT; printf parent-ready > "$1/parent-ready"; printf fail-trigger; while [ ! -e "$1/release" ]; do sleep 0.01; done; (printf child-start > "$1/child-start"; while :; do printf x >> "$1/beat"; sleep 0.01; done) & exit 7`
   : `trap '' HUP; printf parent-ready > "$1/parent-ready"; while [ ! -e "$1/release" ]; do sleep 0.01; done; (printf child-start > "$1/child-start"; sleep 0.7; printf done > "$1/done") & exit 7`;
+// Снимок старше fork, но parent освобождает сам стенд, а не normal /proc polling.
+const prepared = fault ? Promise.resolve() : (async () => {
+  for (let n = 0; n < 300; n++) {
+    try {
+      Deno.statSync(root + "/parent-ready");
+      staleEntries = [...Deno.readDirSync("/proc")];
+      Deno.writeTextFileSync(root + "/release", "");
+      return;
+    } catch (error) {
+      if (!(error instanceof Deno.errors.NotFound)) throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error("Нет parent readiness для stale snapshot");
+})();
 let outcome, error: unknown;
 try {
-  outcome = await runOwnedProcess({
+  const running = runOwnedProcess({
     executable: "/bin/sh",
     args: ["-c", native, "sh", root],
     cwd: root,
@@ -120,6 +136,7 @@ try {
       }
       : {}),
   });
+  [outcome] = await Promise.all([running, prepared]);
 } catch (caught) {
   error = caught;
   outcome = (caught as { outcome?: unknown }).outcome;
