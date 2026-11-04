@@ -22,8 +22,8 @@ for (const stage of ["ownership", "live"]) {
         assert(result.injected && result.thrown);
         if (kind === "esrch") {
           assert.equal(result.error, undefined, JSON.stringify(result));
-          assert.equal(result.outcome.code, 7);
-          assert.equal(result.outcome.signal, null);
+          assert.equal(result.outcome.native.code, 7);
+          assert.equal(result.outcome.native.signal, null);
           assert.equal(await Deno.readTextFile(join(root, "stdout.log")), "available");
         } else {assert.match(
             result.error,

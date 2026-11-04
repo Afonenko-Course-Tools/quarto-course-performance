@@ -1,61 +1,53 @@
-// Строгое сравнение сохранившихся outputs; запускать после завершения benchmark/diagnostics.
+// Проверка состава и выбранного содержимого outputs после benchmark/diagnostics.
 import { dirname, join, resolve } from "node:path";
-import { loadOwnerNormalizer } from "./owner-normalizer.ts";
 import { validateConfig } from "../src/config/validate.ts";
 import { compareOutputs } from "../src/analysis/outputs.ts";
-import { importSourceManifest } from "../src/config/types.ts";
+import { importSourceManifest, type ReportSourceManifest } from "../src/config/types.ts";
+import { type PublishedRun, validateRunRecord } from "../src/report/types.ts";
 import { files } from "../src/sources/snapshot.ts";
 const workspace = resolve(Deno.args[0]), upstreamWorkspace = resolve(Deno.args[1]);
 const config = validateConfig(
   JSON.parse(await Deno.readTextFile(new URL("../scenarios/java.json", import.meta.url))),
 );
-const normalizer = await loadOwnerNormalizer(
-  Deno.args[2] ?? join(workspace, "candidate.manifest.json"),
-);
-const canonicalizeMetadata = normalizer.normalizeHtml;
-type Build = {
-  runId: string;
-  scenario: string;
-  mode: string;
-  variant: string;
-  cwd: string;
-  outputDirectory: string;
-  buildExitCode: number;
-  dataValid: boolean;
-  manifest: { sources: { repository: string; sha: string }[] };
-};
 async function findRun(
   root: string,
   scenario: string,
   variant: string,
   mode: string,
-): Promise<Build> {
-  const matches: { meta: Build; modified: number }[] = [];
+): Promise<PublishedRun & { manifest: ReportSourceManifest }> {
+  const matches: {
+    publication: PublishedRun & { manifest: ReportSourceManifest };
+    modified: number;
+  }[] = [];
   for await (const entry of Deno.readDir(join(root, "runs"))) {
     if (!entry.isDirectory) continue;
     const path = join(root, "runs", entry.name, "run.json");
     try {
-      const meta: Build = JSON.parse(await Deno.readTextFile(path));
+      const meta = validateRunRecord(JSON.parse(await Deno.readTextFile(path)));
       if (
-        meta.scenario === scenario && meta.variant === variant && meta.mode === mode &&
-        !meta.buildExitCode && meta.dataValid
+        meta.scenario === scenario && meta.variant === variant && meta.request.mode === mode &&
+        meta.completion.kind === "complete" && meta.completion.native.code === 0 &&
+        meta.completion.native.signal === null && meta.dataValid
       ) {
-        meta.manifest = importSourceManifest(
+        const manifest = importSourceManifest(
           JSON.parse(await Deno.readTextFile(join(dirname(path), "manifest.json"))),
           true,
         );
-        matches.push({ meta, modified: (await Deno.stat(path)).mtime!.getTime() });
+        matches.push({
+          publication: { record: meta, directory: dirname(path), manifest },
+          modified: (await Deno.stat(path)).mtime!.getTime(),
+        });
       }
     } catch (e) {
       if (!(e instanceof Deno.errors.NotFound)) throw e;
     }
   }
-  const run = matches.sort((a, b) => b.modified - a.modified)[0]?.meta;
+  const run = matches.sort((a, b) => b.modified - a.modified)[0]?.publication;
   if (!run) throw new Error(`Нет успешного run: ${scenario}/${variant}/${mode}`);
   return run;
 }
 const comparisons: unknown[] = [], leaks: string[] = [];
-let equivalent = true;
+let checkedContentEqual = true;
 async function exists(path: string) {
   try {
     return (await Deno.stat(path)).isDirectory;
@@ -64,34 +56,36 @@ async function exists(path: string) {
     throw e;
   }
 }
-async function compareBuilds(a: Build, b: Build, label: string) {
-  const scenario = config.scenarios.find((s) => s.id === b.scenario)!;
-  const root = (build: Build) => scenario.cwd === "." ? build.cwd : dirname(build.cwd);
+async function compareBuilds(a: PublishedRun, b: PublishedRun, label: string) {
+  const scenario = config.scenarios.find((s) => s.id === b.record.scenario)!;
+  const root = (build: PublishedRun) =>
+    scenario.cwd === "." ? build.record.request.cwd : dirname(build.record.request.cwd);
   const checks = [];
-  const paths = b.scenario === "java-pl-export"
+  const paths = b.record.scenario === "java-pl-export"
     ? ["pl-native"]
     : (config.cleanPaths ?? []).filter((p) =>
-      p.endsWith(b.scenario === "java-full-full" ? "full" : "student")
+      p.endsWith(b.record.scenario === "java-full-full" ? "full" : "student")
     );
   for (const path of paths) {
-    const left = b.scenario === "java-pl-export"
-      ? join(a.outputDirectory, path)
+    const left = b.record.scenario === "java-pl-export"
+      ? join(a.directory, path)
       : join(root(a), path);
-    const right = b.scenario === "java-pl-export"
-      ? join(b.outputDirectory, path)
+    const right = b.record.scenario === "java-pl-export"
+      ? join(b.directory, path)
       : join(root(b), path);
     const hasA = await exists(left), hasB = await exists(right);
     if (!hasA && !hasB) continue;
     const result = hasA && hasB
       ? await compareOutputs(left, right, {
         outputPolicy: config.outputPolicy,
-        leftSourceRoot: root(a),
-        rightSourceRoot: root(b),
-        normalizeHtml: canonicalizeMetadata,
       })
-      : { equivalent: false, differences: ["Output directory отсутствует в одном варианте"] };
+      : {
+        checkedContentEqual: false,
+        htmlBytesCompared: config.outputPolicy === "strict",
+        differences: ["Output directory отсутствует в одном варианте"],
+      };
     checks.push({ path, ...result });
-    equivalent &&= result.equivalent;
+    checkedContentEqual &&= result.checkedContentEqual;
     if (hasB) {
       for (const file of await files(right)) {
         if (
@@ -115,7 +109,7 @@ async function compareBuilds(a: Build, b: Build, label: string) {
     }
   }
   if (!checks.length) throw new Error("Сравнение без outputs");
-  comparisons.push({ label, leftRunId: a.runId, rightRunId: b.runId, checks });
+  comparisons.push({ label, leftRunId: a.record.runId, rightRunId: b.record.runId, checks });
 }
 for (const profile of ["student", "full"]) {
   const id = "java-full-" + profile;
@@ -172,10 +166,8 @@ await compareBuilds(
 const result = {
   comparisons,
   leaks,
-  equivalent: equivalent && !leaks.length,
-  ownerNormalizer: normalizer.receipt,
-  normalization:
-    "QRC owner metadata.ts (candidate SHA) + historical Core exercise attribute order; values/content/ZIP bytes strict",
+  checkedContentEqual: checkedContentEqual && !leaks.length,
+  htmlBytesCompared: config.outputPolicy === "strict",
   upstreamProvenance: "previous experiment, identical immutable upstream source set",
 };
 await Deno.writeTextFile(
@@ -183,4 +175,4 @@ await Deno.writeTextFile(
   JSON.stringify(result, null, 2) + "\n",
 );
 console.log(JSON.stringify(result));
-if (!result.equivalent) Deno.exit(4);
+if (!result.checkedContentEqual) Deno.exit(4);

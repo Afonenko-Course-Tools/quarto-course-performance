@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import { join, relative } from "node:path";
 import { finalizeRun, prepareRunStorage } from "../../src/runner/storage.ts";
 import { record } from "../report/fixture.ts";
+import { PublicationError } from "../../src/report/types.ts";
 import type { NativeRenderRequest } from "../../src/report/types.ts";
 
 Deno.test("storage stages externally and restores only current run after Quarto removes scratch", async () => {
@@ -23,11 +24,13 @@ Deno.test("storage stages externally and restores only current run after Quarto 
     await Deno.mkdir(join(stage, "events"));
     await Deno.writeTextFile(join(stage, "events/raw.jsonl"), "raw");
     await Deno.remove(join(root, ".quarto"), { recursive: true });
-    const output = await finalizeRun(paths, record(stage, paths.runId));
-    assert.equal(output, join(root, ".quarto/course-perf/runs", paths.runId));
-    assert.equal(await Deno.readTextFile(join(output, "stdout.log")), "current");
-    assert.equal(await Deno.readTextFile(join(output, "events/raw.jsonl")), "raw");
-    await Deno.stat(join(output, "report.md"));
+    const r = record(stage, paths.runId);
+    const output = await finalizeRun(paths, r);
+    assert.equal(output.record, r);
+    assert.equal(output.directory, join(root, ".quarto/course-perf/runs", paths.runId));
+    assert.equal(await Deno.readTextFile(join(output.directory, "stdout.log")), "current");
+    assert.equal(await Deno.readTextFile(join(output.directory, "events/raw.jsonl")), "raw");
+    await Deno.stat(join(output.directory, "report.md"));
     await assert.rejects(() => Deno.stat(join(root, ".quarto/foreign")), Deno.errors.NotFound);
   } finally {
     await Deno.remove(root, { recursive: true });
@@ -63,7 +66,12 @@ Deno.test("storage resolves output from original cwd and isolates simultaneous p
     await Deno.writeTextFile(join(paths[0].finalDirectory, "keep"), "existing");
     await assert.rejects(
       () => finalizeRun(paths[0], record(paths[0].stagingDirectory, paths[0].runId)),
-      new RegExp(paths[0].stagingDirectory),
+      (error: unknown) => {
+        assert(error instanceof PublicationError);
+        assert.equal(error.directory, paths[0].finalDirectory);
+        assert.equal(error.published?.directory, paths[0].stagingDirectory);
+        return true;
+      },
     );
     assert.equal(await Deno.readTextFile(join(paths[0].finalDirectory, "keep")), "existing");
     await Deno.stat(join(paths[0].stagingDirectory, "report.md"));
@@ -112,7 +120,15 @@ Deno.test("failed finalize keeps complete staging and rejects substituted symlin
     await Deno.remove(join(root, "out"), { recursive: true });
     await Deno.mkdir(join(root, "foreign"));
     await Deno.symlink(join(root, "foreign"), join(root, "out"));
-    await assert.rejects(() => finalizeRun(paths, record(stage, paths.runId)), new RegExp(stage));
+    await assert.rejects(
+      () => finalizeRun(paths, record(stage, paths.runId)),
+      (error: unknown) => {
+        assert(error instanceof PublicationError);
+        assert.equal(error.directory, paths.finalDirectory);
+        assert.equal(error.published?.directory, stage);
+        return true;
+      },
+    );
     await Deno.stat(join(stage, "run.json"));
     await Deno.stat(join(stage, "report.md"));
     assert.deepEqual([...Deno.readDirSync(join(root, "foreign"))], []);
@@ -134,7 +150,15 @@ Deno.test("finalize refuses symlink report collisions before writing outside sta
     stage = paths.stagingDirectory;
     await Deno.writeTextFile(join(root, "keep"), "original");
     await Deno.symlink(join(root, "keep"), join(stage, "run.json"));
-    await assert.rejects(() => finalizeRun(paths, record(stage, paths.runId)), new RegExp(stage));
+    await assert.rejects(
+      () => finalizeRun(paths, record(stage, paths.runId)),
+      (error: unknown) => {
+        assert(error instanceof PublicationError);
+        assert.equal(error.directory, paths.finalDirectory);
+        assert.equal(error.published, undefined);
+        return true;
+      },
+    );
     assert.equal(await Deno.readTextFile(join(root, "keep")), "original");
   } finally {
     await Deno.remove(root, { recursive: true });
@@ -266,19 +290,21 @@ Deno.test("partial staging cleanup PermissionDenied returns the complete committ
     console.error = (...args: unknown[]) => {
       messages.push(args.map(String).join(" "));
     };
-    const final = await finalizeRun(paths, record(stage, paths.runId));
+    const r = record(stage, paths.runId);
+    const final = await finalizeRun(paths, r);
+    assert.equal(final.record, r);
     assert(
       cleanupError instanceof Deno.errors.PermissionDenied,
       "the real read-only directory must reject recursive cleanup",
     );
-    assert.equal(final, paths.finalDirectory);
+    assert.equal(final.directory, paths.finalDirectory);
     for (
       const name of ["stdout.log", "run.json", "summary.json", "report.md", "protected/raw.jsonl"]
-    ) await Deno.stat(join(final, name));
-    assert.equal(await Deno.readTextFile(join(final, "protected/raw.jsonl")), "unchanged raw");
-    assert.equal(
-      JSON.parse(await Deno.readTextFile(join(final, "run.json"))).outputDirectory,
-      final,
+    ) await Deno.stat(join(final.directory, name));
+    assert.equal(await Deno.readTextFile(join(final.directory, "protected/raw.jsonl")), "unchanged raw");
+    assert.deepEqual(
+      JSON.parse(await Deno.readTextFile(join(final.directory, "run.json"))),
+      final.record,
     );
     const remaining = (await Array.fromAsync(Deno.readDir(stage))).map((e) => e.name);
     assert(
@@ -287,7 +313,7 @@ Deno.test("partial staging cleanup PermissionDenied returns the complete committ
       ),
       "real cleanup removed part of staging before PermissionDenied",
     );
-    assert(messages.some((message) => message.includes(final) && message.includes(stage)));
+    assert(messages.some((message) => message.includes(final.directory) && message.includes(stage)));
     const evidenceDirectory = Deno.env.get("PERF_TEST_EVIDENCE_DIRECTORY");
     if (evidenceDirectory) {
       await Deno.mkdir(evidenceDirectory, { recursive: true });
@@ -295,11 +321,11 @@ Deno.test("partial staging cleanup PermissionDenied returns the complete committ
         join(evidenceDirectory, "cleanup-committed-final.json"),
         JSON.stringify(
           {
-            returned: final,
+            returned: final.directory,
             final: paths.finalDirectory,
             stage,
             remainingStaging: remaining,
-            finalFiles: (await Array.fromAsync(Deno.readDir(final))).map((e) => e.name),
+            finalFiles: (await Array.fromAsync(Deno.readDir(final.directory))).map((e) => e.name),
             cleanupError: String(cleanupError),
           },
           null,
@@ -362,15 +388,15 @@ Deno.test("finalize retains diagnostic aggregates after relocation without rewri
       }],
     };
     const output = await finalizeRun(paths, r, normalized);
-    const summary = JSON.parse(await Deno.readTextFile(join(output, "summary.json")));
+    const summary = JSON.parse(await Deno.readTextFile(join(output.directory, "summary.json")));
     assert.deepEqual(
       summary.counters.map((c: { value: number; source: string }) => [c.value, c.source]),
       [[1, "event"], [2, "executor-summary"]],
     );
-    assert.equal(await Deno.readTextFile(join(output, "events/raw.jsonl")), raw);
-    assert.equal(await Deno.readTextFile(join(output, "receipt.json")), receipt);
+    assert.equal(await Deno.readTextFile(join(output.directory, "events/raw.jsonl")), raw);
+    assert.equal(await Deno.readTextFile(join(output.directory, "receipt.json")), receipt);
     assert.deepEqual(
-      JSON.parse(await Deno.readTextFile(join(output, "run.json"))).preparation,
+      JSON.parse(await Deno.readTextFile(join(output.directory, "run.json"))).preparation,
       r.preparation,
     );
   } finally {

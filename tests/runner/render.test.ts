@@ -34,8 +34,9 @@ Deno.test("native render preserves argv cwd functional env and existing outputs"
     const result = JSON.parse(await Deno.readTextFile(join(root, "result")));
     assert.equal(new TextDecoder().decode(output.stdout), "render\nfile space.qmd\n--\n--help\n");
     assert.equal(new TextDecoder().decode(output.stderr), `${root}\nstudent\n`);
-    assert.equal(result.code, 7);
-    assert.equal(result.signal, null);
+    assert(result.native);
+    assert.equal(result.native.code, 7);
+    assert.equal(result.native.signal, null);
     assert.equal(
       await Deno.readTextFile(join(staging, "stdout.log")),
       "render\nfile space.qmd\n--\n--help\n",

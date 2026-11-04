@@ -80,7 +80,7 @@ Deno.test("native help after a native separator reaches the native render argv",
     await isolated(["render", "--", "--", "--help"], async (root, out) => {
       assert.equal(out.code, 7, decode(out.stderr));
       assert.equal(decode(out.stdout), "<render>\n<-->\n<--help>\n");
-      const directory = decode(out.stderr).match(/Отчёт Performance: (.+)/)?.[1];
+      const directory = decode(out.stderr).match(/Отчёт Performance: ([^;\r\n]+)/)?.[1];
       assert(directory);
       assert.equal(
         await Deno.readTextFile(join(directory, "stdout.log")),
@@ -109,14 +109,13 @@ Deno.test("render off loads the real native path without experiment configuratio
     await isolated(["render", "--perf-mode=off", "file space.qmd"], async (root, out) => {
       assert.equal(out.code, 7, decode(out.stderr));
       assert.equal(decode(out.stdout), "<render>\n<file space.qmd>\n");
-      const directory = decode(out.stderr).match(/Отчёт Performance: (.+)/)?.[1];
+      const directory = decode(out.stderr).match(/Отчёт Performance: ([^;\r\n]+)/)?.[1];
       assert(directory);
       const record = JSON.parse(await Deno.readTextFile(join(directory, "run.json")));
       assert.equal(record.schema_version, 2);
-      assert.equal(record.outcome.code, 7);
+      assert.equal(record.completion.native.code, 7);
       const message = decode(out.stderr);
-      assert.match(message, /Performance: wall=\d+\.\d{3}s; CPU user=/);
-      assert.match(message, /CPU system=.*peak RSS=.*KiB; status=7; data=VALID/);
+      assert.match(message, /completion=complete; data=VALID/);
       assert(message.includes(directory));
       await Deno.stat(join(directory, "summary.json"));
       await Deno.stat(join(directory, "report.md"));

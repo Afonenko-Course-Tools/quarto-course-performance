@@ -3,9 +3,9 @@ import { join } from "node:path";
 import { normalizeRun } from "../../src/analysis/normalize.ts";
 import { assetPath } from "../../src/assets.ts";
 import { treeHash } from "../../src/sources/snapshot.ts";
-import { prepareRenderDiagnostic } from "../../src/runner/diagnostic.ts";
+import { collectPackageCoverage } from "../../src/runner/package-coverage.ts";
 
-Deno.test("package coverage inventories the selected nested project, marking and recorded observations", async () => {
+Deno.test("explicit package coverage inventories the selected nested project, marking and recorded observations", async () => {
   const root = await Deno.makeTempDir();
   try {
     const project = join(root, "nested");
@@ -26,31 +26,17 @@ return {}
       );
     }
     const before = await treeHash(root);
-    const prepared = await prepareRenderDiagnostic(
-      { cwd: project, quarto: Deno.env.get("QUARTO") ?? "quarto", nativeArgv: [], mode: "summary" },
-      { projectRoot: project, kind: "project" },
-      join(root, "diagnostic"),
-    );
-    const coverage = prepared.coverage as unknown as Record<string, any>;
-    assert(coverage.packageCoverage, "Missing physical package inventory");
-    const packages = coverage.packageCoverage.packages;
-    assert.deepEqual(packages.map((p: any) => p.extensionId).sort(), ["marked", "unmarked"]);
-    assert.equal(packages.find((p: any) => p.extensionId === "marked").instrumentation, "detected");
+    const inventory = await collectPackageCoverage(project, ["marked", "unmarked", "absent"]);
+    const packages = inventory.packages!;
+    assert.deepEqual(packages.map((p) => p.extensionId).sort(), ["marked", "unmarked"]);
+    assert.equal(packages.find((p) => p.extensionId === "marked")?.instrumentation, "detected");
     assert.equal(
-      packages.find((p: any) => p.extensionId === "unmarked").instrumentation,
+      packages.find((p) => p.extensionId === "unmarked")?.instrumentation,
       "not-detected",
     );
-    assert.equal(coverage.packageCoverage.observationStatus, "pending");
-    await Deno.remove(join(root, "diagnostic"), { recursive: true });
+    assert.equal(inventory.observationStatus, "pending");
     assert.equal(await treeHash(root), before, "Inventory must not change functional inputs");
-    const modulePath = "../../src/runner/package-coverage.ts";
-    const module = await import(modulePath);
-    const inventory = await module.collectPackageCoverage(project, [
-      "marked",
-      "unmarked",
-      "absent",
-    ]);
-    assert.deepEqual(inventory.requested.map((p: any) => [p.extensionId, p.installed]), [
+    assert.deepEqual(inventory.requested!.map((p) => [p.extensionId, p.installed]), [
       ["marked", true],
       ["unmarked", true],
       ["absent", false],
@@ -105,6 +91,17 @@ return {}
       [["marked", "recorded", 1]],
     );
     assert.deepEqual(current.packages, inventory.packages);
+    await Deno.writeTextFile(join(run, "coverage.json"), JSON.stringify({ complete: false }));
+    const withoutInventory = await normalizeRun(run);
+    assert.equal(withoutInventory.dataValid, true);
+    const unknown = JSON.parse(await Deno.readTextFile(join(run, "coverage.json")));
+    assert.equal(unknown.complete, false);
+    assert.equal(unknown.packageCoverage.inventoryStatus, "unknown");
+    assert.equal(unknown.packageCoverage.scopeRoot, null);
+    assert.equal(unknown.packageCoverage.packages, null);
+    assert.equal(unknown.packageCoverage.requested, null);
+    assert.equal(unknown.packageCoverage.observationStatus, "valid");
+    assert.deepEqual(unknown.packageCoverage.observations, current.observations);
   } finally {
     await Deno.remove(root, { recursive: true });
   }

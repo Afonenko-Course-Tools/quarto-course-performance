@@ -46,7 +46,12 @@ let result: unknown;
 try {
   const outcome = await runOwnedProcess({
     executable: "/bin/sh",
-    args: ["-c", `printf ready > '${root}/native-ready'; printf available; sleep 0.2; exit 7`],
+    args: [
+      "-c",
+      `printf ready > '${root}/native-ready'; printf available; ${
+        stage === "live" ? "(sleep 0.2) & exit 7" : "sleep 0.2; exit 7"
+      }`,
+    ],
     cwd: root,
     env: Deno.env.toObject(),
     stdoutPath: root + "/stdout.log",

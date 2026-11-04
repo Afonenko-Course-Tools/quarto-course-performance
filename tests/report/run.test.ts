@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { join, resolve } from "node:path";
-import { writeRunArtifacts } from "../../src/report/run.ts";
+import { nativeCommandMarkdown, writeRunArtifacts } from "../../src/report/run.ts";
 import { type RunRecord, validateRunRecord, validateRunSummary } from "../../src/report/types.ts";
 
 import { regressionRuns } from "./fixtures/perfetto/regressions.ts";
@@ -25,14 +25,15 @@ Deno.test("single off report is versioned, portable and does not invent diagnost
       sourceHash: "s",
       preparedHash: "p",
     }];
-    await writeRunArtifacts(dir, r);
+    const published = await writeRunArtifacts(dir, r);
+    assert.equal(published.record, r);
+    assert.equal(published.directory, dir);
     const moved = join(root, "moved");
     await Deno.rename(dir, moved);
     const metadata = validateRunRecord(
       JSON.parse(await Deno.readTextFile(join(moved, "run.json"))),
     );
     assert.equal(metadata.collectionDirectory, dir);
-    assert.equal(metadata.outputDirectory, "/final/test");
     assert.equal(metadata.preparation[0].path, "/original/bootstrap");
     const summary = validateRunSummary(
       JSON.parse(await Deno.readTextFile(join(moved, "summary.json"))),
@@ -53,6 +54,63 @@ Deno.test("single off report is versioned, portable and does not invent diagnost
   }
 });
 Deno.test("run summary retains event deltas and executor totals as separate observations", async () => {
+  const timing = { clock_domain: "monotonic_process", scope: "launcher-spawn-to-status" };
+  const child = "17508e10-52e6-4644-8eae-db2333d0c5f5";
+  const parent = "8094c765-815e-4278-b051-6a5fbb72bb59";
+  const commands = nativeCommandMarkdown([
+    {
+      kind: "deno",
+      argv: [
+        "run",
+        "--allow-all",
+        "--v8-flags=private",
+        "/private/quarto.js",
+        "inspect",
+        "secret-token",
+      ],
+      cwd: "/private/course",
+      process_id: child,
+      parent_process_id: parent,
+      parent_link: "confirmed",
+      exit_code: 0,
+      signal: null,
+      native_command: { ...timing, wall_seconds: 2.5 },
+    },
+    { kind: "pandoc", process_id: "old", exit_code: null, signal: "SIGTERM" },
+    {
+      kind: "deno",
+      argv: ["run", "other.ts", "/private/quarto.js", "render"],
+      native_command: { ...timing, wall_seconds: 0 },
+    },
+    {
+      kind: "deno",
+      argv: ["run", "--unknown-flag", "quarto.js", "render"],
+      process_id: "/private/secret-token",
+      parent_process_id: "secret-parent",
+      parent_link: "confirmed",
+      native_command: { ...timing, wall_seconds: NaN },
+    },
+    { kind: "pandoc", native_command: { ...timing, wall_seconds: Infinity } },
+    { kind: "pandoc", native_command: { ...timing, wall_seconds: -1 } },
+    {
+      kind: "pandoc",
+      native_command: { ...timing, clock_domain: "process_cpu", wall_seconds: 999 },
+    },
+    { kind: "deno", native_command: { ...timing, scope: "different-scope", wall_seconds: 888 } },
+    { kind: "pandoc", native_command: { wall_seconds: 777 } },
+  ]).join("\n");
+  assert(commands.includes(`Quarto inspect | 2.500 | 0 | — | ${child} | ${parent}`));
+  assert.match(commands, /Pandoc \| неизвестно \| неизвестно \| SIGTERM/);
+  assert.match(commands, /Deno \| 0\.000/);
+  assert.match(commands, /Deno \| неизвестно/);
+  assert.match(commands, /Pandoc \| неизвестно \| неизвестно \| неизвестно/);
+  assert.match(commands, /не показан \| не показан/);
+  assert(commands.indexOf("2.500") < commands.indexOf("0.000"));
+  assert(commands.indexOf("0.000") < commands.indexOf("SIGTERM"));
+  assert(!/secret|private|other\.ts|Quarto render|NaN|Infinity|999|888|777/.test(commands));
+  assert.match(commands, /Покрытие частичное/);
+  assert.match(commands, /нельзя складывать/);
+  assert.deepEqual(nativeCommandMarkdown([]), []);
   const root = await Deno.makeTempDir();
   try {
     const r = record(root);
@@ -140,7 +198,7 @@ Deno.test("trace bundle and versioned export survive staging with relative exist
     assert.match(report, /общая wall-шкала/);
     assert.match(report, /локальная wall-шкала/);
     assert.match(report, /Lua CPU/);
-    assert.match(report, /run\.json: outcome\.peakRssKiB/);
+    assert.match(report, /run\.json: completion\.native\.peakRssKiB/);
     for (const link of report.matchAll(/\]\(([^)]+)\)/g)) {
       await Deno.stat(resolve(final, decodeURI(link[1])));
     }

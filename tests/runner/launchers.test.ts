@@ -14,8 +14,9 @@ Deno.test("Deno launcher uses real binary, preserves main and args, and flushes 
     const path = join(root, "entry.ts");
     await Deno.writeTextFile(
       path,
-      "if(import.meta.main)console.log(JSON.stringify(Deno.args));Deno.exit(23);",
+      "const root=Deno.env.get('COURSE_PERF_OUTPUT_DIR')!,id=Deno.env.get('COURSE_PERF_PROCESS_ID')!;const receipt=JSON.parse(await Deno.readTextFile(root+'/processes/'+id+'.json'));if(receipt.native_command?.wall_seconds!==null)throw new Error('missing pending command timing');if(import.meta.main)console.log(JSON.stringify(Deno.args));Deno.exit(23);",
     );
+    const before = performance.now();
     const out = await new Deno.Command(setup.env.QUARTO_DENO, {
       args: ["run", "-A", path, "arg space"],
       env: {
@@ -29,6 +30,7 @@ Deno.test("Deno launcher uses real binary, preserves main and args, and flushes 
       stderr: "piped",
     }).output();
     assert.equal(out.code, 23, new TextDecoder().decode(out.stderr));
+    const elapsedSeconds = (performance.now() - before) / 1000;
     assert.deepEqual(JSON.parse(new TextDecoder().decode(out.stdout)), ["arg space"]);
     const dirs = [];
     for await (const dir of Deno.readDir(join(root, "events"))) dirs.push(dir.name);
@@ -38,6 +40,36 @@ Deno.test("Deno launcher uses real binary, preserves main and args, and flushes 
     );
     assert.equal(summary.run_id, "r");
     assert(summary.data_valid);
+    const receipt = JSON.parse(await Deno.readTextFile(join(root, "processes", dirs[0] + ".json")));
+    assert.equal(receipt.exit_code, 23);
+    assert.equal(receipt.native_command.clock_domain, "monotonic_process");
+    assert.equal(receipt.native_command.scope, "launcher-spawn-to-status");
+    assert(Number.isFinite(receipt.native_command.wall_seconds));
+    assert(receipt.native_command.wall_seconds >= 0);
+    assert(receipt.native_command.wall_seconds <= elapsedSeconds);
+    for (const [name, binary] of [["missing", join(root, "missing-deno")], ["permission", path]]) {
+      const output = join(root, name);
+      const failure = await new Deno.Command(setup.env.QUARTO_DENO, {
+        args: ["run", "-A", path],
+        env: {
+          ...setup.env,
+          COURSE_PERF_REAL_DENO: binary,
+          COURSE_PERF_MODE: "summary",
+          COURSE_PERF_EXPERIMENT_ID: "e",
+          COURSE_PERF_RUN_ID: "r",
+          COURSE_PERF_OUTPUT_DIR: output,
+        },
+        stdout: "piped",
+        stderr: "piped",
+      }).output();
+      assert.equal(failure.success, false);
+      const [initialFile] = [...Deno.readDirSync(join(output, "processes"))];
+      const initial = JSON.parse(
+        await Deno.readTextFile(join(output, "processes", initialFile.name)),
+      );
+      assert.equal(initial.exit_code, null);
+      assert.equal(initial.native_command.wall_seconds, null);
+    }
   } finally {
     await Deno.remove(root, { recursive: true });
   }
@@ -185,6 +217,13 @@ Deno.test("SIGTERM flushes incomplete TS work and preserves the signal; SIGKILL 
       else child.kill(signal);
       const status = await child.status;
       assert.equal(status.signal, signal);
+      const [receiptFile] = [...Deno.readDirSync(join(output, "processes"))];
+      const receipt = JSON.parse(
+        await Deno.readTextFile(join(output, "processes", receiptFile.name)),
+      );
+      assert.equal(receipt.signal, signal);
+      assert(Number.isFinite(receipt.native_command.wall_seconds));
+      assert(receipt.native_command.wall_seconds >= 0);
       if (signal === "SIGTERM") {
         let summary;
         for await (const process of Deno.readDir(join(output, "events"))) {
@@ -242,9 +281,10 @@ Deno.test("owned group forwards each signal once through a launcher", async () =
     abort.abort("SIGTERM");
     const result = await running;
     assert.equal(await Deno.readTextFile(count), "x");
-    assert.equal(result.code, 7);
-    assert.equal(result.signal, null);
-    assert.equal(result.escalated, false);
+    assert(result.native);
+    assert.equal(result.native.code, 7);
+    assert.equal(result.native.signal, null);
+    assert.equal(result.native.escalated, false);
   } finally {
     await Deno.remove(root, { recursive: true });
   }

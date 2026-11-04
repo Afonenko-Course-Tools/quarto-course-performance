@@ -162,12 +162,12 @@ Deno.test("W-F4 new off experiment runs immediately write v2 records summaries r
       outputRoot: join(root, "runs"),
     });
     validateRunRecord(
-      JSON.parse(await Deno.readTextFile(join(result.outputDirectory, "run.json"))),
+      JSON.parse(await Deno.readTextFile(join(result.directory, "run.json"))),
     );
     validateRunSummary(
-      JSON.parse(await Deno.readTextFile(join(result.outputDirectory, "summary.json"))),
+      JSON.parse(await Deno.readTextFile(join(result.directory, "summary.json"))),
     );
-    await Deno.stat(join(result.outputDirectory, "report.md"));
+    await Deno.stat(join(result.directory, "report.md"));
     await Deno.writeTextFile(
       join(root, "candidate.manifest.json"),
       JSON.stringify({
@@ -370,14 +370,14 @@ Deno.test("W-F4 diagnostic success and failure immediately use shared v2 artifac
         { outputRoot: join(root, "runs") },
       );
       const record = validateRunRecord(
-        JSON.parse(await Deno.readTextFile(join(result.outputDirectory, "run.json"))),
+        JSON.parse(await Deno.readTextFile(join(result.directory, "run.json"))),
       );
-      assert.equal(record.outcome.code, code);
+      assert.equal(record.completion.native?.code, code);
       assert.equal(record.request.mode, "summary");
       validateRunSummary(
-        JSON.parse(await Deno.readTextFile(join(result.outputDirectory, "summary.json"))),
+        JSON.parse(await Deno.readTextFile(join(result.directory, "summary.json"))),
       );
-      await Deno.stat(join(result.outputDirectory, "report.md"));
+      await Deno.stat(join(result.directory, "report.md"));
     }
   } finally {
     await Deno.remove(root, { recursive: true });

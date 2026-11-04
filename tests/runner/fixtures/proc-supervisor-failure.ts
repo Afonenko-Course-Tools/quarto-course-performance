@@ -96,7 +96,9 @@ try {
     executable: "/bin/sh",
     args: [
       "-c",
-      stage === "complete"
+      // Live scanner fault относится к cleanup потомка после native status,
+      // а не к удалённому normal polling ещё работающего parent.
+      stage !== "registration"
         ? `printf available; (${beat}) >/dev/null 2>&1 & exit 7`
         : `printf available; ${beat}`,
     ],
@@ -136,11 +138,11 @@ try {
     helperAlive,
     groupSignals: [...groupSignals],
     nativeStarted: entries.some((e) => e.name.endsWith(".started")),
-    nativeOutcomeKnown: error instanceof OwnedProcessError && error.outcome !== undefined,
+    nativeOutcomeKnown: error instanceof OwnedProcessError && error.observation.native !== null,
     injected,
     error: String(error),
     controlled: error instanceof OwnedProcessError,
-    nativeCode: error instanceof OwnedProcessError ? error.outcome?.code : undefined,
+    nativeCode: error instanceof OwnedProcessError ? error.observation.native?.code : undefined,
     before,
     after,
     siblingAlive,

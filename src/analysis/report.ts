@@ -3,22 +3,23 @@ import type { ReportSourceManifest } from "../config/types.ts";
 import type { NormalizedRun } from "./normalize.ts";
 
 import { jsonFiles, operationTotals, writeRunArtifacts } from "../report/run.ts";
-import type { RunRecord } from "../report/types.ts";
+import { type RunRecord, validateRunRecord } from "../report/types.ts";
 import { prepareHistoricalImport } from "./historical.ts";
 export { operationTotals } from "../report/run.ts";
 
-function summarizeRun(run: NormalizedRun) {
+function summarizeRun(record: RunRecord, run?: NormalizedRun) {
   return {
-    run_id: run.runId,
-    data_valid: run.dataValid,
-    events: run.events.length,
-    quality: run.quality,
-    operations: operationTotals(run).map((o) => ({
+    run_id: record.runId,
+    completion: record.completion.kind,
+    data_valid: record.completion.kind === "complete" && record.dataValid,
+    events: run?.events.length ?? null,
+    quality: record.quality,
+    operations: (run ? operationTotals(run) : []).map((o) => ({
       ...o,
-      quality: run.dataValid ? "observed-exact" : "partial",
+      quality: record.dataValid ? "observed-exact" : "partial",
       completion_scope: "recorded-end-events",
     })),
-    counters: Object.values(run.executors).map((e) => ({
+    counters: Object.values(run?.executors ?? {}).map((e) => ({
       process_id: e.process_id,
       executor_id: e.executor_id,
       clock_domain: e.clock_domain,
@@ -95,7 +96,7 @@ async function writeExperimentArtifacts(
   output: string,
   importProvenance?: unknown,
 ) {
-  const builds: Record<string, unknown>[] = [], coverage: Record<string, unknown>[] = [];
+  const builds: RunRecord[] = [], coverage: Record<string, unknown>[] = [], missing: string[] = [];
   try {
     for await (const item of Deno.readDir(join(output, "runs"))) {
       if (!item.isDirectory) continue;
@@ -107,10 +108,10 @@ async function writeExperimentArtifacts(
             "Исторические metadata доступны read-only; in-place report/verify не поддерживается",
           );
         }
-        builds.push(metadata);
+        builds.push(validateRunRecord(metadata));
       } catch (e) {
         if (!(e instanceof Deno.errors.NotFound)) throw e;
-        builds.push({ runId: item.name, status: "INCOMPLETE" });
+        missing.push(item.name);
       }
       try {
         coverage.push({
@@ -128,22 +129,22 @@ async function writeExperimentArtifacts(
   const benchmarks = await jsonFiles(join(output, "benchmarks"), ".json", true);
   const summary: ReturnType<typeof summarizeRun>[] = [];
   for await (const run of runs) {
-    summary.push(summarizeRun(run));
     const path = join(output, "runs", run.runId);
-    await Deno.mkdir(path, { recursive: true });
     const build = builds.find((b) => b.runId === run.runId);
-    if (!build || build.schema_version !== 2) {
-      throw new Error(`Отсутствуют текущие metadata запуска: ${run.runId}`);
+    if (!build) throw new Error(`Отсутствуют текущие metadata запуска: ${run.runId}`);
+    if (build.completion.kind === "incomplete") {
+      // The stored snapshot wins; never normalize/upgrade an interrupted capture.
+      summary.push(summarizeRun(build));
+    } else {
+      const record: RunRecord = {
+        ...build,
+        dataValid: run.dataValid,
+        quality: { ...run.quality, errors: [...run.quality.errors] },
+      };
+      const publication = await writeRunArtifacts(path, record, run);
+      builds[builds.indexOf(build)] = publication.record;
+      summary.push(summarizeRun(publication.record, run));
     }
-    const record = {
-      ...build,
-      dataValid: run.dataValid,
-      quality: run.quality,
-    } as unknown as RunRecord;
-    await writeRunArtifacts(path, record, run);
-    // Lazy normalization обновляет quality/coverage во время итерации runs.
-    // Агрегаты получают тот же итоговый record, что сохранён per-run writer.
-    builds[builds.indexOf(build)] = JSON.parse(await Deno.readTextFile(join(path, "run.json")));
     try {
       const current = {
         run_id: run.runId,
@@ -156,6 +157,9 @@ async function writeExperimentArtifacts(
       if (!(error instanceof Deno.errors.NotFound)) throw error;
     }
   }
+  for (const build of builds) {
+    if (!summary.some((run) => run.run_id === build.runId)) summary.push(summarizeRun(build));
+  }
   const data = {
     manifest,
     summary: {
@@ -165,14 +169,12 @@ async function writeExperimentArtifacts(
       ...(importProvenance ? { importProvenance } : {}),
     },
     quality: summary.map((r) => ({ run_id: r.run_id, ...r.quality })),
-    coverage: importProvenance
-      ? coverage.map((receipt) => ({
-        ...receipt,
-        sourceComplete: receipt.complete ?? null,
-        complete:
-          summary.find((run) => run.run_id === receipt.run_id)?.quality.coverageComplete === true,
-      }))
-      : coverage,
+    coverage: coverage.map((receipt) => ({
+      ...receipt,
+      sourceComplete: receipt.complete ?? null,
+      complete:
+        summary.find((run) => run.run_id === receipt.run_id)?.quality.coverageComplete === true,
+    })),
     builds,
     benchmarks,
   };
@@ -201,9 +203,9 @@ async function writeExperimentArtifacts(
     "| --- | --- | --- | ---: | ---: | --- |",
     ...builds.map((b) =>
       `| ${b.scenario ?? "?"} | ${b.variant ?? "?"} | ${b.mode ?? "?"} | ${
-        b.buildExitCode ?? "INCOMPLETE"
-      } | ${typeof b.wallSeconds === "number" ? b.wallSeconds.toFixed(3) : "—"} | [${
-        b.dataValid ? "VALID" : "INVALID"
+        b.completion.kind === "complete" ? b.completion.native.code : "INCOMPLETE/UNKNOWN"
+      } | ${b.completion.native ? b.completion.native.wallSeconds.toFixed(3) : "UNKNOWN"} | [${
+        b.completion.kind === "complete" && b.dataValid ? "VALID" : "INVALID"
       }](runs/${b.runId}/run.json) |`
     ),
     "",
@@ -273,5 +275,8 @@ async function writeExperimentArtifacts(
     "Lua sampling backend: unavailable. Lua CPU начинается локально в каждом executor; на wall шкалу не переносится. CPU samples Deno не являются точными счётчиками вызовов. TS symbol mapping указывает исходные диапазоны; универсальное восстановление transpiled строк CPU profile не гарантируется. Lua функции на одинаковых строках различаются runtime identity и ordinal первого наблюдения; ordinal между runs не обещает стабильность.",
   ];
   await Deno.writeTextFile(join(output, "report.md"), lines.join("\n") + "\n");
-  return { dataValid: summary.every((r) => r.data_valid), diagnostics: summary.length };
+  return {
+    dataValid: missing.length === 0 && summary.every((r) => r.data_valid),
+    diagnostics: summary.length,
+  };
 }

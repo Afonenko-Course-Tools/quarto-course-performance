@@ -100,14 +100,53 @@ function legacyRecord(
   run: NormalizedRun,
 ): RunRecord {
   if (value.schema_version === 2) {
-    return {
-      ...validateRunRecord(value),
+    if (value.completion !== undefined) {
+      const record = validateRunRecord(value);
+      if (record.completion.kind !== "complete") {
+        throw new Error(`Неполный запуск не сравнивается: ${source}`);
+      }
+      return {
+        ...record,
+        collectionDirectory: source,
+        artifacts: {},
+        dataValid: run.dataValid,
+        quality: run.quality,
+      };
+    }
+    const old = value.outcome;
+    if (!old || typeof old !== "object" || Array.isArray(old)) {
+      throw new Error("Нет исторического outcome");
+    }
+    const { stdioMode, ...outcome } = old as Record<string, unknown>;
+    if (outcome.completion !== undefined) throw new Error("Неполный запуск не сравнивается");
+    const {
+      outcome: _oldOutcome,
+      outputDirectory: _outputDirectory,
+      buildExitCode: _buildExitCode,
+      wallSeconds: _wallSeconds,
+      signal: _signal,
+      ...base
+    } = value;
+    return validateRunRecord({
+      ...base,
+      completion: {
+        kind: "complete",
+        native: {
+          ...outcome,
+          wallScope: "historical",
+          source: "historical-record",
+          resourceScope: "historical",
+        },
+      },
+      command: null,
+      streams: { stdout: "eof", stderr: "eof" },
+      stdioMode: stdioMode ?? null,
+      observedWallSeconds: outcome.wallSeconds,
       collectionDirectory: source,
-      outputDirectory: output,
       artifacts: {},
       dataValid: run.dataValid,
       quality: run.quality,
-    };
+    });
   }
   // argv is the original producer's executable + full command; other commands
   // cannot be represented as a NativeRenderRequest without guessing semantics.
@@ -131,14 +170,24 @@ function legacyRecord(
     schema_version: 2,
     runId: value.runId,
     request: { cwd: value.cwd, quarto: argv[0], nativeArgv: argv.slice(2), mode: value.mode },
-    outcome: {
-      code: value.buildExitCode,
-      signal: value.signal,
-      wallSeconds: value.wallSeconds,
-      cpuUserSeconds: resources?.cpu_user_seconds ?? null,
-      cpuSystemSeconds: resources?.cpu_system_seconds ?? null,
-      peakRssKiB: resources?.peak_rss_kib ?? null,
+    completion: {
+      kind: "complete",
+      native: {
+        wallScope: "historical",
+        source: "historical-record",
+        resourceScope: "historical",
+        code: value.buildExitCode,
+        signal: value.signal,
+        wallSeconds: value.wallSeconds,
+        cpuUserSeconds: resources?.cpu_user_seconds ?? null,
+        cpuSystemSeconds: resources?.cpu_system_seconds ?? null,
+        peakRssKiB: resources?.peak_rss_kib ?? null,
+      },
     },
+    command: null,
+    streams: { stdout: "eof", stderr: "eof" },
+    stdioMode: value.stdioMode ?? null,
+    observedWallSeconds: value.wallSeconds,
     preparation: value.preparation,
     dataValid: run.dataValid,
     quality: run.quality,
@@ -150,13 +199,10 @@ function legacyRecord(
     },
     git: null,
     collectionDirectory: source,
-    outputDirectory: output,
     artifacts: {},
-    scenario: value.scenario ?? null,
-    variant: value.variant ?? null,
+    ...(value.scenario === undefined ? {} : { scenario: value.scenario }),
+    ...(value.variant === undefined ? {} : { variant: value.variant }),
     mode: value.mode,
-    buildExitCode: value.buildExitCode,
-    wallSeconds: value.wallSeconds,
     experimentId: manifest.experimentId,
   });
 }
@@ -202,6 +248,9 @@ export async function prepareHistoricalImport(
     const files = await materialFiles(dir);
     const original = await metadata(join(dir, "run.json"));
     const value = original.value;
+    if (value.completion?.kind === "incomplete" || value.outcome?.completion === "incomplete") {
+      throw new Error(`Неполный запуск не поддерживает historical comparison: ${dir}`);
+    }
     const runManifestPath = join(dir, "manifest.json");
     const runManifest = files.includes(runManifestPath)
       ? await metadata(runManifestPath)
@@ -266,7 +315,9 @@ export async function prepareHistoricalImport(
       run: original.receipt,
       ...(runManifest ? { runManifest: runManifest.receipt } : {}),
       sourceStatus: {
-        buildExitCode: value.schema_version === 2 ? value.outcome.code : value.buildExitCode,
+        buildExitCode: record.completion.native?.code ?? (() => {
+          throw new Error("Historical native outcome неизвестен");
+        })(),
         dataValid: typeof value.dataValid === "boolean" ? value.dataValid : null,
         signalAvailability: value.signalAvailability ?? "unknown",
       },
@@ -350,7 +401,8 @@ export async function prepareHistoricalImport(
     provenance,
     runs: plans.map((p) => p.run),
     nativeFailed: plans.some((p) =>
-      p.record.outcome.code !== 0 || p.record.outcome.signal !== null
+      p.record.completion.kind !== "complete" || p.record.completion.native.code !== 0 ||
+      p.record.completion.native.signal !== null
     ),
   };
 }

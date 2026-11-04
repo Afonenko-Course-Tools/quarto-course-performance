@@ -14,26 +14,37 @@ const run = {
     nativeArgv: ["tasks", "--profile", "student"],
     mode: "off",
   },
-  outcome: {
-    code: 23,
-    signal: null,
-    wallSeconds: 1.25,
-    cpuUserSeconds: null,
-    cpuSystemSeconds: null,
-    peakRssKiB: null,
+  completion: {
+    kind: "complete",
+    native: {
+      code: 23,
+      signal: null,
+      wallSeconds: 1.25,
+      cpuUserSeconds: null,
+      cpuSystemSeconds: null,
+      peakRssKiB: null,
+      wallScope: "direct-spawn-to-status",
+      source: "direct-status",
+      resourceScope: "unavailable",
+    },
   },
+  command: { code: 23, signal: null, wallSeconds: 1.25 },
+  streams: { stdout: "eof", stderr: "eof" },
+  stdioMode: "separate",
+  observedWallSeconds: 1.25,
   preparation: [],
   dataValid: true,
   quality,
   versions: { tool: "2.0.0", quarto: "1.11.5", deno: null, pandoc: null },
   git: null,
   collectionDirectory: "/tmp/course-perf/native-1",
-  outputDirectory: "/course/.quarto/course-perf/runs/native-1",
   artifacts: { report: "report.md", stdout: "stdout.log", stderr: "stderr.log" },
 } satisfies RunRecord;
 const summary = {
   schema_version: 2,
   runId: "native-1",
+  completion: "complete",
+  normalization: "not-processed",
   dataValid: true,
   quality,
   operations: [],
@@ -68,30 +79,39 @@ Deno.test("formats distinguish current metadata from raw v1", () => {
   assert.throws(() => validateEvent({ ...event, schema_version: 2 }));
 });
 
-Deno.test("run metadata keeps unavailable resources explicit and separates staging from output", () => {
+Deno.test("run metadata keeps unavailable resources explicit and records collection location", () => {
   const parsed = validateRunRecord(run);
-  assert.equal(parsed.outcome.code, 23);
-  assert.equal(parsed.outcome.cpuUserSeconds, null);
+  assert(parsed.completion.kind === "complete");
+  assert.equal(parsed.completion.native.code, 23);
+  assert.equal(parsed.completion.native.cpuUserSeconds, null);
   assert.equal(parsed.git, null);
-  assert.notEqual(parsed.collectionDirectory, parsed.outputDirectory);
+  assert.equal(parsed.collectionDirectory, run.collectionDirectory);
   for (const field of ["cpuUserSeconds", "cpuSystemSeconds", "peakRssKiB", "signal"]) {
-    const outcome: Record<string, unknown> = { ...run.outcome };
-    delete outcome[field];
-    assert.throws(() => validateRunRecord({ ...run, outcome }), new RegExp(field));
+    const native: Record<string, unknown> = { ...run.completion.native };
+    delete native[field];
+    assert.throws(
+      () => validateRunRecord({ ...run, completion: { ...run.completion, native } }),
+      new RegExp(field),
+    );
   }
-  for (const field of ["collectionDirectory", "outputDirectory", "quality", "versions", "git"]) {
+  for (
+    const field of [
+      "collectionDirectory", "completion", "command", "streams", "stdioMode",
+      "observedWallSeconds", "quality", "versions", "git",
+    ]
+  ) {
     const incomplete: Record<string, unknown> = { ...run };
     delete incomplete[field];
     assert.throws(() => validateRunRecord(incomplete), new RegExp(field));
   }
   for (
-    const outcome of [
-      { ...run.outcome, wallSeconds: -1 },
-      { ...run.outcome, cpuUserSeconds: Infinity },
-      { ...run.outcome, peakRssKiB: -1 },
-      { ...run.outcome, code: 1.5 },
+    const native of [
+      { ...run.completion.native, wallSeconds: -1 },
+      { ...run.completion.native, cpuUserSeconds: Infinity },
+      { ...run.completion.native, peakRssKiB: -1 },
+      { ...run.completion.native, code: 1.5 },
     ]
-  ) assert.throws(() => validateRunRecord({ ...run, outcome }));
+  ) assert.throws(() => validateRunRecord({ ...run, completion: { ...run.completion, native } }));
   assert.throws(() => validateRunRecord({ ...run, request: { ...run.request, mode: "unknown" } }));
 });
 
@@ -124,20 +144,24 @@ Deno.test("run metadata validates provenance and preparation without changing na
   const parsed = validateRunRecord({
     ...run,
     request: { ...run.request, nativeArgv: ["", "--", "$literal"], outputParent: "/measurements" },
-    outcome: { ...run.outcome, signal: "SIGTERM", cpuUserSeconds: 0, peakRssKiB: 2048 },
+    completion: {
+      ...run.completion,
+      native: { ...run.completion.native, signal: "SIGTERM", cpuUserSeconds: 0, peakRssKiB: 2048 },
+    },
     git: { root: "/course", head: "a".repeat(40), dirty: true },
     preparation: [{ kind: "bootstrap", path: "init.lua", sourceHash: "a", preparedHash: "b" }],
   });
+  assert(parsed.completion.kind === "complete");
   assert.deepEqual(parsed.request.nativeArgv, ["", "--", "$literal"]);
-  assert.equal(parsed.outcome.signal, "SIGTERM");
-  assert.equal(parsed.outcome.cpuUserSeconds, 0);
-  assert.equal(parsed.outcome.peakRssKiB, 2048);
+  assert.equal(parsed.completion.native.signal, "SIGTERM");
+  assert.equal(parsed.completion.native.cpuUserSeconds, 0);
+  assert.equal(parsed.completion.native.peakRssKiB, 2048);
   assert.equal(parsed.git?.dirty, true);
   for (
     const change of [
       { dataValid: undefined },
       { request: { ...run.request, nativeArgv: [3] } },
-      { outcome: { ...run.outcome, signal: "unknown" } },
+      { completion: { ...run.completion, native: { ...run.completion.native, signal: "unknown" } } },
       { preparation: [{ kind: "unknown", path: "init.lua", sourceHash: "a", preparedHash: "b" }] },
       { preparation: [{ kind: "bootstrap", path: "init.lua", sourceHash: "a" }] },
       { quality: { ...quality, droppedEvents: -1 } },
@@ -193,21 +217,22 @@ Deno.test("common run metadata accepts isolated trace without narrowing it to a 
   assert.equal(parsed.request.mode, "trace");
 });
 
-Deno.test("outcome escalation and combined PTY receipts are optional but validated", () => {
-  assert.equal(validateRunRecord(run).outcome.escalated, undefined);
+Deno.test("native escalation is optional and observation stdio mode is validated", () => {
+  assert.equal(validateRunRecord(run).completion.native?.escalated, undefined);
   assert.equal(
     validateRunRecord({
       ...run,
-      outcome: { ...run.outcome, escalated: true, stdioMode: "pty-combined" },
-    }).outcome.stdioMode,
+      completion: { ...run.completion, native: { ...run.completion.native, escalated: true } },
+      stdioMode: "pty-combined",
+    }).stdioMode,
     "pty-combined",
   );
   assert.throws(
-    () => validateRunRecord({ ...run, outcome: { ...run.outcome, escalated: "yes" } }),
+    () => validateRunRecord({ ...run, completion: { ...run.completion, native: { ...run.completion.native, escalated: "yes" } } }),
     /escalated/,
   );
   assert.throws(
-    () => validateRunRecord({ ...run, outcome: { ...run.outcome, stdioMode: "combined" } }),
+    () => validateRunRecord({ ...run, stdioMode: "combined" }),
     /stdioMode/,
   );
 });

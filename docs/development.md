@@ -30,9 +30,10 @@ deno task test
 deno task check:perfetto --trace-processor /absolute/path/to/trace_processor_shell
 ```
 
-`check` выполняет typecheck точек входа и проверяет форматирование `src`, `bridge`, `tools`,
-`tests`. `test` включает небольшие native fixtures, поэтому нужны доступные Deno/Quarto/Pandoc и
-зависимости соответствующих действий. `check:perfetto` импортирует контрольные трассы настоящим
+`check` выполняет strict typecheck всех собственных TS-файлов в `src`, `bridge`, `tools`, включая
+entrypoints агентов и launchers, запускаемые по файловому пути, и проверяет форматирование `src`,
+`bridge`, `tools`, `tests`. `test` включает небольшие native fixtures, поэтому нужны доступные
+Deno/Quarto/Pandoc и зависимости соответствующих действий. `check:perfetto` импортирует контрольные трассы настоящим
 Trace Processor и проверяет интервалы, дорожки, идентичность и точные концы связей. Версии и
 контрольные суммы Perfetto приведены в [инструкции визуализации](visualization.md).
 
@@ -284,3 +285,42 @@ FAIL; `deno task check` — 102 файла. Первоначальные RED и 
 SQL, 11 регрессионных файлов и 4 отрицательных контроля. Новый hosted CI, независимое scoped review,
 свежая runtime QA контроллера и выпуск на момент записи ещё ожидаются. Прежние результаты
 Java/GUI/TP сохраняют собственные execution SHA.
+
+## Offline-проверка Java outputs
+
+Существующее значение `outputPolicy: "java-pilot-core-qrc-v1"` сохраняется в конфигурации Java, но с
+4 ноября 2026 года означает ограниченную проверку: одинаковый состав output файлов, содержимое всех
+файлов кроме HTML и имена/распакованные bytes ZIP entries. HTML проверяется только на наличие в
+обоих каталогах; его bytes не читаются и не хешируются. Core/QRC metadata не нормализуются, private
+QRC Git blob не загружается и не исполняется. Новый QRC pin может не содержать прежнего
+`infrastructure/metadata.ts`.
+
+После уже выполненных запусков можно проверить сохранённые outputs:
+
+```sh
+deno run --cached-only -A tools/validate-java.ts WORKSPACE UPSTREAM_WORKSPACE
+deno run --cached-only -A tools/recheck-repeat.ts WORKSPACE [SNAPSHOT_ROOT]
+```
+
+`validate-java.ts` сохраняет прежние проверки успешных runs, frozen upstream/control source sets и
+утечек instrumentation artifacts в outputs/ZIP. Контроль из отдельного workspace по-прежнему
+передаётся четвёртым позиционным аргументом; третий прежний аргумент manifest больше не читается.
+`recheck-repeat.ts` требует два успешных off runs одной prepared copy, читает прежний результат и
+пишет отдельный `repeat-validation-rechecked.json`, не переписывая оригинал. `repeat-java.ts` сам
+выполняет два renders, поэтому его не следует запускать для простой перепроверки сохранённых данных;
+формат нового результата у него тот же.
+
+Новые результаты Java используют `checkedContentEqual` и `htmlBytesCompared: false`.
+`checkedContentEqual` относится к проверенному составу/содержимому; итог `validate-java.ts` также
+требует отсутствия найденных утечек instrumentation artifacts. Отсутствующий HTML, изменённый
+ресурс, ZIP entry или неуспешная проверка дают отказ. Изменение текста, ID, подписи либо href внутри
+имеющегося HTML эта policy **не обнаруживает**. Предметные QRC/owner fixtures проверяют
+targets/labels/links и student privacy; ограниченный offline result не является полной проверкой
+HTML semantic equivalence или всей privacy policy.
+
+Default `strict` diagnostic сохраняет буквальное сравнение всех файлов, включая HTML и ZIP container
+bytes, и его `equivalent` относится к этой полной проверке bytes. Параметр callback `normalizeHtml`
+и прежний `normalizeOutput` удалены. Исторические manifests/results/evidence остаются данными
+прежних экспериментов; replay старой normalization больше не предоставляется. Для адресной проверки
+текущего comparator достаточно `deno test --cached-only -A tests/analysis/outputs.test.ts`; этот
+fixture не запускает render.
