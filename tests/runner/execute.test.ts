@@ -2,6 +2,8 @@ import { strict as assert } from "node:assert";
 import { cleanEnvironment, executeScenario } from "../../src/runner/execute.ts";
 import type { PreparedVariant, RunResult, Scenario } from "../../src/config/types.ts";
 import { join } from "node:path";
+import { validateRunRecord, validateRunSummary } from "../../src/report/types.ts";
+import { writeRunArtifacts } from "../../src/report/run.ts";
 Deno.test("off clears inherited diagnostics but retains functional course profile", () => {
   const env = cleanEnvironment({
     COURSE_PERF_MODE: "trace",
@@ -228,5 +230,194 @@ Deno.test("resource measurement retains the tool signal separately from a numeri
     assert.equal(numeric.buildExitCode, 143);
   } finally {
     await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("external TERM caller preserves partial reports when native status is unavailable", async () => {
+  const root = await Deno.makeTempDir({ prefix: "perf caller term " });
+  try {
+    for (const missingStatus of [false, true]) {
+      const directory = join(root, String(missingStatus));
+      await Deno.mkdir(directory);
+      const fake = join(directory, "child.ts"), callerPath = join(directory, "caller.ts");
+      await Deno.writeTextFile(
+        fake,
+        `
+Deno.addSignalListener('SIGTERM', () => Deno.exit(143));
+await Deno.stdout.write(new TextEncoder().encode('saved-out\\n'));
+await Deno.stderr.write(new TextEncoder().encode('saved-err\\n'));
+if (${missingStatus}) {
+  for await (const run of Deno.readDir('runs')) {
+    if (run.isDirectory) await Deno.mkdir('runs/' + run.name + '/tool-status.json');
+  }
+}
+await Deno.writeTextFile('ready', String(Deno.pid));
+setInterval(() => {}, 1000);
+`,
+      );
+      await Deno.writeTextFile(
+        callerPath,
+        `
+import { executeScenario } from ${
+          JSON.stringify(new URL("../../src/runner/execute.ts", import.meta.url).href)
+        };
+const root = ${JSON.stringify(directory)};
+try {
+  await executeScenario({id:'term',cwd:'.',executable:Deno.execPath(),args:['run','-A',${
+          JSON.stringify(fake)
+        }],
+    cachePolicy:'repeat-render',mode:'off',scope:{modules:[],extensions:[],strict:true},
+    resources:{wall:true,cpu:${missingStatus},peakRss:${missingStatus}}},
+    {variant:'candidate',root,manifest:{schema_version:2,projectSource:'org/Fixture',replacements:[],
+      experimentId:'e',sources:[],packages:[],runtime:{}}},'off',{outputRoot:root+'/runs'});
+  Deno.exit(0);
+} catch { Deno.exit(7); }
+`,
+      );
+      const caller = new Deno.Command(Deno.execPath(), {
+        args: ["run", "--cached-only", "--no-check", "-A", callerPath],
+        cwd: directory,
+        stdout: "piped",
+        stderr: "piped",
+      }).spawn();
+      const output = caller.output();
+      let outputClosed = false;
+      void output.then(() => {
+        outputClosed = true;
+      }, () => {
+        outputClosed = true;
+      });
+      let childPid: number | undefined;
+      try {
+        const deadline = performance.now() + 1500;
+        while (performance.now() < deadline) {
+          try {
+            childPid = Number(await Deno.readTextFile(join(directory, "ready")));
+            if (Number.isInteger(childPid) && childPid > 0) break;
+          } catch (error) {
+            if (!(error instanceof Deno.errors.NotFound)) throw error;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 5));
+        }
+        assert(
+          childPid && Number.isInteger(childPid),
+          "Fake child must reach its output boundary before caller TERM",
+        );
+        caller.kill("SIGTERM");
+        // Модель outer group TERM: caller и известный test-owned native получают сигнал.
+        try {
+          Deno.kill(childPid, "SIGTERM");
+        } catch (error) {
+          if (!(error instanceof Deno.errors.NotFound)) throw error;
+        }
+        let waitTimer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          await Promise.race([
+            caller.status,
+            new Promise((_, reject) => {
+              waitTimer = setTimeout(
+                () =>
+                  reject(
+                    new Error(`Caller TERM did not finalize (missingStatus=${missingStatus})`),
+                  ),
+                1000,
+              );
+            }),
+          ]);
+        } finally {
+          if (waitTimer !== undefined) clearTimeout(waitTimer);
+        }
+        const stopped = await output;
+        await Deno.writeFile(join(directory, "caller.stdout.log"), stopped.stdout);
+        await Deno.writeFile(join(directory, "caller.stderr.log"), stopped.stderr);
+        await Deno.writeTextFile(
+          join(directory, "caller-status.json"),
+          JSON.stringify({ missingStatus, code: stopped.code, signal: stopped.signal }),
+        );
+        assert.notEqual(
+          stopped.code,
+          0,
+          `Interrupted call must not return a completed RunResult (missingStatus=${missingStatus}): ${
+            new TextDecoder().decode(stopped.stderr)
+          }`,
+        );
+        const runs = [];
+        for await (const run of Deno.readDir(join(directory, "runs"))) {
+          if (run.isDirectory) runs.push(run.name);
+        }
+        assert.equal(runs.length, 1);
+        const run = join(directory, "runs", runs[0]);
+        let metadata: string | undefined;
+        try {
+          metadata = await Deno.readTextFile(join(run, "run.json"));
+        } catch (error) {
+          if (!(error instanceof Deno.errors.NotFound)) throw error;
+        }
+        assert(metadata, "TERM caller must preserve a partial run.json before rejecting");
+        const record = validateRunRecord(JSON.parse(metadata));
+        assert.equal(record.dataValid, false);
+        assert.equal(record.quality.coverageComplete, false);
+        assert("completion" in record.outcome);
+        assert.equal(record.outcome.completion, "incomplete");
+        assert.equal(record.outcome.interruptionSignal, "SIGTERM");
+        assert.equal(record.outcome.code, missingStatus ? null : 143);
+        assert.equal(
+          record.outcome.signal,
+          null,
+          "Requested TERM must not replace a numeric native exit's signal",
+        );
+        assert.equal(record.outcome.wallSeconds === null, missingStatus);
+        assert.equal(await Deno.readTextFile(join(run, "stdout.log")), "saved-out\n");
+        assert((await Deno.readTextFile(join(run, "stderr.log"))).startsWith("saved-err\n"));
+        const summary = validateRunSummary(
+          JSON.parse(await Deno.readTextFile(join(run, "summary.json"))),
+        );
+        assert.equal(summary.dataValid, false);
+        assert(summary.quality.errors.length > 0);
+        const report = await Deno.readTextFile(join(run, "report.md"));
+        assert(report.includes("INVALID"));
+        if (missingStatus) assert(report.includes("неизвестно"));
+        assert.throws(() => validateRunRecord({ ...record, dataValid: true }), /incomplete/);
+        if (missingStatus) {
+          assert.throws(
+            () =>
+              validateRunRecord({ ...record, outcome: { ...record.outcome, signal: "SIGTERM" } }),
+            /unknown/,
+          );
+        }
+        await writeRunArtifacts(run, {
+          ...record,
+          dataValid: true,
+          quality: { ...record.quality, coverageComplete: true },
+        });
+        const refreshed = validateRunRecord(
+          JSON.parse(await Deno.readTextFile(join(run, "run.json"))),
+        );
+        assert.equal(refreshed.dataValid, false);
+        assert.equal(refreshed.quality.coverageComplete, false);
+      } finally {
+        if (!outputClosed) {
+          try {
+            caller.kill("SIGKILL");
+          } catch { /* Test-owned caller already exited. */ }
+          if (childPid) {
+            try {
+              Deno.kill(childPid, "SIGKILL");
+            } catch { /* Test-owned child already exited. */ }
+          }
+        }
+        const stopped = await output;
+        await Deno.writeFile(join(directory, "caller.stdout.log"), stopped.stdout);
+        await Deno.writeFile(join(directory, "caller.stderr.log"), stopped.stderr);
+        await Deno.writeTextFile(
+          join(directory, "caller-status.json"),
+          JSON.stringify({ missingStatus, code: stopped.code, signal: stopped.signal }),
+        );
+      }
+    }
+  } finally {
+    const evidence = Deno.env.get("PERFORMANCE_TERM_TEST_EVIDENCE");
+    if (evidence) await Deno.rename(root, evidence);
+    else await Deno.remove(root, { recursive: true });
   }
 });

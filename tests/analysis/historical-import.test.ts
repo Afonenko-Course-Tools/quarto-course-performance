@@ -213,13 +213,14 @@ Deno.test("historical API guards reject overlapping aliases, occupied output and
         { ...original, buildExitCode: undefined },
         { ...original, argv: undefined },
         { ...original, runId: "../outside" },
+        { ...original, schema_version: 2, outcome: { completion: "incomplete", code: null } },
       ]
     ) {
       await json(join(source, "runs/r/run.json"), invalid);
       const snapshot = await inventory(root);
       await assert.rejects(
         () => importHistoricalExperiment(source, join(root, "new output")),
-        /schema|metadata|argv|runId/,
+        /schema|metadata|argv|runId|incomplete/,
       );
       assert.deepEqual(await inventory(root), snapshot);
     }

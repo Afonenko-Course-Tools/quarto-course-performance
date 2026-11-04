@@ -200,6 +200,20 @@ export async function writeRunArtifacts(
   record: RunRecord,
   normalized?: NormalizedRun,
 ): Promise<void> {
+  if ("completion" in record.outcome) {
+    const error = `Запуск прерван внешним ${record.outcome.interruptionSignal}; итог неполон`;
+    record = {
+      ...record,
+      dataValid: false,
+      quality: {
+        ...record.quality,
+        coverageComplete: false,
+        errors: record.quality.errors.includes(error)
+          ? record.quality.errors
+          : [...record.quality.errors, error],
+      },
+    };
+  }
   await Deno.mkdir(directory, { recursive: true });
   if (normalized?.coverage) {
     await Deno.writeTextFile(
@@ -343,15 +357,23 @@ export async function writeRunArtifacts(
   const lines = [
     "# Отчёт Performance",
     "",
-    `Запуск: \`${record.runId}\`. Режим: \`${record.request.mode}\`. Код Quarto: ${record.outcome.code}. Сигнал: ${
-      record.outcome.signal ?? "—"
-    }.`,
+    `Запуск: \`${record.runId}\`. Режим: \`${record.request.mode}\`. Код Quarto: ${
+      record.outcome.code ?? "неизвестно"
+    }. Сигнал: ${record.outcome.signal ?? (record.outcome.code === null ? "неизвестно" : "—")}.`,
+    ...("completion" in record.outcome
+      ? [
+        `Неполный запуск: внешний ${record.outcome.interruptionSignal}. Наблюдённый wall runner: ${
+          record.outcome.observedWallSeconds.toFixed(3)
+        } с; он не заменяет неизвестный Native outcome.`,
+        "",
+      ]
+      : []),
     "",
-    `Wall: ${record.outcome.wallSeconds.toFixed(3)} с. CPU user: ${
-      record.outcome.cpuUserSeconds ?? "недоступно"
-    }; CPU system: ${record.outcome.cpuSystemSeconds ?? "недоступно"}; peak RSS, KiB: ${
-      record.outcome.peakRssKiB ?? "недоступно"
-    }.`,
+    `Wall: ${
+      record.outcome.wallSeconds === null ? "неизвестно" : record.outcome.wallSeconds.toFixed(3)
+    } с. CPU user: ${record.outcome.cpuUserSeconds ?? "недоступно"}; CPU system: ${
+      record.outcome.cpuSystemSeconds ?? "недоступно"
+    }; peak RSS, KiB: ${record.outcome.peakRssKiB ?? "недоступно"}.`,
     "",
     record.request.mode === "off"
       ? "Диагностические наблюдения в режиме off не собираются."

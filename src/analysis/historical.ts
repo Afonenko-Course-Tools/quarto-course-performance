@@ -202,6 +202,9 @@ export async function prepareHistoricalImport(
     const files = await materialFiles(dir);
     const original = await metadata(join(dir, "run.json"));
     const value = original.value;
+    if (value.schema_version === 2 && value.outcome?.completion === "incomplete") {
+      throw new Error(`Историческое сравнение не принимает incomplete outcome: ${dir}`);
+    }
     const runManifestPath = join(dir, "manifest.json");
     const runManifest = files.includes(runManifestPath)
       ? await metadata(runManifestPath)
