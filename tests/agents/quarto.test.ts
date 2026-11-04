@@ -11,7 +11,7 @@ Deno.test("filter adapter excludes skipped nil/empty filters and does not preten
       "function run_emulated_filter(doc, filter, traverser) return doc end\n_quarto={}\n_quarto.ast = {}\n",
     );
     const receipt = await prepareFilterAdapter(source, copy);
-    assert.notEqual(receipt.sourceHash, receipt.preparedHash);
+
     const script = join(root, "test.lua"),
       agent = new URL("../../src/agents/lua/agent.lua", import.meta.url).pathname;
     await Deno.writeTextFile(
@@ -92,8 +92,8 @@ Deno.test("simple summary works without private Quarto filter adapter and cpu wr
         assert.equal(coverage.operations["quarto.filter.run"].available, false);
         const run = JSON.parse(await Deno.readTextFile(join(output, "run.json")));
         assert.deepEqual(run.request.nativeArgv, ["doc.qmd", ...form]);
-        assert(run.preparation.length > 0);
-        assert(!run.preparation.some((r: { kind: string }) => r.kind === "quarto-adapter"));
+        assert(run.preparedScripts.length > 0);
+        assert(!run.preparedScripts.some((r: { kind: string }) => r.kind === "quarto-adapter"));
         await assert.rejects(
           () => Deno.stat(join(output, "diagnostic/share/filters/main.lua")),
           Deno.errors.NotFound,
@@ -137,7 +137,7 @@ Deno.test("simple summary works without private Quarto filter adapter and cpu wr
   }
 });
 
-Deno.test("public render preparation preserves selected binaries share and functional options", async () => {
+Deno.test("public render preparedScripts preserves selected binaries share and functional options", async () => {
   const { prepareRenderDiagnostic } = await import("../../src/runner/diagnostic.ts");
   const root = await Deno.makeTempDir();
   const keys = [

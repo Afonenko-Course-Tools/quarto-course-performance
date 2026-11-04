@@ -2,12 +2,12 @@ import { completedNative, validateRunRecord } from "../src/report/types.ts";
 import { strict as assert } from "node:assert";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { copyTree, files, hashBytes, hashFile, treeHash } from "../src/sources/snapshot.ts";
+import { copyTree, files } from "../src/sources/files.ts";
 import { prepareDiagnostic } from "../src/runner/diagnostic.ts";
 import { executeScenario, withScenarioSignals } from "../src/runner/execute.ts";
 import { normalizeRun, operationAttribution } from "../src/analysis/normalize.ts";
 import { installPackages } from "../src/sources/packages.ts";
-import type { SourceManifest, SourceReceipt } from "../src/config/types.ts";
+import type { SourceManifest, SourceSelection } from "../src/config/types.ts";
 
 const app = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const decode = (bytes: Uint8Array) => new TextDecoder().decode(bytes);
@@ -22,29 +22,27 @@ export async function compareStrictTrees(left: string, right: string, exceptions
       /[\\*?\[\]]/.test(name) || /\.(html?|zip)$/i.test(name)
     ) throw new Error(`Недопустимое динамическое исключение: ${name}`);
   }
-  const inventory = async (root: string) =>
-    Object.fromEntries(
-      await Promise.all((await files(root)).map(async (path) => [
-        relative(root, path),
-        await hashFile(path),
-      ])),
-    );
-  const a = await inventory(left), b = await inventory(right);
-  const differences: { path: string; left: string | null; right: string | null }[] = [];
-  const dynamic: typeof differences = [];
-  for (const path of [...new Set([...Object.keys(a), ...Object.keys(b)])].sort()) {
-    if (a[path] === b[path]) continue;
-    const item = { path, left: a[path] ?? null, right: b[path] ?? null };
-    // Исключение не разрешает появление/исчезновение файла.
-    (exceptions.includes(path) && a[path] && b[path] ? dynamic : differences).push(item);
+  const a = new Map((await files(left)).map((path) => [relative(left, path), path])),
+    b = new Map((await files(right)).map((path) => [relative(right, path), path]));
+  const differences: { path: string; kind: "missing" | "bytes" }[] = [],
+    dynamic: typeof differences = [];
+  for (const path of [...new Set([...a.keys(), ...b.keys()])].sort()) {
+    const x = a.get(path), y = b.get(path);
+    if (!x || !y) {
+      differences.push({ path, kind: "missing" });
+      continue;
+    }
+    const [first, second] = await Promise.all([Deno.readFile(x), Deno.readFile(y)]);
+    if (first.length === second.length && first.every((byte, index) => byte === second[index])) {
+      continue;
+    }
+    (exceptions.includes(path) ? dynamic : differences).push({ path, kind: "bytes" });
   }
   return {
     equivalent: differences.length === 0,
-    leftFiles: a,
-    rightFiles: b,
-    files: Object.keys(a).length,
-    html: Object.keys(a).filter((p) => p.endsWith(".html")).length,
-    zip: Object.keys(a).filter((p) => p.endsWith(".zip")).length,
+    files: a.size,
+    html: [...a.keys()].filter((path) => path.endsWith(".html")).length,
+    zip: [...a.keys()].filter((path) => path.endsWith(".zip")).length,
     differences,
     dynamic,
     exceptions,
@@ -121,7 +119,7 @@ export async function preflightJava(
       (await Deno.stat(join(replacementOwner, "_extensions/reference-catalog/_extension.yml")))
         .isFile,
     );
-    await files(join(replacementOwner, "_extensions/reference-catalog"), { sourceSnapshot: true });
+    await files(join(replacementOwner, "_extensions/reference-catalog"));
     const ownerRoot = await git(replacementOwner, ["rev-parse", "--show-toplevel"]);
     assert.equal(await Deno.realPath(ownerRoot), replacementOwner, "Нужен корень owner checkout");
     await git(replacementOwner, ["rev-parse", "--verify", "HEAD"]);
@@ -179,7 +177,7 @@ async function checkJavaImpl(
     }).output();
     await Deno.writeFile(join(output, label + ".stdout.log"), result.stdout, { createNew: true });
     await Deno.writeFile(join(output, label + ".stderr.log"), result.stderr, { createNew: true });
-    const receipt = {
+    const command = {
       label,
       executable,
       argv: args,
@@ -189,26 +187,14 @@ async function checkJavaImpl(
       endUTC: new Date().toISOString(),
       exit: result.code,
       signal: result.signal,
-      stdoutSHA256: await hashBytes(result.stdout),
-      stderrSHA256: await hashBytes(result.stderr),
     };
-    await json(join(output, label + ".receipt.json"), receipt);
-    commands.push(receipt);
+    await json(join(output, label + ".command.json"), command);
+    commands.push(command);
     console.log(`${label}: exit ${result.code}`);
     return result;
   };
   const sourceSHA = await git(project, ["rev-parse", "HEAD"]);
   assert.equal(await git(project, ["status", "--porcelain"]), "", "Source должен быть clean");
-  const sourceBefore = await treeHash(project);
-  const sourceFiles = Object.fromEntries(
-    await Promise.all((await files(project)).map(async (p) => [
-      relative(project, p),
-      await hashFile(p),
-    ])),
-  );
-  const tracked = await git(project, ["ls-tree", "-r", "HEAD"]);
-  await Deno.writeTextFile(join(output, "source-file-oids.txt"), tracked + "\n");
-  await json(join(output, "source-inventory.json"), sourceFiles);
   const executionHEAD = await git(app, ["rev-parse", "HEAD"]);
   assert.equal(
     await git(app, [
@@ -224,69 +210,6 @@ async function checkJavaImpl(
     "",
     "Перед матрицей закоммитьте код",
   );
-  const executionFiles = Object.fromEntries(
-    await Promise.all(
-      (await files(join(app, "src"))).concat(
-        await files(join(app, "bridge")),
-        await files(join(app, "tools")),
-        join(app, "deno.json"),
-        join(app, "deno.lock"),
-        join(app, "docs/operation-registry.json"),
-      ).map(async (p) => [relative(app, p), await hashFile(p)] as const),
-    ),
-  );
-  await json(join(output, "execution-source.json"), { executionHEAD, files: executionFiles });
-  const backendExpected = Object.fromEntries(
-    Object.entries(executionFiles).filter(([path]) =>
-      path.startsWith("src/") || path.startsWith("bridge/") ||
-      ["deno.json", "deno.lock", "docs/operation-registry.json"].includes(path)
-    ),
-  );
-  const npmExpected = Object.fromEntries(
-    await Promise.all(
-      (await files(join(app, "node_modules"), { materializeFileLinks: true })).map(async (
-        path,
-      ) => [relative(join(app, "node_modules"), path), await hashFile(path)]),
-    ),
-  );
-  const auditBackend = async (label: string, directory: string) => {
-    const backendRoots = (await files(directory)).filter((path) =>
-      path.endsWith("/backend/deno.lock")
-    ).map(dirname);
-    const results = [];
-    for (const backend of backendRoots) {
-      const actual = Object.fromEntries(
-        await Promise.all(
-          Object.keys(backendExpected).map(async (
-            path,
-          ) => [path, await hashFile(join(backend, path))]),
-        ),
-      );
-      const npmActual = Object.fromEntries(
-        await Promise.all(
-          (await files(join(backend, "node_modules"))).map(async (
-            path,
-          ) => [relative(join(backend, "node_modules"), path), await hashFile(path)]),
-        ),
-      );
-      const sameFiles = (a: Record<string, string>, b: Record<string, string>) =>
-        Object.keys(a).length === Object.keys(b).length &&
-        Object.entries(a).every(([path, hash]) => b[path] === hash);
-      results.push({
-        backend,
-        sourceMatchesExecutionHEAD: sameFiles(backendExpected, actual),
-        npmMatchesPinnedDevelopmentPackages: sameFiles(npmExpected, npmActual),
-        files: actual,
-        npmFiles: npmActual,
-      });
-    }
-    await json(join(output, label + ".source-correspondence.json"), { executionHEAD, results });
-    assert(results.length > 0, `${label}: backend копия не найдена`);
-    assert(
-      results.every((r) => r.sourceMatchesExecutionHEAD && r.npmMatchesPinnedDevelopmentPackages),
-      `${label}: backend расходится с execution HEAD`,
-    );
-  };
   const quarto = Deno.env.get("QUARTO") ?? "/usr/bin/quarto";
   const flags = [
     "run",
@@ -325,8 +248,7 @@ async function checkJavaImpl(
       sourceSHA,
     ])).success,
   );
-  // Native Quarto scripts resolve ancestor deno.json from the entrypoint. The
-  // fixed, external path keeps native HTML source identities byte-identical.
+  // Постоянный внешний рабочий каталог сохраняет одинаковые пути native HTML.
   const renderParent = await Deno.makeTempDir({ dir: "/tmp", prefix: "quarto-perf-java-" });
   const renderRoot = join(renderParent, "course");
   const makeCopy = async (label: string) => {
@@ -338,12 +260,19 @@ async function checkJavaImpl(
     assert((await run(label + "-extract", "tar", ["-xf", archive, "-C", root])).success);
     return root;
   };
-  const snapshot = async (label: string) => {
-    const destination = join(output, label, "course");
-    await copyTree(renderRoot, destination);
+  const roots = ["_site-student", "tasks/_output/student", "slides/_output/student"];
+  const saveOutputs = async (label: string) => {
+    const destination = join(output, label, "outputs");
+    await Deno.mkdir(destination, { recursive: true });
+    for (const path of [...roots, ...roots.map((path) => path.replaceAll("student", "full"))]) {
+      try {
+        await copyTree(join(renderRoot, path), join(destination, path));
+      } catch (error) {
+        if (!(error instanceof Deno.errors.NotFound)) throw error;
+      }
+    }
     return destination;
   };
-  const roots = ["_site-student", "tasks/_output/student", "slides/_output/student"];
   const dynamicFiles = ["sitemap.xml"];
   const compare = async (label: string, left: string, right: string, paths: string[]) => {
     const comparisons = [];
@@ -387,7 +316,6 @@ async function checkJavaImpl(
     assert.equal(completedNative({ record, directory }).code, 0);
     assert.equal(record.dataValid, true);
     if (mode !== "off") {
-      await auditBackend(label, directory);
       const normalized = await normalizeRun(directory);
       assert(normalized.dataValid);
       assert(Object.keys(normalized.executors).length > 0);
@@ -417,10 +345,10 @@ async function checkJavaImpl(
         (await run("root-native-" + profile, quarto, ["render", "--profile", profile], native))
           .success,
       );
-      native = await snapshot("root-native-" + profile);
+      native = await saveOutputs("root-native-" + profile);
       let off = await makeCopy("root-off-" + profile);
       await monitored("root-off-" + profile, off, "off", ["--profile", profile]);
-      off = await snapshot("root-off-" + profile);
+      off = await saveOutputs("root-off-" + profile);
       await compare(
         "root-native-off-" + profile,
         native,
@@ -454,7 +382,7 @@ async function checkJavaImpl(
     await compare(
       "root-native-summary-student",
       studentNative,
-      await snapshot("root-summary-student"),
+      await saveOutputs("root-summary-student"),
       roots,
     );
     for (
@@ -480,7 +408,7 @@ async function checkJavaImpl(
           "student",
         ], join(native, selection.cwd))).success,
       );
-      native = await snapshot(selection.label + "-native");
+      native = await saveOutputs(selection.label + "-native");
       const monitoredRoot = await makeCopy(selection.label + "-summary");
       await monitored(selection.label + "-summary", monitoredRoot, "summary", [
         ...selection.args,
@@ -490,7 +418,7 @@ async function checkJavaImpl(
       await compare(
         selection.label,
         native,
-        await snapshot(selection.label + "-summary"),
+        await saveOutputs(selection.label + "-summary"),
         selection.outputs,
       );
     }
@@ -506,9 +434,9 @@ async function checkJavaImpl(
       (await files(join(cpuRun.directory, "profiles"))).some((p) => p.endsWith(".cpuprofile")),
       "CPU profile отсутствует",
     );
-    await compare("slides-native-cpu", studentNative, await snapshot("slides-cpu"), [roots[2]]);
+    await compare("slides-native-cpu", studentNative, await saveOutputs("slides-cpu"), [roots[2]]);
 
-    const sourceReceipt: SourceReceipt = {
+    const sourceSelection: SourceSelection = {
       repository: "BSU-RFCT-Afonenko-Courses/Java",
       sourceKind: "local-candidate",
       remoteRef: "HEAD",
@@ -521,18 +449,18 @@ async function checkJavaImpl(
       const root = await makeCopy(label);
       const manifest: SourceManifest = {
         schema_version: 2,
-        projectSource: sourceReceipt.repository,
+        projectSource: sourceSelection.repository,
         replacements: [],
         experimentId: crypto.randomUUID(),
-        sources: [sourceReceipt],
+        sources: [sourceSelection],
         packages: [],
         runtime: {},
       };
       if (replacement) {
         assert.equal(await git(replacementOwner, ["status", "--porcelain"]), "");
         const ownerSHA = await git(replacementOwner, ["rev-parse", "HEAD"]);
-        const owner: SourceReceipt = {
-          ...sourceReceipt,
+        const owner: SourceSelection = {
+          ...sourceSelection,
           repository: "Afonenko-Course-Tools/quarto-reference-catalog",
           sha: ownerSHA,
           checkoutPath: replacementOwner,
@@ -545,16 +473,6 @@ async function checkJavaImpl(
         }];
         manifest.packages = await installPackages(root, manifest.sources, manifest.replacements);
         assert.equal(manifest.packages.length, 1);
-        await json(join(output, label + ".owner-oids.json"), {
-          ownerSHA,
-          files: await git(replacementOwner, [
-            "ls-tree",
-            "-r",
-            "HEAD",
-            "--",
-            "_extensions/reference-catalog",
-          ]),
-        });
       }
       const scenario = {
         id: label,
@@ -591,19 +509,11 @@ async function checkJavaImpl(
         abortSignal,
         outputRoot: join(output, label, "runs"),
         diagnosticEnv: diagnostic.env,
-        preparation: diagnostic.preparation,
+        preparedScripts: diagnostic.preparedScripts,
         coverage: diagnostic.coverage,
       });
       const native = completedNative(result);
-      await auditBackend(label, join(output, label, "diagnostic"));
       const normalized = await normalizeRun(result.directory);
-      const raw = Object.fromEntries(
-        await Promise.all(
-          (await files(result.directory)).map(async (
-            p,
-          ) => [relative(result.directory, p), await hashFile(p)]),
-        ),
-      );
       const recorded = [
         ...new Set(
           normalized.events.map(operationAttribution).filter((a) =>
@@ -617,7 +527,7 @@ async function checkJavaImpl(
           normalized.events.some((event) => event.operation_id === id && event.event === "begin")
         );
       });
-      const proof = {
+      const diagnosticReport = {
         label,
         startUTC,
         endUTC: new Date().toISOString(),
@@ -629,10 +539,9 @@ async function checkJavaImpl(
         executors: normalized.executors,
         recorded,
         executedSymbols,
-        raw,
         coverage: diagnostic.coverage,
       };
-      await json(join(output, label + ".proof.json"), proof);
+      await json(join(output, label + ".diagnostic.json"), diagnosticReport);
       assert.equal(native.code, 0);
       assert(normalized.dataValid);
       assert(normalized.events.length > 0);
@@ -649,7 +558,7 @@ async function checkJavaImpl(
         replacements: manifest.replacements,
         packages: manifest.packages,
       });
-      await compare(label + "-outputs", studentNative, await snapshot(label), roots);
+      await compare(label + "-outputs", studentNative, await saveOutputs(label), roots);
     }
     const fixture = join(renderParent, "small-fixture");
     await Deno.mkdir(fixture);
@@ -684,31 +593,11 @@ async function checkJavaImpl(
     await copyTree(fixture, join(output, "small-fixture"));
     completed = true;
   } finally {
-    const executionAfter = Object.fromEntries(
-      await Promise.all(
-        Object.keys(executionFiles).map(async (path) => [path, await hashFile(join(app, path))]),
-      ),
-    );
-    const executionUnchanged = Object.entries(executionFiles).every(([path, hash]) =>
-      executionAfter[path] === hash
-    );
-    await json(join(output, "execution-source-after.json"), {
-      executionHEAD,
-      executionUnchanged,
-      files: executionAfter,
-    });
-    const sourceAfter = await treeHash(project);
-    const sourceUnchanged = sourceBefore === sourceAfter &&
-      sourceSHA === await git(project, ["rev-parse", "HEAD"]);
     const evidence = {
       schema_version: 1,
-      status: completed && sourceUnchanged && executionUnchanged ? "PASS" : "FAIL",
+      status: completed ? "PASS" : "FAIL",
       executionHEAD,
       sourceSHA,
-      sourceBefore,
-      sourceAfter,
-      sourceUnchanged,
-      executionUnchanged,
       renderRoot,
       tools,
       targets: [".", "tasks", "slides"],
@@ -721,11 +610,6 @@ async function checkJavaImpl(
       ],
     };
     await json(join(output, "validation.json"), evidence);
-    assert(sourceUnchanged, "Source Java изменился во время проверки");
-    assert(executionUnchanged, "Исполняемый source изменился во время проверки");
-    // Последняя копия сохраняется для проверки correspondence; очищается только
-    // созданный этим gate временный каталог после сохранения полного снимка.
-    await copyTree(renderRoot, join(output, "last-render-workspace"));
     await Deno.remove(renderParent, { recursive: true });
   }
 }

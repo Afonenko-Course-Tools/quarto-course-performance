@@ -114,10 +114,13 @@ if (mode && mode !== "off") {
   if (kind === "pandoc" && !pandocInformational) {
     const prepared = await preparePandocArgs(binary, args, env, id);
     args.splice(0, args.length, ...prepared.args);
-    if (prepared.preparation) {
-      const directory = join(env.COURSE_PERF_OUTPUT_DIR, "preparation");
+    if (prepared.preparedScripts) {
+      const directory = join(env.COURSE_PERF_OUTPUT_DIR, "preparedScripts");
       await Deno.mkdir(directory, { recursive: true });
-      await Deno.writeTextFile(join(directory, id + ".json"), JSON.stringify(prepared.preparation));
+      await Deno.writeTextFile(
+        join(directory, id + ".json"),
+        JSON.stringify(prepared.preparedScripts),
+      );
     }
   }
 }

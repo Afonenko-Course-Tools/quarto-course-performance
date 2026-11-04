@@ -19,11 +19,9 @@ Deno.test("single off report is versioned, portable and does not invent diagnost
     const raw = '{"raw":"/original/collection"}\n';
     await Deno.writeTextFile(join(dir, "events/raw.jsonl"), raw);
     const r = record(dir);
-    r.preparation = [{
+    r.preparedScripts = [{
       kind: "bootstrap",
       path: "/original/bootstrap",
-      sourceHash: "s",
-      preparedHash: "p",
     }];
     const published = await writeRunArtifacts(dir, r);
     assert.equal(published.record, r);
@@ -34,7 +32,7 @@ Deno.test("single off report is versioned, portable and does not invent diagnost
       JSON.parse(await Deno.readTextFile(join(moved, "run.json"))),
     );
     assert.equal(metadata.collectionDirectory, dir);
-    assert.equal(metadata.preparation[0].path, "/original/bootstrap");
+    assert.equal(metadata.preparedScripts[0].path, "/original/bootstrap");
     const summary = validateRunSummary(
       JSON.parse(await Deno.readTextFile(join(moved, "summary.json"))),
     );

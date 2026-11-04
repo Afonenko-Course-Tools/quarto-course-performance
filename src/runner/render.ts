@@ -158,7 +158,7 @@ export async function renderCommand(request: NativeRenderRequest): Promise<numbe
     streams: { ...observation.streams },
     stdioMode: observation.stdioMode,
     observedWallSeconds: (performance.now() - started) / 1000,
-    preparation: [...prepared?.preparation ?? []],
+    preparedScripts: [...prepared?.preparedScripts ?? []],
     dataValid: completion.kind === "complete" && (normalized?.dataValid ?? !prepared),
     quality: {
       droppedEvents: normalized?.quality.droppedEvents ?? 0,

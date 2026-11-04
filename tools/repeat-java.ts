@@ -6,7 +6,7 @@ import { validateConfig } from "../src/config/validate.ts";
 import { prepareVariant } from "../src/sources/prepare.ts";
 import { executeScenario, withScenarioSignals } from "../src/runner/execute.ts";
 import { compareOutputs } from "../src/analysis/outputs.ts";
-import { copyTree } from "../src/sources/snapshot.ts";
+import { copyTree } from "../src/sources/files.ts";
 await withScenarioSignals(async (abortSignal) => {
   const workspace = resolve(Deno.args[0]);
   const config = validateConfig(

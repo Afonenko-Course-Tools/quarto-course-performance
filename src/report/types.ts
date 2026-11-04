@@ -1,4 +1,4 @@
-import type { Mode, PreparationReceipt } from "../config/types.ts";
+import type { Mode, PreparedScript } from "../config/types.ts";
 import type { QualitySummary } from "../analysis/normalize.ts";
 
 export type SimpleMode = "off" | "summary" | "cpu";
@@ -80,9 +80,9 @@ export interface ImportProvenance {
   schema_version: 1;
   adapterVersion: string;
   sourceDirectory: string;
-  manifest: { path: string; sha256: string; schemaVersion: number | null };
-  run: { path: string; sha256: string; schemaVersion: number | null };
-  runManifest?: { path: string; sha256: string; schemaVersion: number | null };
+  manifest: { path: string; schemaVersion: number | null };
+  run: { path: string; schemaVersion: number | null };
+  runManifest?: { path: string; schemaVersion: number | null };
   sourceStatus: { buildExitCode: number; dataValid: boolean | null; signalAvailability: string };
 }
 export interface RunRecord {
@@ -95,7 +95,7 @@ export interface RunRecord {
   streams: ProcessObservation["streams"];
   stdioMode: ProcessObservation["stdioMode"];
   observedWallSeconds: number;
-  preparation: PreparationReceipt[];
+  preparedScripts: PreparedScript[];
   dataValid: boolean;
   quality: QualitySummary;
   versions: { tool: string; quarto: string; deno: string | null; pandoc: string | null };
@@ -342,16 +342,17 @@ export function validateRunRecord(value: unknown): RunRecord {
     }
   }
   number(r.observedWallSeconds, "observedWallSeconds");
-  if (!Array.isArray(r.preparation)) invalid("preparation");
-  for (const receipt of r.preparation) {
-    const p = object(receipt, "preparation");
+  if (!Array.isArray(r.preparedScripts)) invalid("preparedScripts");
+  for (const receipt of r.preparedScripts) {
+    const p = object(receipt, "preparedScripts");
     if (!["bootstrap", "ts-transform", "quarto-adapter"].includes(p.kind as string)) {
-      invalid("preparation.kind");
+      invalid("preparedScripts.kind");
     }
-    for (const field of ["path", "sourceHash", "preparedHash"]) {
-      string(p[field], `preparation.${field}`);
+    if (Object.keys(p).some((key) => !["kind", "path", "sourceMapPath"].includes(key))) {
+      invalid("preparedScripts.fields");
     }
-    if (p.sourceMapPath !== undefined) string(p.sourceMapPath, "preparation.sourceMapPath");
+    string(p.path, "preparedScripts.path");
+    if (p.sourceMapPath !== undefined) string(p.sourceMapPath, "preparedScripts.sourceMapPath");
   }
   const versions = object(r.versions, "versions");
   for (const field of ["tool", "quarto"]) string(versions[field], `versions.${field}`);

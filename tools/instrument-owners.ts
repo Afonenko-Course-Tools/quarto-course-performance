@@ -2,7 +2,7 @@
 import ts from "npm:typescript@5.9.3";
 import luaparse from "npm:luaparse@0.3.1";
 import { basename, dirname, join, relative } from "node:path";
-import { files } from "../src/sources/snapshot.ts";
+import { files } from "../src/sources/files.ts";
 const project = new URL("../", import.meta.url).pathname;
 // deno-lint-ignore no-explicit-any
 type LuaNode = any;

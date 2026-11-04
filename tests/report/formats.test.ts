@@ -32,7 +32,7 @@ const run = {
   streams: { stdout: "eof", stderr: "eof" },
   stdioMode: "separate",
   observedWallSeconds: 1.25,
-  preparation: [],
+  preparedScripts: [],
   dataValid: true,
   quality,
   versions: { tool: "2.0.0", quarto: "1.11.5", deno: null, pandoc: null },
@@ -96,8 +96,15 @@ Deno.test("run metadata keeps unavailable resources explicit and records collect
   }
   for (
     const field of [
-      "collectionDirectory", "completion", "command", "streams", "stdioMode",
-      "observedWallSeconds", "quality", "versions", "git",
+      "collectionDirectory",
+      "completion",
+      "command",
+      "streams",
+      "stdioMode",
+      "observedWallSeconds",
+      "quality",
+      "versions",
+      "git",
     ]
   ) {
     const incomplete: Record<string, unknown> = { ...run };
@@ -140,7 +147,7 @@ Deno.test("summary counters retain executor scope, source and delta versus total
   ) assert.throws(() => validateRunSummary({ ...summary, counters: [{ ...delta, ...change }] }));
 });
 
-Deno.test("run metadata validates provenance and preparation without changing native arguments", () => {
+Deno.test("run metadata validates provenance and preparedScripts without changing native arguments", () => {
   const parsed = validateRunRecord({
     ...run,
     request: { ...run.request, nativeArgv: ["", "--", "$literal"], outputParent: "/measurements" },
@@ -149,7 +156,7 @@ Deno.test("run metadata validates provenance and preparation without changing na
       native: { ...run.completion.native, signal: "SIGTERM", cpuUserSeconds: 0, peakRssKiB: 2048 },
     },
     git: { root: "/course", head: "a".repeat(40), dirty: true },
-    preparation: [{ kind: "bootstrap", path: "init.lua", sourceHash: "a", preparedHash: "b" }],
+    preparedScripts: [{ kind: "bootstrap", path: "init.lua" }],
   });
   assert(parsed.completion.kind === "complete");
   assert.deepEqual(parsed.request.nativeArgv, ["", "--", "$literal"]);
@@ -161,9 +168,11 @@ Deno.test("run metadata validates provenance and preparation without changing na
     const change of [
       { dataValid: undefined },
       { request: { ...run.request, nativeArgv: [3] } },
-      { completion: { ...run.completion, native: { ...run.completion.native, signal: "unknown" } } },
-      { preparation: [{ kind: "unknown", path: "init.lua", sourceHash: "a", preparedHash: "b" }] },
-      { preparation: [{ kind: "bootstrap", path: "init.lua", sourceHash: "a" }] },
+      {
+        completion: { ...run.completion, native: { ...run.completion.native, signal: "unknown" } },
+      },
+      { preparedScripts: [{ kind: "unknown", path: "init.lua" }] },
+      { preparedScripts: [{ kind: "bootstrap", path: "" }] },
       { quality: { ...quality, droppedEvents: -1 } },
       { quality: { ...quality, incompleteSpans: 0.5 } },
       { quality: { ...quality, coverageComplete: undefined } },
@@ -228,7 +237,11 @@ Deno.test("native escalation is optional and observation stdio mode is validated
     "pty-combined",
   );
   assert.throws(
-    () => validateRunRecord({ ...run, completion: { ...run.completion, native: { ...run.completion.native, escalated: "yes" } } }),
+    () =>
+      validateRunRecord({
+        ...run,
+        completion: { ...run.completion, native: { ...run.completion.native, escalated: "yes" } },
+      }),
     /escalated/,
   );
   assert.throws(

@@ -4,13 +4,18 @@
 Команда работает из привычного каталога проекта с его нативными параметрами; для первого измерения
 не нужны конфигурация Performance или регистрация курса.
 
+Текущая подготовка использует выбранные пути и нативную идентичность Git без собственных SHA
+исходников, runtime или пакетов. В отчётах сохраняются действительные события и пути подготовленных
+скриптов; они не подтверждают свежесть или полное покрытие. Изменения форматов и границы проверок
+описаны в [замыкании входов от 5 ноября](docs/releases/2026-11-05-inputs-without-digests.md).
+
 ## Установка и первый запуск
 
 В Arch Linux используйте готовый рецепт из
-[quarto-course-perf-arch](https://github.com/Afonenko-Course-Tools/quarto-course-perf-arch).
-Сначала установите `base-devel`, `git` и настоящий пакет Quarto, предоставляющий `quarto` в базе
-pacman: одного исполняемого файла в `PATH` недостаточно, а `makepkg` не устанавливает зависимости из
-AUR. Затем обычным пользователем выполните:
+[quarto-course-perf-arch](https://github.com/Afonenko-Course-Tools/quarto-course-perf-arch). Сначала
+установите `base-devel`, `git` и настоящий пакет Quarto, предоставляющий `quarto` в базе pacman:
+одного исполняемого файла в `PATH` недостаточно, а `makepkg` не устанавливает зависимости из AUR.
+Затем обычным пользователем выполните:
 
 ```sh
 git clone https://github.com/Afonenko-Course-Tools/quarto-course-perf-arch.git
@@ -19,9 +24,9 @@ makepkg -si
 ```
 
 Пакет использует отдельный Deno, установленный Quarto, GNU time и `setsid` из `util-linux`.
-`makepkg` подготавливает npm-зависимости; генерировать рецепт или готовить их вручную не нужно.
-Для обновления в том же клоне выполните `git pull --ff-only` и повторите `makepkg -si`.
-Подробности — в [текущей Arch-инструкции](docs/arch-package.md).
+`makepkg` подготавливает npm-зависимости; генерировать рецепт или готовить их вручную не нужно. Для
+обновления в том же клоне выполните `git pull --ff-only` и повторите `makepkg -si`. Подробности — в
+[текущей Arch-инструкции](docs/arch-package.md).
 
 Установленный файл `/usr/share/doc/quarto-course-perf/arch-package.md` из выпуска приложения 2.0.0
 сохраняет историческую инструкцию и может описывать прежний маршрут. Актуальная установка и
@@ -62,8 +67,8 @@ Performance: wall=12.345s; CPU user=9.8; CPU system=1.2; peak RSS=245760 KiB; st
 расширения или записи в реестре не доказывает выполнения всех его операций. В `summary` и `cpu`
 `coverage.json` хранит логические наблюдения расширений без обхода установленных пакетов.
 Диагностический эксперимент отдельно собирает физические копии пакетов выбранной области и
-статические свидетельства разметки. Неизвестные сведения остаются неизвестными;
-подключение языкового агента само по себе не означает покрытия пакета.
+статические свидетельства разметки. Неизвестные сведения остаются неизвестными; подключение
+языкового агента само по себе не означает покрытия пакета.
 
 Веб-справочник версии 2.0.0:
 [диагностика и ограничения](https://github.com/Afonenko-Course-Tools/quarto-course-performance/blob/v2.0.0/docs/diagnostics.md)
@@ -76,12 +81,12 @@ Performance: wall=12.345s; CPU user=9.8; CPU system=1.2; peak RSS=245760 KiB; st
 ·
 [Машинные форматы](https://github.com/Afonenko-Course-Tools/quarto-course-performance/blob/v2.0.0/docs/general-use-formats.md).
 
-Для разработчика:
-[подготовка зависимостей, проверки, выпуск и владельцы](docs/development.md).
-Исправление JSON в Core 8.2.8, приёмка Cybersecurity и новая полная матрица — в [отчёте обновления](docs/releases/2026-10-25-core-8.2.8-cybersecurity.md).
+Для разработчика: [подготовка зависимостей, проверки, выпуск и владельцы](docs/development.md).
+Исправление JSON в Core 8.2.8, приёмка Cybersecurity и новая полная матрица — в
+[отчёте обновления](docs/releases/2026-10-25-core-8.2.8-cybersecurity.md).
 
-Arch-поставка и история попытки с Core 8.2.6 сохранены в [предыдущем отчёте](docs/releases/2026-10-24-arch-cybersecurity.md).
-Первоначальные
+Arch-поставка и история попытки с Core 8.2.6 сохранены в
+[предыдущем отчёте](docs/releases/2026-10-24-arch-cybersecurity.md). Первоначальные
 [план](https://github.com/Afonenko-Course-Tools/quarto-course-performance/blob/v2.0.0/docs/plan/README.md)
 и
 [отчёт Java-пилота](https://github.com/Afonenko-Course-Tools/quarto-course-performance/blob/v2.0.0/docs/java-pilot-report.md)

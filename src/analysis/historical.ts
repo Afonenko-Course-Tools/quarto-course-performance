@@ -1,14 +1,12 @@
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { importSourceManifest, type ReportSourceManifest } from "../config/types.ts";
-import { hashFile } from "../sources/snapshot.ts";
 import { type NormalizedRun, normalizeRun } from "./normalize.ts";
 import { type RunRecord, validateRunRecord } from "../report/types.ts";
 import { writeRunArtifacts } from "../report/run.ts";
 
 const adapterVersion = "experiment-history-v1";
-interface Receipt {
+interface ImportedMetadata {
   path: string;
-  sha256: string;
   schemaVersion: number | null;
 }
 async function metadata(path: string) {
@@ -21,9 +19,8 @@ async function metadata(path: string) {
   ) {
     throw new Error(`Неизвестная schema исторических metadata: ${path}`);
   }
-  const receipt: Receipt = {
+  const receipt: ImportedMetadata = {
     path: await Deno.realPath(path),
-    sha256: await hashFile(path),
     schemaVersion: value.schema_version ?? null,
   };
   return { value, receipt };
@@ -99,9 +96,10 @@ function legacyRecord(
   output: string,
   run: NormalizedRun,
 ): RunRecord {
+  const { preparation: _oldPreparation, preparedScripts: _oldScripts, ...facts } = value;
   if (value.schema_version === 2) {
     if (value.completion !== undefined) {
-      const record = validateRunRecord(value);
+      const record = validateRunRecord({ ...facts, preparedScripts: [] });
       if (record.completion.kind !== "complete") {
         throw new Error(`Неполный запуск не сравнивается: ${source}`);
       }
@@ -126,9 +124,10 @@ function legacyRecord(
       wallSeconds: _wallSeconds,
       signal: _signal,
       ...base
-    } = value;
+    } = facts;
     return validateRunRecord({
       ...base,
+      preparedScripts: [],
       completion: {
         kind: "complete",
         native: {
@@ -160,10 +159,9 @@ function legacyRecord(
     throw new Error(`Исторический run требует сохранённый argv команды render: ${source}`);
   }
   if (
-    typeof value.cwd !== "string" || !isAbsolute(value.cwd) || value.signal === undefined ||
-    !Array.isArray(value.preparation)
+    typeof value.cwd !== "string" || !isAbsolute(value.cwd) || value.signal === undefined
   ) {
-    throw new Error(`Исторический run не содержит обязательные cwd/signal/preparation: ${source}`);
+    throw new Error(`Исторический run не содержит обязательные cwd/signal: ${source}`);
   }
   const resources = value.resources as Record<string, unknown> | undefined;
   return validateRunRecord({
@@ -188,7 +186,7 @@ function legacyRecord(
     streams: { stdout: "eof", stderr: "eof" },
     stdioMode: value.stdioMode ?? null,
     observedWallSeconds: value.wallSeconds,
-    preparation: value.preparation,
+    preparedScripts: [],
     dataValid: run.dataValid,
     quality: run.quality,
     versions: {
@@ -236,7 +234,7 @@ export async function prepareHistoricalImport(
     output: string;
     record: RunRecord;
     run: NormalizedRun;
-    receipt: Receipt;
+    receipt: ImportedMetadata;
   }[] = [];
   const runRoot = join(source, "runs");
   if ((await Deno.lstat(runRoot)).isSymlink) throw new Error("Недопустимая ссылка runs");

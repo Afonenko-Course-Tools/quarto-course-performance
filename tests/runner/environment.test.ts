@@ -77,7 +77,7 @@ Deno.test("probe preserves effective runtime, Deno options, cache and network en
     assert.equal(calls.filter((call) => call.args[0] === "--version").length, 2);
     assert.equal(caps.luaHook, true);
     assert.equal(caps.runtime.pandoc.version, "Lua 5.4 custom-runtime");
-    assert.equal(caps.runtimeHash, caps.runtime.quartoBundle.hash);
+    assert.equal(caps.runtime.quartoBundle.version, caps.runtime.quarto.version);
     for (const call of calls) assert.equal(call.env.PERF_TEST_FUNCTIONAL, "inherited");
     for (const call of calls) {
       for (
@@ -110,7 +110,7 @@ Deno.test("system Quarto probe observes bundled runtime capabilities", async () 
   assert.equal(caps.denoPreload, true);
   assert.equal(caps.denoCpu, true);
   assert.equal(caps.luaHook, true);
-  assert(caps.runtime.deno.hash);
+  assert.equal(caps.runtime.deno.path, caps.deno);
 });
 
 Deno.test("probe resolves bare Deno and Pandoc overrides through effective PATH for runtime receipts", async () => {
@@ -145,7 +145,6 @@ Deno.test("probe resolves bare Deno and Pandoc overrides through effective PATH 
           : bundled[key];
         assert.equal(caps[key], expected);
         assert.equal(caps.runtime[key].path, expected);
-        assert.equal(caps.runtime[key].hash, bundled.runtime[key].hash);
         assert.equal(caps.runtime[key].version, bundled.runtime[key].version);
       }
       assert.equal(JSON.stringify(env), before);

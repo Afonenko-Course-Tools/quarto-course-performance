@@ -1,6 +1,5 @@
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
-import { hashBytes, hashFile } from "../sources/snapshot.ts";
-import type { PreparationReceipt } from "../config/types.ts";
+import type { PreparedScript } from "../config/types.ts";
 import { appDenoArgs, assetPath } from "../assets.ts";
 const project = assetPath(".");
 function shellQuote(value: string) {
@@ -57,7 +56,7 @@ export async function prepareLaunchers(
       COURSE_PERF_AGENT_TS: join(project, "src/agents/ts/bootstrap.ts"),
     },
     bridgePath: join(project, "bridge/bridge.ts"),
-    preparation: [receipt],
+    preparedScripts: [receipt],
   };
 }
 
@@ -67,7 +66,7 @@ export async function preparePandocData(
   destination: string,
   agentInit: string,
   builtinInit?: Uint8Array,
-): Promise<PreparationReceipt> {
+): Promise<PreparedScript> {
   await copyPandocData(source, destination);
   const init = join(destination, "init.lua");
   if (builtinInit) {
@@ -78,10 +77,9 @@ export async function preparePandocData(
       await Deno.writeFile(init, builtinInit, { createNew: true });
     }
   }
-  let sourceHash = await hashBytes(new Uint8Array());
   let hasOriginal = false;
   try {
-    sourceHash = await hashFile(init);
+    await Deno.lstat(init);
     hasOriginal = true;
   } catch (error) {
     if (!(error instanceof Deno.errors.NotFound)) throw error;
@@ -106,7 +104,7 @@ export async function preparePandocData(
     "-- Performance: публичный Pandoc init.\n" + loadOriginal +
       "dofile(" + JSON.stringify(agentInit) + ")\n" + returnOriginal,
   );
-  return { kind: "bootstrap", path: init, sourceHash, preparedHash: await hashFile(init) };
+  return { kind: "bootstrap", path: init };
 }
 
 /** Только явно выбранный runtime data-dir: ссылки материализуются без записи в source. */

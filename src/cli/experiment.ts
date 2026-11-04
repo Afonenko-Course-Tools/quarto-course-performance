@@ -7,7 +7,6 @@ import { executablePath, probeQuarto } from "../adapters/quarto/capabilities.ts"
 import { executeScenario, withScenarioSignals } from "../runner/execute.ts";
 import { completedNative, validateRunRecord } from "../report/types.ts";
 import { benchmarkPair } from "../runner/benchmark.ts";
-import { hashFile } from "../sources/snapshot.ts";
 import { compareBenchmarks } from "../analysis/compare.ts";
 import { type NormalizedRun, normalizeRun } from "../analysis/normalize.ts";
 import {
@@ -176,7 +175,6 @@ async function experimentCommandImpl(
       const hyperfineReceipt = {
         path: hyperfinePath,
         version: new TextDecoder().decode(hyperfine.stdout).trim(),
-        hash: await hashFile(hyperfinePath),
       };
       const a = await prepare(left as Variant),
         b = await prepare(right as Variant),
@@ -239,7 +237,7 @@ async function experimentCommandImpl(
       outputRoot: runRoot,
       env,
       cleanPaths: config.cleanPaths,
-      preparation: diagnostic?.preparation,
+      preparedScripts: diagnostic?.preparedScripts,
       diagnosticEnv: diagnostic?.env,
       coverage: diagnostic?.coverage,
       runtimeRegistry,

@@ -1,16 +1,7 @@
 import { isAbsolute, join, relative } from "node:path";
-export async function hashBytes(data: Uint8Array): Promise<string> {
-  return Array.from(
-    new Uint8Array(await crypto.subtle.digest("SHA-256", data as BufferSource)),
-    (x) => x.toString(16).padStart(2, "0"),
-  ).join("");
-}
-export async function hashFile(path: string): Promise<string> {
-  return await hashBytes(await Deno.readFile(path));
-}
 export async function files(
   root: string,
-  options: { materializeFileLinks?: boolean; sourceSnapshot?: boolean } = {},
+  options: { materializeFileLinks?: boolean; workingCopy?: boolean } = {},
 ): Promise<string[]> {
   const result: string[] = [];
   async function visit(dir: string) {
@@ -18,7 +9,7 @@ export async function files(
       if (entry.name === ".git") continue;
       const path = join(dir, entry.name);
       if (
-        options.sourceSnapshot &&
+        options.workingCopy &&
         relative(root, path).split(/[\\/]/).slice(-2).join("/") === ".quarto/course-perf"
       ) continue;
       if (entry.isSymlink) {
@@ -40,21 +31,10 @@ export async function files(
   await visit(root);
   return result.sort();
 }
-export async function treeHash(
-  root: string,
-  options: { sourceSnapshot?: boolean } = {},
-): Promise<string> {
-  const rows = [];
-  for (const path of await files(root, options)) {
-    const info = await Deno.stat(path);
-    rows.push([relative(root, path), info.mode! & 0o777, await hashFile(path)]);
-  }
-  return await hashBytes(new TextEncoder().encode(JSON.stringify(rows)));
-}
 export async function copyTree(
   source: string,
   destination: string,
-  options: { materializeFileLinks?: boolean; sourceSnapshot?: boolean } = {},
+  options: { materializeFileLinks?: boolean; workingCopy?: boolean } = {},
 ): Promise<void> {
   await Deno.mkdir(destination, { recursive: true });
   for (const path of await files(source, options)) {

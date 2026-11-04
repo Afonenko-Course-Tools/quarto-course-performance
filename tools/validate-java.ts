@@ -4,7 +4,7 @@ import { validateConfig } from "../src/config/validate.ts";
 import { compareOutputs } from "../src/analysis/outputs.ts";
 import { importSourceManifest, type ReportSourceManifest } from "../src/config/types.ts";
 import { type PublishedRun, validateRunRecord } from "../src/report/types.ts";
-import { files } from "../src/sources/snapshot.ts";
+import { files } from "../src/sources/files.ts";
 const workspace = resolve(Deno.args[0]), upstreamWorkspace = resolve(Deno.args[1]);
 const config = validateConfig(
   JSON.parse(await Deno.readTextFile(new URL("../scenarios/java.json", import.meta.url))),

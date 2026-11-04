@@ -1,6 +1,6 @@
 import { relative } from "node:path";
 import type { OutputPolicy } from "../config/types.ts";
-import { files, hashFile } from "../sources/snapshot.ts";
+import { files } from "../sources/files.ts";
 
 export async function compareOutputs(
   left: string,
@@ -47,7 +47,7 @@ export async function compareOutputs(
           x.stdout.some((v, i) => v !== y.stdout[i])
         ) differences.push(`${name}/${entry}: ZIP bytes различаются`);
       }
-    } else if (await hashFile(a.get(name)!) !== await hashFile(b.get(name)!)) {
+    } else if (!equalBytes(await Deno.readFile(a.get(name)!), await Deno.readFile(b.get(name)!))) {
       differences.push(`${name}: bytes различаются`);
     }
   }
@@ -59,4 +59,8 @@ export async function compareOutputs(
     differences,
     ...(htmlBytesCompared ? { equivalent: checkedContentEqual } : {}),
   };
+}
+
+function equalBytes(a: Uint8Array, b: Uint8Array): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
 }

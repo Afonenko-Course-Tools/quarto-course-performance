@@ -1,7 +1,7 @@
 import { appDenoArgs, assetPath } from "../assets.ts";
 import { join, relative, resolve } from "node:path";
-import type { Mode, PreparationReceipt, PreparedVariant, Scenario } from "../config/types.ts";
-import { contained } from "../sources/snapshot.ts";
+import type { Mode, PreparedScript, PreparedVariant, Scenario } from "../config/types.ts";
+import { contained } from "../sources/files.ts";
 import { writeRunArtifacts } from "../report/run.ts";
 import {
   type BuildOutcome,
@@ -41,7 +41,7 @@ export async function withScenarioSignals<T>(use: (signal: AbortSignal) => Promi
 export interface ExecuteOptions {
   outputRoot?: string;
   env?: Record<string, string>;
-  preparation?: PreparationReceipt[];
+  preparedScripts?: PreparedScript[];
   diagnosticEnv?: Record<string, string>;
   cleanPaths?: string[];
   coverage?: { complete: boolean };
@@ -286,7 +286,7 @@ export async function executeScenario(
       ? null
       : "separate",
     observedWallSeconds: (performance.now() - started) / 1000,
-    preparation: mode === "off" ? [] : [...options.preparation ?? []],
+    preparedScripts: mode === "off" ? [] : [...options.preparedScripts ?? []],
     dataValid: completion.kind === "complete" && (normalized?.dataValid ?? mode === "off"),
     quality: {
       droppedEvents: normalized?.quality.droppedEvents ?? 0,

@@ -1,7 +1,7 @@
 import { completedNative } from "../src/report/types.ts";
 // Native synthetic workload владельца Core; длительности не используются как off acceptance.
 import { join, resolve } from "node:path";
-import { copyTree, hashFile } from "../src/sources/snapshot.ts";
+import { copyTree } from "../src/sources/files.ts";
 import { git } from "../src/sources/resolve.ts";
 import { verifySources } from "../src/sources/prepare.ts";
 import { prepareDiagnostic } from "../src/runner/diagnostic.ts";
@@ -87,7 +87,7 @@ await withScenarioSignals(async (abortSignal) => {
     const summary = await executeScenario(scenario, prepared, "summary", {
       ...options,
       diagnosticEnv: diagnostic.env,
-      preparation: diagnostic.preparation,
+      preparedScripts: diagnostic.preparedScripts,
       coverage: diagnostic.coverage,
     });
     if (completedNative(summary).code || !summary.record.dataValid) {
@@ -103,7 +103,6 @@ await withScenarioSignals(async (abortSignal) => {
     const equivalence = await compareOutputs(ordinary, join(root, "_book"));
     rows.push({
       factor,
-      inputHash: await hashFile(join(root, "index.qmd")),
       offRunId: off.record.runId,
       summaryRunId: summary.record.runId,
       counters,
