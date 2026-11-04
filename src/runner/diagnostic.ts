@@ -4,12 +4,11 @@ import { pathToFileURL } from "node:url";
 import { prepareLaunchers } from "../launchers/setup.ts";
 import { probeQuarto } from "../adapters/quarto/capabilities.ts";
 import { prepareFilterAdapter } from "../adapters/quarto/filter-trace.ts";
-import { contained, hashFile } from "../sources/snapshot.ts";
+import { contained } from "../sources/files.ts";
 import type { NativeRenderRequest } from "../report/types.ts";
 import { type ProjectTarget, resolveRenderProject } from "../adapters/quarto/inspect.ts";
-import { collectPackageCoverage } from "./package-coverage.ts";
 import { validateTelemetryEnvironment } from "./environment.ts";
-import type { PreparationReceipt, PreparedVariant, Scenario } from "../config/types.ts";
+import type { PreparedScript, PreparedVariant, Scenario } from "../config/types.ts";
 export async function prepareDiagnostic(
   scenario: Scenario,
   prepared: PreparedVariant,
@@ -20,15 +19,15 @@ export async function prepareDiagnostic(
   if (!caps.denoPreload || !caps.luaHook) {
     throw new Error("Runtime не поддерживает необходимые launchers");
   }
-  const share = join(workspace, "share"), preparation: PreparationReceipt[] = [];
-  if (caps.filterAdapter) preparation.push(await prepareFilterAdapter(caps.share, share));
+  const share = join(workspace, "share"), preparedScripts: PreparedScript[] = [];
+  if (caps.filterAdapter) preparedScripts.push(await prepareFilterAdapter(caps.share, share));
   const setup = await prepareLaunchers({
     workspace: join(workspace, "launchers"),
     deno: caps.deno,
     pandoc: caps.pandoc,
     dataDir: join(caps.filterAdapter ? share : caps.share, "pandoc/datadir"),
   });
-  preparation.push(...setup.preparation);
+  preparedScripts.push(...setup.preparedScripts);
   const cwd = resolve(prepared.root, scenario.cwd);
   const target = scenario.args[0] === "render"
     ? await resolveRenderProject({
@@ -43,10 +42,7 @@ export async function prepareDiagnostic(
   const registry = assetPath("docs/operation-registry.json");
   const coverage = {
     complete: false,
-    packageCoverage: await collectPackageCoverage(target.projectRoot, scenario.scope.extensions, [
-      workspace,
-      ...(target.outputDirectory ? [target.outputDirectory] : []),
-    ]),
+    packageCoverage: { requested: scenario.scope.extensions },
     installed: { ts: true, lua: true },
     instrumented: { ts: true, lua: true },
     observed: { ts: false, lua: false },
@@ -62,7 +58,6 @@ export async function prepareDiagnostic(
       shortcodeBoundaries: "enabled",
     },
     manualRegistry: {
-      hash: await hashFile(registry),
       operations: JSON.parse(await Deno.readTextFile(registry)),
     },
   };
@@ -81,16 +76,13 @@ export async function prepareDiagnostic(
     }
     const { instrumentModule } = await import("../instrumentation/ts/transform.ts");
     const source = await Deno.readTextFile(path),
-      sourceHash = await hashFile(path),
       result = instrumentModule(source, module, { strict: scenario.scope.strict, bridgeUrl });
     await Deno.writeTextFile(path, result.source);
     const map = path + ".symbols.json";
     await Deno.writeTextFile(map, JSON.stringify(result.symbols));
-    preparation.push({
+    preparedScripts.push({
       kind: "ts-transform",
       path,
-      sourceHash,
-      preparedHash: await hashFile(path),
       sourceMapPath: map,
     });
     coverage.ts.push({ path: module, symbols: result.symbols, skipped: result.skipped });
@@ -104,7 +96,7 @@ export async function prepareDiagnostic(
       COURSE_PERF_SCOPE_FILE: scopePath,
       ...(caps.filterAdapter ? { QUARTO_SHARE_PATH: share } : {}),
     },
-    preparation,
+    preparedScripts,
     coverage,
   };
 }
@@ -136,7 +128,7 @@ export async function prepareRenderDiagnostic(
   });
   return {
     env: setup.env,
-    preparation: setup.preparation,
+    preparedScripts: setup.preparedScripts,
     coverage: {
       complete: false,
       installed: { ts: true, lua: true },

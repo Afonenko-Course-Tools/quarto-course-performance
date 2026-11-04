@@ -22,7 +22,7 @@ export function record(directory: string, runId = "test"): RunRecord {
     streams: { stdout: "eof", stderr: "eof" },
     stdioMode: "separate",
     observedWallSeconds: 1,
-    preparation: [],
+    preparedScripts: [],
     dataValid: true,
     quality: { droppedEvents: 0, incompleteSpans: 0, coverageComplete: false, errors: [] },
     versions: { tool: "2.0.0", quarto: "1.11.6", deno: null, pandoc: null },

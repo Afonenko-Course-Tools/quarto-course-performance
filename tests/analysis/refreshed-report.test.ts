@@ -60,7 +60,7 @@ Deno.test("lazy re-normalization refreshes builds, coverage, summary and both re
   }
 });
 
-Deno.test("completed experiment keeps normalized coverage instead of the preparation snapshot", async () => {
+Deno.test("completed experiment keeps normalized coverage instead of the preparedScripts snapshot", async () => {
   const { experimentCommand } = await import("../../src/cli/experiment.ts");
   const root = await Deno.makeTempDir();
   try {

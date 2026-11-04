@@ -2,7 +2,6 @@ import { strict as assert } from "node:assert";
 import { dirname, join } from "node:path";
 import { normalizeRun } from "../../src/analysis/normalize.ts";
 import { validateRunRecord, validateRunSummary } from "../../src/report/types.ts";
-import { hashFile } from "../../src/sources/snapshot.ts";
 
 async function json(path: string, value: unknown) {
   await Deno.mkdir(dirname(path), { recursive: true });
@@ -15,7 +14,11 @@ async function inventory(root: string): Promise<unknown[]> {
     result.push([
       path.slice(root.length),
       s.mode,
-      s.isSymlink ? await Deno.readLink(path) : s.isFile ? await hashFile(path) : "directory",
+      s.isSymlink
+        ? await Deno.readLink(path)
+        : s.isFile
+        ? Array.from(await Deno.readFile(path))
+        : "directory",
     ]);
     if (s.isDirectory) {
       const names = [];
@@ -48,7 +51,12 @@ async function fixture(root: string, version?: number, damaged = false, code = 0
     wallSeconds: 1.25,
     signal: null,
     dataValid: !damaged,
-    preparation: [],
+    preparation: [{
+      kind: "bootstrap",
+      path: "/old/init.lua",
+      sourceHash: "old",
+      preparedHash: "old",
+    }],
     resources: { cpu_user_seconds: null, cpu_system_seconds: null, peak_rss_kib: null },
   });
   await json(join(run, "mode.json"), { mode: "trace", runId: "r", experimentId: "history-e" });
@@ -170,14 +178,11 @@ Deno.test("explicit historical CLI report and verify derive v2 artifacts without
           await Deno.readTextFile(join(output, "import-provenance.json")),
         );
         assert.equal(provenance.sourceDirectory, source);
-        assert.equal(
-          provenance.manifest.sha256,
-          await hashFile(join(source, "candidate.manifest.json")),
-        );
-        assert.equal(provenance.runs[0].sha256, await hashFile(join(run, "run.json")));
-        assert.equal(
-          await hashFile(join(output, "runs/r/events/p/ts.jsonl")),
-          await hashFile(join(run, "events/p/ts.jsonl")),
+        assert.equal(provenance.manifest.path, join(source, "candidate.manifest.json"));
+        assert.equal(provenance.runs[0].path, join(run, "run.json"));
+        assert.deepEqual(
+          await Deno.readFile(join(output, "runs/r/events/p/ts.jsonl")),
+          await Deno.readFile(join(run, "events/p/ts.jsonl")),
         );
         for (const report of [join(output, "report.md"), join(output, "runs/r/report.md")]) {
           for (const match of (await Deno.readTextFile(report)).matchAll(/\]\(([^)]+)\)/g)) {
@@ -430,7 +435,7 @@ for (const entry of ["API", "report", "verify"]) {
           wallSeconds: 1.25,
           signal: null,
           dataValid: true,
-          preparation: [],
+          preparedScripts: [],
         });
         if (marker !== undefined) {
           await Deno.writeTextFile(join(run, "invalidated.json"), marker);
@@ -457,7 +462,7 @@ for (const entry of ["API", "report", "verify"]) {
         assert.equal(record.completion.native?.wallSeconds, 1.25);
         assert.equal(record.importProvenance!.sourceStatus.buildExitCode, code);
         assert.equal(record.importProvenance!.sourceStatus.dataValid, true);
-        assert.equal(record.importProvenance!.run.sha256, await hashFile(join(run, "run.json")));
+        assert.equal(record.importProvenance!.run.path, join(run, "run.json"));
         for (const derived of [record, summary]) {
           assert.equal(derived.dataValid, valid);
           assert.equal(derived.quality.coverageComplete, false);

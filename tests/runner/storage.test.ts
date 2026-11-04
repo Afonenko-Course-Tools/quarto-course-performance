@@ -301,7 +301,10 @@ Deno.test("partial staging cleanup PermissionDenied returns the complete committ
     for (
       const name of ["stdout.log", "run.json", "summary.json", "report.md", "protected/raw.jsonl"]
     ) await Deno.stat(join(final.directory, name));
-    assert.equal(await Deno.readTextFile(join(final.directory, "protected/raw.jsonl")), "unchanged raw");
+    assert.equal(
+      await Deno.readTextFile(join(final.directory, "protected/raw.jsonl")),
+      "unchanged raw",
+    );
     assert.deepEqual(
       JSON.parse(await Deno.readTextFile(join(final.directory, "run.json"))),
       final.record,
@@ -313,7 +316,9 @@ Deno.test("partial staging cleanup PermissionDenied returns the complete committ
       ),
       "real cleanup removed part of staging before PermissionDenied",
     );
-    assert(messages.some((message) => message.includes(final.directory) && message.includes(stage)));
+    assert(
+      messages.some((message) => message.includes(final.directory) && message.includes(stage)),
+    );
     const evidenceDirectory = Deno.env.get("PERF_TEST_EVIDENCE_DIRECTORY");
     if (evidenceDirectory) {
       await Deno.mkdir(evidenceDirectory, { recursive: true });
@@ -357,16 +362,14 @@ Deno.test("finalize retains diagnostic aggregates after relocation without rewri
     stage = paths.stagingDirectory;
     await Deno.mkdir(join(stage, "events"));
     const raw = '{"raw_path":"' + stage + '"}\n';
-    const receipt = '{"path":"' + stage + '/bootstrap","sourceHash":"original"}\n';
+    const receipt = '{"path":"' + stage + '/bootstrap"}\n';
     await Deno.writeTextFile(join(stage, "events/raw.jsonl"), raw);
     await Deno.writeTextFile(join(stage, "receipt.json"), receipt);
     const r = record(stage, paths.runId);
     r.request.mode = "summary";
-    r.preparation = [{
+    r.preparedScripts = [{
       kind: "bootstrap",
       path: stage + "/bootstrap",
-      sourceHash: "source",
-      preparedHash: "prepared",
     }];
     const normalized = {
       runId: paths.runId,
@@ -396,8 +399,8 @@ Deno.test("finalize retains diagnostic aggregates after relocation without rewri
     assert.equal(await Deno.readTextFile(join(output.directory, "events/raw.jsonl")), raw);
     assert.equal(await Deno.readTextFile(join(output.directory, "receipt.json")), receipt);
     assert.deepEqual(
-      JSON.parse(await Deno.readTextFile(join(output.directory, "run.json"))).preparation,
-      r.preparation,
+      JSON.parse(await Deno.readTextFile(join(output.directory, "run.json"))).preparedScripts,
+      r.preparedScripts,
     );
   } finally {
     await Deno.remove(root, { recursive: true });

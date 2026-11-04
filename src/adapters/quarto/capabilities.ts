@@ -1,6 +1,5 @@
 import type { SourceManifest } from "../../config/types.ts";
 import { delimiter, join, resolve } from "node:path";
-import { hashFile } from "../../sources/snapshot.ts";
 // Subprocess ищет bare command в PATH; receipts должны читать тот же файл.
 export async function executablePath(
   command: string,
@@ -66,24 +65,19 @@ export async function probeQuarto(
     if (!(error instanceof Deno.errors.NotFound)) throw error;
   }
   const runtime: SourceManifest["runtime"] = {
-    quarto: { path: join(bin, "quarto"), version, hash: await hashFile(join(bin, "quarto")) },
+    quarto: { path: join(bin, "quarto"), version },
     quartoBundle: {
       path: join(bin, "quarto.js"),
       version,
-      hash: await hashFile(join(bin, "quarto.js")),
     },
-    ...(source === undefined
-      ? {}
-      : { quartoFilters: { path: main, version, hash: await hashFile(main) } }),
-    deno: { path: deno, version: await run(deno, ["--version"]), hash: await hashFile(deno) },
+    ...(source === undefined ? {} : { quartoFilters: { path: main, version } }),
+    deno: { path: deno, version: await run(deno, ["--version"]) },
     pandoc: {
       path: pandoc,
       version: pandocVersion,
-      hash: await hashFile(pandoc),
     },
   };
   return {
-    runtimeHash: runtime.quartoBundle.hash,
     denoCpu: help.includes("--cpu-prof-dir"),
     denoPreload: help.includes("--preload"),
     luaHook: pandocVersion.includes("Lua 5.4"),

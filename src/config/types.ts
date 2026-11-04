@@ -8,7 +8,7 @@ export interface SourceRequest {
   refPolicy: "remote-default-head" | "explicit-remote-ref";
   ref?: string;
 }
-export interface SourceReceipt {
+export interface SourceSelection {
   repository: string;
   sourceKind: "github-baseline" | "local-candidate";
   remoteRef: string;
@@ -17,12 +17,11 @@ export interface SourceReceipt {
   fetchedAt: string;
   checkoutPath: string;
 }
-export interface PackageReceipt {
+export interface InstalledPackage {
   repository: string;
   ownerSha: string;
   extensionId: string;
   sourcePath: string;
-  packageHash: string;
   destinationPaths: string[];
 }
 export interface Replacement {
@@ -69,9 +68,9 @@ export interface SourceManifest {
   projectSource: string;
   replacements: Replacement[];
   experimentId: string;
-  sources: SourceReceipt[];
-  packages: PackageReceipt[];
-  runtime: Record<string, { path: string; version: string; hash: string }>;
+  sources: SourceSelection[];
+  packages: InstalledPackage[];
+  runtime: Record<string, { path: string; version: string }>;
 }
 export interface PreparedVariant {
   variant: Variant;
@@ -88,11 +87,9 @@ export interface Scenario {
   scope: { modules: string[]; extensions: string[]; strict: boolean };
   resources: { wall: boolean; cpu: boolean; peakRss: boolean };
 }
-export interface PreparationReceipt {
+export interface PreparedScript {
   kind: "bootstrap" | "ts-transform" | "quarto-adapter";
   path: string;
-  sourceHash: string;
-  preparedHash: string;
   sourceMapPath?: string;
 }
 export interface RunPaths {
@@ -124,11 +121,25 @@ export function importSourceManifest(value: unknown, historical = false): Report
         source.baseSha !== undefined && !/^[0-9a-f]{40}$/.test(source.baseSha)
       ) throw new Error("Некорректное происхождение source manifest v2");
     }
+    if (
+      !historical &&
+      manifest.packages.some((entry) =>
+        entry && typeof entry === "object" && "packageHash" in entry
+      )
+    ) {
+      throw new Error("Удалённые digest поля пакета не принимаются");
+    }
     for (const runtime of Object.values(manifest.runtime)) {
       if (
+        !historical && runtime && typeof runtime === "object" &&
+        Object.keys(runtime).some((key) => !["path", "version"].includes(key))
+      ) {
+        throw new Error("Удалённые digest поля runtime не принимаются");
+      }
+      if (
         !runtime || typeof runtime.path !== "string" || !isAbsolute(runtime.path) ||
-        typeof runtime.version !== "string" || !/^[0-9a-f]{64}$/.test(runtime.hash)
-      ) throw new Error("Некорректный runtime receipt");
+        typeof runtime.version !== "string"
+      ) throw new Error("Некорректный runtime input");
     }
     return manifest;
   }

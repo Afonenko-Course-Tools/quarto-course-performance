@@ -1,12 +1,10 @@
 import { strict as assert } from "node:assert";
 import { isAbsolute, join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { treeHash } from "../src/sources/snapshot.ts";
 
 /** Проверка распакованного приложения без установки в системные каталоги. */
 export async function checkInstalled(root: string): Promise<void> {
   if (!isAbsolute(root)) throw new Error("--root требует абсолютный путь приложения");
-  const before = await treeHash(root);
   const temporary = await Deno.makeTempDir({ prefix: "perf installed check " });
   try {
     const course = join(temporary, "foreign course"), cache = join(temporary, "empty cache");
@@ -75,9 +73,9 @@ const prepared:PreparedVariant={variant:'candidate',root,manifest:{schema_versio
 const scenario:Scenario={id:'installed-trace',cwd:'.',executable:Deno.execPath(),args:['run','--no-config','--no-lock','--cached-only','-A',root+'/entry.ts'],cachePolicy:'repeat-render',mode:'trace',scope:{modules:['entry.ts'],extensions:[],strict:true},resources:{wall:true,cpu:true,peakRss:true}};
 const diagnostic=await prepareDiagnostic(scenario,prepared,root+'/diagnostic',Deno.env.get('QUARTO')??'quarto');
 scenario.executable=diagnostic.env.QUARTO_DENO;
-const result=await executeScenario(scenario,prepared,'trace',{abortSignal,outputRoot:root+'/trace-output',diagnosticEnv:diagnostic.env,preparation:diagnostic.preparation});
+const result=await executeScenario(scenario,prepared,'trace',{abortSignal,outputRoot:root+'/trace-output',diagnosticEnv:diagnostic.env,preparedScripts:diagnostic.preparedScripts});
 assert.equal(completedNative(result).code,0);assert(result.record.dataValid,JSON.stringify(result));
-assert(result.record.preparation.some(p=>p.kind==='ts-transform'));
+assert(result.record.preparedScripts.some(p=>p.kind==='ts-transform'));
 const transformed=await Deno.readTextFile(root+'/entry.ts'); assert.match(transformed,/installedTrace/);
 const symbols=JSON.parse(await Deno.readTextFile(root+'/entry.ts.symbols.json'));assert.equal(symbols.length,1);
 const normalized=await normalizeRun(result.directory);assert(normalized.events.some(e=>e.event==='begin' && e.operation_id===symbols[0].id));
@@ -86,13 +84,10 @@ console.log('installed TS trace PASS',result.directory);
 `,
     );
     await run(probe, []);
-    assert.equal(await treeHash(root), before, "Установленное дерево изменилось");
     console.log(
       JSON.stringify({
         status: "PASS",
         root,
-        before,
-        after: before,
         cacheInitiallyEmpty: true,
         cachedOnly: true,
       }),

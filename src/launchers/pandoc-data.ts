@@ -146,7 +146,7 @@ export async function preparePandocArgs(
     }
   }
   let dataDir = env.COURSE_PERF_DATA_DIR;
-  let preparation;
+  let preparedScripts;
   if (source !== env.COURSE_PERF_SOURCE_DATA_DIR) {
     dataDir = join(env.COURSE_PERF_OUTPUT_DIR, "pandoc-data", id);
     let copySource = source!;
@@ -166,7 +166,7 @@ export async function preparePandocArgs(
       env.COURSE_PERF_INIT_LUA,
       await pandocBuiltinInit(binary, env),
     );
-    preparation = {
+    preparedScripts = {
       ...receipt,
       selectedSource: source,
       selection: defaultSelection ? "native-default" : "explicit",
@@ -175,5 +175,5 @@ export async function preparePandocArgs(
   }
   // Не превращать аргументы после нативного разделителя в параметры.
   args.splice(nativeSeparator < 0 ? args.length : nativeSeparator, 0, "--data-dir", dataDir);
-  return { args, preparation };
+  return { args, preparedScripts };
 }

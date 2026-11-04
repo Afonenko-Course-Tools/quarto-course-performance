@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 import { installPackages } from "../../src/sources/packages.ts";
-import { copyTree } from "../../src/sources/snapshot.ts";
+import { copyTree } from "../../src/sources/files.ts";
 
 Deno.test("runtime copy materializes internal file links and rejects external targets", async () => {
   const root = await Deno.makeTempDir();
@@ -23,7 +23,7 @@ Deno.test("runtime copy materializes internal file links and rejects external ta
   }
 });
 
-Deno.test("installs_all_subproject_copies and records identical owner hashes", async () => {
+Deno.test("installs_all_subproject_copies and records selected destinations", async () => {
   const root = await Deno.makeTempDir({ prefix: "perf packages " });
   try {
     const owner = join(root, "owner/_extensions/core");
@@ -51,7 +51,6 @@ Deno.test("installs_all_subproject_copies and records identical owner hashes", a
     }]);
     assert.equal(receipts.length, 1);
     assert.equal(receipts[0].destinationPaths.length, 3);
-    assert.match(receipts[0].packageHash, /^[0-9a-f]{64}$/);
     for (const dest of receipts[0].destinationPaths) {
       assert.equal(await Deno.readTextFile(join(dest, "filter.lua")), "return {}\n");
     }
@@ -179,7 +178,11 @@ Deno.test("new package receipts and replacement copies exclude prior source meas
     );
     await Deno.writeTextFile(join(source, ".quarto/course-perf/old.json"), "new measurement");
     const second = await installPackages(course, owners, replacements);
-    assert.equal(first[0].packageHash, second[0].packageHash);
+    assert.deepEqual(first, second);
+    assert.equal(
+      await Deno.readTextFile(join(course, "_extensions/core/_extension.yml")),
+      "version: 2",
+    );
   } finally {
     await Deno.remove(root, { recursive: true });
   }

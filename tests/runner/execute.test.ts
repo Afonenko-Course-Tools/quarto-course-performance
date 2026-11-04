@@ -121,7 +121,7 @@ throw new Error('Контрольный child не был освобождён')
     );
     assert.equal(completedNative(result).code, 23);
     assert.equal(result.record.dataValid, true);
-    assert.equal(result.record.preparation.length, 0);
+    assert.equal(result.record.preparedScripts.length, 0);
     assert.deepEqual(
       await Deno.readFile(join(result.directory, "stdout.log")),
       expectedOut,

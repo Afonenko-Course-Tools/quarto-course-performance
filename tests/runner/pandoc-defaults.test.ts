@@ -1,7 +1,8 @@
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 import { prepareLaunchers } from "../../src/launchers/setup.ts";
-import { files, treeHash } from "../../src/sources/snapshot.ts";
+import { files } from "../../src/sources/files.ts";
+import { readTreeBytes } from "../support/files.ts";
 import { dataDir, pandoc } from "../runtime.ts";
 const decode = (b: Uint8Array) => new TextDecoder().decode(b);
 Deno.test("standalone Pandoc preserves native default init, resources and missing default in every mode", async () => {
@@ -39,7 +40,7 @@ Deno.test("standalone Pandoc preserves native default init, resources and missin
           ? "assert(INIT_COUNT==1);assert(NEIGHBOUR==17);assert(string.byte(INIT_BYTE)==255);return {}\n"
           : "assert(INIT_COUNT==nil);return {}\n",
       );
-      const before = custom ? await treeHash(source) : null;
+      const before = custom ? await readTreeBytes(source) : null;
       const args = ["--from=html", "--to=json", "--lua-filter", filter, input];
       const base: Record<string, string> = {
         ...Deno.env.toObject(),
@@ -78,7 +79,7 @@ Deno.test("standalone Pandoc preserves native default init, resources and missin
           assert((await files(join(output, "events"))).some((p) => p.endsWith(".summary.json")));
         }
       }
-      if (custom) assert.equal(await treeHash(source), before);
+      if (custom) assert.equal(await readTreeBytes(source), before);
       else await assert.rejects(() => Deno.stat(source), Deno.errors.NotFound);
     }
   } finally {

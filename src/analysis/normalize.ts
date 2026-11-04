@@ -1,6 +1,6 @@
 import { join } from "node:path";
-import { observePackages, type PackageCoverage } from "../runner/package-coverage.ts";
-import { files } from "../sources/snapshot.ts";
+import { observePackages } from "../runner/package-coverage.ts";
+import { files } from "../sources/files.ts";
 import type { Event } from "../protocol/types.ts";
 import { validateEvent } from "../protocol/validate.ts";
 import { type DiagnosticExpectations, validateDiagnosticExpectations } from "../report/types.ts";
@@ -425,7 +425,7 @@ export async function normalizeRun(
       ...coverageInput,
       complete: quality.coverageComplete,
       packageCoverage: observePackages(
-        coverageInput.packageCoverage as PackageCoverage | undefined,
+        coverageInput.packageCoverage,
         scoped,
         dataValid,
       ),

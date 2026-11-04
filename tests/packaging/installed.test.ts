@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { copyTree } from "../../src/sources/snapshot.ts";
+import { copyTree } from "../../src/sources/files.ts";
 
 Deno.test("installed tree: spaces, foreign config, empty cache, offline render and TS trace", async () => {
   const temporary = await Deno.makeTempDir({ prefix: "perf installed " });
