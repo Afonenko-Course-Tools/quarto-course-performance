@@ -91,3 +91,23 @@ Deno.test("new facade supplies optional context to an older ABI 1 agent", () => 
     Deno.env.delete("COURSE_PERF_MODE");
   }
 });
+
+Deno.test("ABI 1 с неполным metrics сохраняет сборку и регистрирует несовместимость", () => {
+  Deno.env.set("COURSE_PERF_MODE", "summary");
+  const registry = globalThis as Record<symbol, unknown>;
+  const agentKey = Symbol.for("course.performance.agent.v1");
+  const failuresKey = Symbol.for("course.performance.failures.v1");
+  registry[agentKey] = { abiVersion: 1, metrics: {} };
+  registry[failuresKey] = [];
+  try {
+    const fn = () => 42;
+    assert.equal(createMetrics("test").wrapSync({ id: "phase", kind: "phase" }, fn), fn);
+    assert.deepEqual(registry[failuresKey], [
+      "test: агент ABI 1 отсутствует или несовместим",
+    ]);
+  } finally {
+    delete registry[agentKey];
+    delete registry[failuresKey];
+    Deno.env.delete("COURSE_PERF_MODE");
+  }
+});
