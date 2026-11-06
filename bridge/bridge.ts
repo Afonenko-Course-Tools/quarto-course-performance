@@ -47,7 +47,7 @@ export function createMetrics(extensionId: string, abiVersion: 1 = 1): Metrics {
     return identity;
   }
   if (!mode || mode === "off") return identity;
-  const registry = globalThis as unknown as Record<symbol, unknown>;
+  const registry = globalThis as Record<symbol, unknown>;
   const agent = registry[Symbol.for("course.performance.agent.v1")];
   if (
     agent !== null && typeof agent === "object" &&
