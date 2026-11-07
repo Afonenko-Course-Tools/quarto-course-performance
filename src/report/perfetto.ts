@@ -1,3 +1,4 @@
+import { object } from "../json.ts";
 import {
   type NormalizedRun,
   operationAttribution,
@@ -33,10 +34,8 @@ const executorKey = (e: ValidatedInterval["begin"]) =>
   JSON.stringify([e.process_id, e.executor_id, e.clock_domain]);
 function origin(run: NormalizedRun, interval: ValidatedInterval): number | undefined {
   const e = interval.begin;
-  const calibration = run.executors[`${e.process_id}/${e.executor_id}`]?.calibration as {
-    time_origin_ms?: number;
-  } | undefined;
-  const value = calibration?.time_origin_ms;
+  const raw = run.executors[`${e.process_id}/${e.executor_id}`]?.calibration;
+  const value = raw === undefined ? undefined : object(raw).time_origin_ms;
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
@@ -58,8 +57,10 @@ export function traces(
   const pids = [...new Set(intervals.map((i) => i.begin.process_id))].sort(compare);
   let zero = Infinity;
   for (const rows of groups.values()) {
-    if (rows[0].begin.clock_domain !== "monotonic_process") continue;
-    const calibration = origin(run, rows[0]);
+    const first = rows[0];
+    if (!first) continue;
+    if (first.begin.clock_domain !== "monotonic_process") continue;
+    const calibration = origin(run, first);
     if (calibration !== undefined) zero = Math.min(zero, calibration);
   }
   if (zero === Infinity) zero = 0;
@@ -134,8 +135,10 @@ export function traces(
       a.begin.timestamp_us! - b.begin.timestamp_us! || b.end.timestamp_us! - a.end.timestamp_us! ||
       compare(a.begin.span_id!, b.begin.span_id!)
     );
-    const first = rows[0].begin;
-    const calibration = origin(run, rows[0]);
+    const firstRow = rows[0];
+    if (!firstRow) continue;
+    const first = firstRow.begin;
+    const calibration = origin(run, firstRow);
     const isWall = first.clock_domain === "monotonic_process";
     let trace: ChromeTrace;
     if (!isWall) trace = bundle.luaCpu;
@@ -231,9 +234,9 @@ export function traces(
           source_end_attributes: end.attributes ?? {},
           clock_domain: begin.clock_domain,
           clock_alignment: alignment,
-          uncertainty_us:
-            (executor?.calibration as { uncertainty_us?: number } | undefined)?.uncertainty_us ??
-              null,
+          uncertainty_us: executor?.calibration === undefined
+            ? null
+            : object(executor.calibration).uncertainty_us ?? null,
           self_time: "not-available",
           data_valid: run.dataValid,
           coverage_complete: run.quality.coverageComplete,
@@ -274,7 +277,7 @@ export function traces(
         id: linkId,
         pid: anchor.pid,
         tid: anchor.tid,
-        ts: anchor.ts,
+        ...(anchor.ts === undefined ? {} : { ts: anchor.ts }),
         args,
       });
     }

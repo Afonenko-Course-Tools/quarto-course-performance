@@ -1,3 +1,6 @@
+import { type ExperimentRunRecord, validateExperimentRunRecord } from "../src/report/types.ts";
+import type { ReportSourceManifest } from "../src/config/types.ts";
+import { parseObject, string } from "../src/json.ts";
 // Строгое сравнение сохранившихся outputs; запускать после завершения benchmark/diagnostics.
 import { dirname, join, resolve } from "node:path";
 import { loadOwnerNormalizer } from "./owner-normalizer.ts";
@@ -5,25 +8,15 @@ import { validateConfig } from "../src/config/validate.ts";
 import { compareOutputs } from "../src/analysis/outputs.ts";
 import { importSourceManifest } from "../src/config/types.ts";
 import { files } from "../src/sources/snapshot.ts";
-const workspace = resolve(Deno.args[0]), upstreamWorkspace = resolve(Deno.args[1]);
+const workspace = resolve(string(Deno.args[0])), upstreamWorkspace = resolve(string(Deno.args[1]));
 const config = validateConfig(
-  JSON.parse(await Deno.readTextFile(new URL("../scenarios/java.json", import.meta.url))),
+  parseObject(await Deno.readTextFile(new URL("../scenarios/java.json", import.meta.url))),
 );
 const normalizer = await loadOwnerNormalizer(
   Deno.args[2] ?? join(workspace, "candidate.manifest.json"),
 );
 const canonicalizeMetadata = normalizer.normalizeHtml;
-type Build = {
-  runId: string;
-  scenario: string;
-  mode: string;
-  variant: string;
-  cwd: string;
-  outputDirectory: string;
-  buildExitCode: number;
-  dataValid: boolean;
-  manifest: { sources: { repository: string; sha: string }[] };
-};
+type Build = ExperimentRunRecord & { manifest: ReportSourceManifest };
 async function findRun(
   root: string,
   scenario: string,
@@ -35,13 +28,20 @@ async function findRun(
     if (!entry.isDirectory) continue;
     const path = join(root, "runs", entry.name, "run.json");
     try {
-      const meta: Build = JSON.parse(await Deno.readTextFile(path));
+      const record = validateExperimentRunRecord(parseObject(await Deno.readTextFile(path)));
+      const meta: Build = {
+        ...record,
+        manifest: importSourceManifest(
+          parseObject(await Deno.readTextFile(join(dirname(path), "manifest.json"))),
+          true,
+        ),
+      };
       if (
         meta.scenario === scenario && meta.variant === variant && meta.mode === mode &&
         !meta.buildExitCode && meta.dataValid
       ) {
         meta.manifest = importSourceManifest(
-          JSON.parse(await Deno.readTextFile(join(dirname(path), "manifest.json"))),
+          parseObject(await Deno.readTextFile(join(dirname(path), "manifest.json"))),
           true,
         );
         matches.push({ meta, modified: (await Deno.stat(path)).mtime!.getTime() });
@@ -84,7 +84,7 @@ async function compareBuilds(a: Build, b: Build, label: string) {
     if (!hasA && !hasB) continue;
     const result = hasA && hasB
       ? await compareOutputs(left, right, {
-        outputPolicy: config.outputPolicy,
+        ...(config.outputPolicy === undefined ? {} : { outputPolicy: config.outputPolicy }),
         leftSourceRoot: root(a),
         rightSourceRoot: root(b),
         normalizeHtml: canonicalizeMetadata,
@@ -129,7 +129,7 @@ for (const profile of ["student", "full"]) {
   const candidate = await findRun(workspace, id, "candidate", "off");
   const summary = await findRun(workspace, id, "candidate", "summary");
   const frozen = importSourceManifest(
-    JSON.parse(await Deno.readTextFile(join(workspace, "upstream.manifest.json"))),
+    parseObject(await Deno.readTextFile(join(workspace, "upstream.manifest.json"))),
     true,
   );
   for (const source of frozen.sources) {
@@ -140,7 +140,7 @@ for (const profile of ["student", "full"]) {
     ) throw new Error("Upstream из другого source set");
   }
   const frozenControl = importSourceManifest(
-    JSON.parse(
+    parseObject(
       await Deno.readTextFile(join(workspace, "clean-control.manifest.json")),
     ),
     true,

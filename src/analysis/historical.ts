@@ -1,3 +1,4 @@
+import { number, object, parseObject, string } from "../json.ts";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { importSourceManifest, type ReportSourceManifest } from "../config/types.ts";
 import { hashFile } from "../sources/snapshot.ts";
@@ -12,7 +13,7 @@ interface Receipt {
   schemaVersion: number | null;
 }
 async function metadata(path: string) {
-  const value = JSON.parse(await Deno.readTextFile(path));
+  const value = parseObject(await Deno.readTextFile(path));
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error(`Некорректные исторические metadata: ${path}`);
   }
@@ -126,7 +127,7 @@ function legacyRecord(
   ) {
     throw new Error(`Исторический run не содержит обязательные cwd/signal/preparation: ${source}`);
   }
-  const resources = value.resources as Record<string, unknown> | undefined;
+  const resources = value.resources === undefined ? undefined : object(value.resources);
   return validateRunRecord({
     schema_version: 2,
     runId: value.runId,
@@ -217,10 +218,10 @@ export async function prepareHistoricalImport(
     if (value.experimentId !== undefined && value.experimentId !== manifest.experimentId) {
       throw new Error(`Несогласованный experimentId: ${dir}`);
     }
-    const mode = value.schema_version === 2 ? value.request?.mode : value.mode;
+    const mode = value.schema_version === 2 ? object(value.request).mode : value.mode;
     const run: NormalizedRun = mode === "off"
       ? {
-        runId: value.runId,
+        runId: entry.name,
         experimentId: manifest.experimentId,
         events: [],
         executors: {},
@@ -236,13 +237,13 @@ export async function prepareHistoricalImport(
       }
       : await normalizeRun(dir, {
         readOnly: true,
-        identity: { runId: value.runId, experimentId: manifest.experimentId },
+        identity: { runId: entry.name, experimentId: manifest.experimentId },
       });
     if (mode === "off") {
       // Off has no diagnostic raw; apply the same withdrawal receipt semantics
       // as normalizeRun without requiring executor/coverage evidence.
       try {
-        const invalid = JSON.parse(await Deno.readTextFile(join(dir, "invalidated.json")));
+        const invalid = parseObject(await Deno.readTextFile(join(dir, "invalidated.json")));
         run.quality.errors.push(`Измерение отозвано: ${invalid.reason}`);
       } catch (e) {
         if (!(e instanceof Deno.errors.NotFound)) {
@@ -266,9 +267,13 @@ export async function prepareHistoricalImport(
       run: original.receipt,
       ...(runManifest ? { runManifest: runManifest.receipt } : {}),
       sourceStatus: {
-        buildExitCode: value.schema_version === 2 ? value.outcome.code : value.buildExitCode,
+        buildExitCode: value.schema_version === 2
+          ? number(object(value.outcome).code)
+          : number(value.buildExitCode),
         dataValid: typeof value.dataValid === "boolean" ? value.dataValid : null,
-        signalAvailability: value.signalAvailability ?? "unknown",
+        signalAvailability: value.signalAvailability === undefined
+          ? "unknown"
+          : string(value.signalAvailability),
       },
     };
     plans.push({ source: dir, output: target, files, record, run, receipt: original.receipt });
@@ -277,10 +282,11 @@ export async function prepareHistoricalImport(
   const benchmarkFiles = await optionalFiles(join(source, "benchmarks"));
   // Parse consumed benchmark JSON before creating the destination.
   for (const path of benchmarkFiles.filter((p) => p.endsWith(".json"))) {
-    const benchmark = JSON.parse(await Deno.readTextFile(path));
-    const c = benchmark?.comparison;
+    const benchmark = parseObject(await Deno.readTextFile(path));
+    const c = benchmark.comparison === undefined ? undefined : object(benchmark.comparison);
     if (
-      benchmark?.complete === true && (!c || !Number.isSafeInteger(c.pairs) || c.pairs < 1 ||
+      benchmark?.complete === true &&
+      (!c || !Number.isSafeInteger(c.pairs) || number(c.pairs) < 1 ||
         !Number.isFinite(c.medianRatio) || !Array.isArray(c.interval95) ||
         c.interval95.length !== 2 ||
         c.interval95.some((n: unknown) => typeof n !== "number" || !Number.isFinite(n)) ||

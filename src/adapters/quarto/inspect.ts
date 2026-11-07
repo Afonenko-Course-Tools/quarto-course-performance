@@ -1,3 +1,4 @@
+import { object, parseObject, strings } from "../../json.ts";
 import { resolve } from "node:path";
 import type { NativeRenderRequest } from "../../report/types.ts";
 
@@ -55,6 +56,7 @@ function inspectArguments(argv: readonly string[], cwd: string): string[] {
     );
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
+    if (arg === undefined) break;
     if (!positional && arg === "--") {
       positional = true;
       continue;
@@ -90,6 +92,7 @@ export function explicitOutputDirectory(argv: readonly string[]): string | undef
   let selected: string | undefined;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
+    if (arg === undefined) break;
     if (arg === "--") break;
     if (arg.startsWith("--output-dir=")) selected = arg.slice(13);
     else if (arg === "--output-dir") selected = argv[++i];
@@ -109,23 +112,24 @@ export async function resolveRenderProject(request: NativeRenderRequest): Promis
   if (!output.success) {
     throw new Error(`quarto inspect: ${new TextDecoder().decode(output.stderr).trim()}`);
   }
-  const inspected = JSON.parse(new TextDecoder().decode(output.stdout));
-  const project = inspected.project ?? inspected;
+  const inspected = parseObject(new TextDecoder().decode(output.stdout));
+  const project = inspected.project === undefined ? inspected : object(inspected.project);
+  const config = project.config === undefined ? undefined : object(project.config);
+  const projectConfig = config?.project === undefined ? undefined : object(config.project);
+  const files = project.files === undefined ? undefined : object(project.files);
   if (typeof project.dir !== "string" || !project.dir) {
     throw new Error("quarto inspect не вернул каталог проекта или самостоятельного документа");
   }
   const outputDir = explicitOutputDirectory(request.nativeArgv) ??
-    project.config?.project?.["output-dir"];
+    projectConfig?.["output-dir"];
   return {
     ...(typeof outputDir === "string" && outputDir
       ? { outputDirectory: resolve(request.cwd, project.dir, outputDir) }
       : {}),
-    ...(Array.isArray(project.config?.project?.resources) && project.config.project.resources.length
-      ? { resources: project.config.project.resources }
+    ...(Array.isArray(projectConfig?.resources) && projectConfig.resources.length
+      ? { resources: strings(projectConfig.resources) }
       : {}),
     projectRoot: resolve(request.cwd, project.dir),
-    kind: Array.isArray(project.files?.config) && project.files.config.length > 0
-      ? "project"
-      : "standalone",
+    kind: Array.isArray(files?.config) && files.config.length > 0 ? "project" : "standalone",
   };
 }

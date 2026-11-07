@@ -1,5 +1,18 @@
+import type { RunResult } from "../config/types.ts";
 import type { PreparedVariant, Scenario } from "../config/types.ts";
 import { type ExecuteOptions, executeScenario } from "./execute.ts";
+export interface BenchmarkProgress {
+  pairs: {
+    order: "AB" | "BA";
+    controlWall: number;
+    candidateWall: number;
+    controlRunId: string;
+    candidateRunId: string;
+  }[];
+  warmups: string[];
+  seed: number;
+  complete: boolean;
+}
 export async function benchmarkPair(
   scenario: Scenario,
   left: PreparedVariant,
@@ -8,22 +21,22 @@ export async function benchmarkPair(
     pairs?: number;
     seed: number;
     executeOptions?: ExecuteOptions;
-    onProgress?: (series: unknown) => Promise<void>;
+    onProgress?: (series: BenchmarkProgress) => Promise<void>;
   },
 ) {
   const count = options.pairs ?? 10;
   if (count < 1 || !Number.isInteger(count)) {
     throw new Error("Число пар должно быть положительным");
   }
-  const warmups = [];
+  const warmups: string[] = [];
   for (const prepared of [left, right]) {
     const warm = await executeScenario(scenario, prepared, "off", options.executeOptions);
     if (warm.buildExitCode) throw new Error(`Прогрев завершился с кодом ${warm.buildExitCode}`);
     warmups.push(warm.runId);
   }
-  const pairs = [];
+  const pairs: BenchmarkProgress["pairs"] = [];
   for (let i = 0; i < count; i++) {
-    const order = i % 2 ? "BA" as const : "AB" as const, results = [];
+    const order = i % 2 ? "BA" as const : "AB" as const, results: RunResult[] = [];
     for (const prepared of order === "AB" ? [left, right] : [right, left]) {
       const result = await executeScenario(scenario, prepared, "off", options.executeOptions);
       if (result.buildExitCode) {
@@ -32,6 +45,7 @@ export async function benchmarkPair(
       results.push(result);
     }
     const [a, b] = order === "AB" ? results : results.toReversed();
+    if (!a || !b) throw new Error("Benchmark требует двух завершённых результатов пары");
     pairs.push({
       order,
       controlWall: a.wallSeconds,

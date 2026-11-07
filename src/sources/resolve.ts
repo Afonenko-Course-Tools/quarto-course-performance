@@ -1,3 +1,4 @@
+import { parseObject, string } from "../json.ts";
 import type { PerformanceConfig } from "../config/validate.ts";
 import { join } from "node:path";
 import { liveSourceManifest, type SourceManifest, type SourceRequest } from "../config/types.ts";
@@ -17,7 +18,7 @@ export function selectRemoteRef(output: string, request: SourceRequest) {
   const peeled = rows.filter((x) => x[1] === target + "^{}");
   const matches = peeled.length ? peeled : rows.filter((x) => x[1] === target);
   if (matches.length !== 1) throw new Error("Удалённый ref не найден или неоднозначен");
-  return { sha: matches[0][0], remoteRef };
+  return { sha: string(matches[0]?.[0]), remoteRef };
 }
 export async function resolveSources(
   config: Pick<PerformanceConfig, "sources" | "projectSource" | "replacements">,
@@ -26,7 +27,7 @@ export async function resolveSources(
   const requests = config.sources;
   const path = join(workspace, "manifest.json");
   try {
-    const frozen = liveSourceManifest(JSON.parse(await Deno.readTextFile(path)));
+    const frozen = liveSourceManifest(parseObject(await Deno.readTextFile(path)));
     if (
       frozen.projectSource !== config.projectSource ||
       JSON.stringify(frozen.replacements) !== JSON.stringify(config.replacements) ||
@@ -66,7 +67,7 @@ export async function resolveSources(
     const { sha, remoteRef } = selectRemoteRef(refs, request);
     const checkoutPath = join(workspace, request.repository.replace("/", "--"));
     await git(["clone", "--no-checkout", url, checkoutPath]);
-    await git(["-C", checkoutPath, "checkout", "--detach", sha]);
+    await git(["-C", checkoutPath, "checkout", "--detach", string(sha)]);
     if (await git(["-C", checkoutPath, "rev-parse", "HEAD"]) !== sha) {
       throw new Error("Checkout SHA расходится");
     }

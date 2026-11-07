@@ -5,9 +5,14 @@ export interface BenchmarkComparison {
   status: "PASS" | "FAIL" | "INCONCLUSIVE";
   pairs: number;
 }
+function at(values: readonly number[], index: number): number {
+  const value = values[index];
+  if (value === undefined) throw new Error("Пустая или неполная выборка benchmark");
+  return value;
+}
 function median(values: number[]) {
   const sorted = values.toSorted((a, b) => a - b), n = sorted.length;
-  return n % 2 ? sorted[(n - 1) / 2] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
+  return n % 2 ? at(sorted, (n - 1) / 2) : (at(sorted, n / 2 - 1) + at(sorted, n / 2)) / 2;
 }
 export function compareBenchmarks(
   ratios: number[],
@@ -30,10 +35,10 @@ export function compareBenchmarks(
   };
   const boot = [];
   for (let i = 0; i < 10000; i++) {
-    boot.push(median(ratios.map(() => ratios[Math.floor(random() * ratios.length)])));
+    boot.push(median(ratios.map(() => at(ratios, Math.floor(random() * ratios.length)))));
   }
   boot.sort((a, b) => a - b);
-  const interval95: [number, number] = [boot[249], boot[9750]];
+  const interval95: [number, number] = [at(boot, 249), at(boot, 9750)];
   return {
     maxSlowdownRatio,
     medianRatio: median(ratios),

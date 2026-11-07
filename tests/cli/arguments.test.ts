@@ -1,18 +1,24 @@
+import { parseCommand } from "../../src/cli/arguments.ts";
 import { strict as assert } from "node:assert";
 
 async function parse(argv: readonly string[]) {
-  const path = "../../src/cli/arguments.ts";
-  return (await import(path)).parseCommand(argv);
+  return parseCommand(argv);
+}
+
+async function parseRender(argv: readonly string[]) {
+  const command = await parse(argv);
+  assert(command.kind === "render");
+  return command;
 }
 
 Deno.test("render consumes only the initial perf prefix and preserves native argv", async () => {
-  assert.deepEqual(await parse(["render", "--perf-mode=summary", "--to", "html"]), {
+  assert.deepEqual(await parseRender(["render", "--perf-mode=summary", "--to", "html"]), {
     kind: "render",
     mode: "summary",
     nativeArgv: ["--to", "html"],
   });
   assert.deepEqual(
-    await parse(["render", "--perf-mode", "cpu", "--perf-output", "/tmp/runs", "a.qmd"]),
+    await parseRender(["render", "--perf-mode", "cpu", "--perf-output", "/tmp/runs", "a.qmd"]),
     {
       kind: "render",
       mode: "cpu",
@@ -20,17 +26,20 @@ Deno.test("render consumes only the initial perf prefix and preserves native arg
       nativeArgv: ["a.qmd"],
     },
   );
-  assert.deepEqual((await parse(["render", "--perf-output=/tmp/runs"])).outputParent, "/tmp/runs");
-  assert.deepEqual((await parse(["render"])).nativeArgv, []);
-  assert.equal((await parse(["render"])).mode, "off");
+  assert.deepEqual(
+    (await parseRender(["render", "--perf-output=/tmp/runs"])).outputParent,
+    "/tmp/runs",
+  );
+  assert.deepEqual((await parseRender(["render"])).nativeArgv, []);
+  assert.equal((await parseRender(["render"])).mode, "off");
   for (const native of [["a.qmd", "--perf-mode=cpu"], ["--to", "html", "--perf-other"]]) {
-    assert.deepEqual((await parse(["render", ...native])).nativeArgv, native);
+    assert.deepEqual((await parseRender(["render", ...native])).nativeArgv, native);
   }
-  assert.deepEqual((await parse(["render", "--", "--", "topic.qmd"])).nativeArgv, [
+  assert.deepEqual((await parseRender(["render", "--", "--", "topic.qmd"])).nativeArgv, [
     "--",
     "topic.qmd",
   ]);
-  assert.deepEqual((await parse(["render", "--", "--help"])).nativeArgv, ["--help"]);
+  assert.deepEqual((await parseRender(["render", "--", "--help"])).nativeArgv, ["--help"]);
 });
 
 Deno.test("render rejects invalid perf prefix without stealing native parameters", async () => {

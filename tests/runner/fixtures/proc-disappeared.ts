@@ -1,5 +1,7 @@
+import { number, parseObject, string } from "../../../src/json.ts";
 import { runOwnedProcess } from "../../../src/runner/process.ts";
-const [root, stage, kind] = Deno.args;
+const [rootArg, stage, kind] = Deno.args;
+const root = string(rootArg);
 const readDir = Deno.readDir, readTextFile = Deno.readTextFile, NativeCommand = Deno.Command;
 const children: Deno.ChildProcess[] = [];
 let injected = false, thrown = false;
@@ -65,9 +67,9 @@ try {
   Deno.Command = NativeCommand;
   for await (const entry of readDir(root)) {
     if (!entry.name.endsWith(".ready")) continue;
-    const { group } = JSON.parse(await readTextFile(root + "/" + entry.name));
+    const { group } = parseObject(await readTextFile(root + "/" + entry.name));
     try {
-      Deno.kill(-group, "SIGKILL");
+      Deno.kill(-number(group), "SIGKILL");
     } catch { /* Только собственная group fixture. */ }
   }
   await Promise.allSettled(children.map((child) => child.status));

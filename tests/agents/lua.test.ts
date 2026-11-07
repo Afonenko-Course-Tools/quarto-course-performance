@@ -1,3 +1,6 @@
+import { validateEvent } from "../../src/protocol/validate.ts";
+import type { Event } from "../../src/protocol/types.ts";
+import { number, object, parseJson } from "../../src/json.ts";
 import { dataDir, pandoc } from "../runtime.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
@@ -32,14 +35,14 @@ async function fixture(source: string, mode = "summary") {
     assert(out.success, new TextDecoder().decode(out.stderr));
     let result: unknown;
     try {
-      result = JSON.parse(await Deno.readTextFile(join(root, "events/p/lua.summary.json")));
+      result = parseJson(await Deno.readTextFile(join(root, "events/p/lua.summary.json")));
     } catch {
       result = null;
     }
-    let events: { event: string; status?: string; timestamp_us?: number }[] = [];
+    let events: Event[] = [];
     try {
       events = (await Deno.readTextFile(join(root, "events/p/lua.jsonl"))).trim().split("\n")
-        .filter(Boolean).map((line) => JSON.parse(line));
+        .filter(Boolean).map((line) => validateEvent(parseJson(line)));
     } catch {}
     return { result, events, stdout: new TextDecoder().decode(out.stdout) };
   } finally {
@@ -79,14 +82,10 @@ assert(select(2,coroutine.resume(c1))==4);assert(select(2,coroutine.resume(c2))=
 assert(select(2,coroutine.resume(c1))==9);assert(select(2,coroutine.resume(c2))==9)
 a.flush();return {}`,
   );
-  const summary = result as {
-    counters: Record<string, number>;
-    data_valid: boolean;
-    incomplete_spans: number;
-  };
-  assert.equal(summary.counters["walk_api_calls.full-document"], 1);
-  assert.equal(summary.counters["walk_api_calls.fragment"], 2);
-  assert.equal(summary.counters["calls.coroutine"], 2);
+  const summary = object(result);
+  assert.equal(object(summary.counters)["walk_api_calls.full-document"], 1);
+  assert.equal(object(summary.counters)["walk_api_calls.fragment"], 2);
+  assert.equal(object(summary.counters)["calls.coroutine"], 2);
   assert.equal(summary.incomplete_spans, 0);
   assert.equal(summary.data_valid, true);
 });
@@ -100,8 +99,8 @@ assert(recur(3)==0)
 a.stop_trace();a.flush();return {}`,
     "trace",
   );
-  const s = result as { counters: Record<string, number>; incomplete_spans: number };
-  assert(Object.keys(s.counters).some((k) => k.startsWith("calls.lua:")));
+  const s = object(result);
+  assert(Object.keys(object(s.counters)).some((k) => k.startsWith("calls.lua:")));
   assert.equal(s.incomplete_spans, 0);
 });
 
@@ -113,7 +112,7 @@ agent.metrics.wrap_sync({id='phase',kind='phase'},function()return 42 end)()
 FINALIZER=setmetatable({}, {__gc=function()agent.shutdown()end})
 return {}`,
   );
-  assert.equal((result as { data_valid: boolean }).data_valid, true);
+  assert.equal(object(result).data_valid, true);
 });
 
 Deno.test("Lua hook unwinds caught callback errors without leaving successful or incomplete frames", async () => {
@@ -127,7 +126,7 @@ local ok,value=pcall(outer);assert(not ok and value==err)
 agent.stop_trace();agent.flush();return {}`,
     "trace",
   );
-  assert.equal((result as { data_valid: boolean }).data_valid, true);
+  assert.equal(object(result).data_valid, true);
   assert(events.some((e) => e.status === "error"));
 });
 
@@ -149,13 +148,13 @@ local _,thread=debug.getupvalue(wrapped,1)
 assert(wrapped()==7)
 agent.stop_trace();assert(debug.gethook(thread)==nil);assert(wrapped()==8)
 agent.flush();return {}`);
-  const all = events as Record<string, unknown>[];
+  const all = events;
   const outer = all.find((e) => e.event === "begin" && e.operation_id === "outer")!;
   const children = all.filter((e) => e.event === "begin" && e.operation_id === "child");
   assert.equal(children.length, 2);
   assert(children.every((e) => e.parent_span_id === outer.span_id));
   // Stopping a suspended observed function records an aborted span.
-  assert((result as { incomplete_spans: number }).incomplete_spans > 0);
+  assert(number(object(result).incomplete_spans) > 0);
 });
 
 Deno.test("Lua tail caller remains the logical parent and inherits the callee failure", async () => {
@@ -172,12 +171,14 @@ local ok,value=pcall(outer);assert(not ok and value==err)
 agent.stop_trace();agent.flush();return {}`,
     "trace",
   );
-  const all = events as Record<string, unknown>[];
+  const all = events;
   const begins = all.filter((e) => e.event === "begin");
   assert.equal(begins.length, 2);
+  assert(begins[1]);
+  assert(begins[0]);
   assert.equal(begins[1].parent_span_id, begins[0].span_id);
   assert.equal(all.filter((e) => e.event === "end" && e.status === "error").length, 2);
-  assert.equal((result as { data_valid: boolean }).data_valid, true);
+  assert.equal(object(result).data_valid, true);
 });
 
 Deno.test("Lua summary skips per-node handlers but keeps document phases and shortcode operations", async () => {
@@ -190,7 +191,7 @@ assert(agent.metrics.wrap_sync({id='owner.filter.handler.Str',kind='function'},f
 agent.metrics.wrap_sync({id='owner.filter.handler.Pandoc',kind='phase'},fn)(1)
 agent.metrics.wrap_sync({id='course-navigation.shortcodes.handler.nav',kind='function'},fn)(2)
 agent.flush();return {}`);
-  const counters = (result as { counters: Record<string, number> }).counters;
+  const counters = object(object(result).counters);
   assert.equal(counters["calls.owner.filter.handler.Str"], undefined);
   assert.equal(counters["calls.owner.filter.handler.Pandoc"], 1);
   assert.equal(counters["calls.course-navigation.shortcodes.handler.nav"], 1);
@@ -211,10 +212,12 @@ quarto=nil;f()
 a.metrics.wrap_sync({id='old-bridge',kind='phase'},function()end)()
 assert(spec.attributes.extension_id==nil)
 a.flush();return {}`);
-  const all = events as unknown as Record<string, unknown>[];
+  const all = events;
   const begins = all.filter((e) => e.event === "begin");
   assert.deepEqual(begins.map((e) => e.document_id), ["a.qmd", "b.qmd", undefined, undefined]);
+  assert(begins[0]);
   assert.deepEqual(begins[0].attributes, { custom: 7, extension_id: "owner" });
+  assert(begins[3]);
   assert.equal(begins[3].attributes, undefined);
 });
 Deno.test("Lua trace excludes a substring match and accepts normalized file identity", async () => {
@@ -268,7 +271,7 @@ quarto.doc.input_file='a.qmd';assert(coroutine.resume(a1))
 quarto.doc.input_file='b.qmd';assert(coroutine.resume(a2))
 quarto.doc.input_file=nil;assert(coroutine.resume(a1));assert(coroutine.resume(a2))
 a.flush();return {}`);
-  const all = events as unknown as Record<string, unknown>[];
+  const all = events;
   assert.deepEqual(all.map((e) => [e.event, e.document_id]), [
     ["begin", "a.qmd"],
     ["begin", "b.qmd"],
@@ -289,10 +292,56 @@ walk(pandoc.Pandoc{pandoc.Para{pandoc.Str('x')}},{Str=function(s)return s end})
 a.flush();return {}`,
     "trace",
   );
-  const all = events as unknown as Record<string, unknown>[];
+  const all = events;
   assert.equal(all.length, 5);
   for (const e of all) {
     assert.equal(e.document_id, "doc.qmd");
     assert.equal((e.attributes as Record<string, unknown>).extension_id, "owner");
+  }
+});
+
+Deno.test("Lua ABI 1 с неполным metrics сохраняет сборку и регистрирует несовместимость", async () => {
+  await fixture(`
+_G.__course_performance_agent_v1={abiVersion=1,metrics={}}
+_G.__course_performance_failures_v1={}
+local metrics=dofile(${JSON.stringify(project + "bridge/bridge.lua")}).create_metrics('test',1)
+local fn=function()return 42 end
+assert(metrics.wrap_sync({id='phase',kind='phase'},fn)==fn)
+assert(#_G.__course_performance_failures_v1==1)
+return {}`);
+});
+
+Deno.test("Lua init проверяет неизвестную JSON форму scope.luaModules", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const scope = join(root, "scope.json"), filter = join(root, "probe.lua");
+    await Deno.writeTextFile(
+      filter,
+      `local ok,err=pcall(dofile,${JSON.stringify(project + "src/agents/lua/init.lua")})
+assert(not ok,'Повреждённый scope принят')
+assert(tostring(err):find('scope.luaModules',1,true),tostring(err))
+return {}`,
+    );
+    for (const luaModules of [{ bad: "module.lua" }, [7]]) {
+      await Deno.writeTextFile(scope, JSON.stringify({ luaModules }));
+      const result = await new Deno.Command(pandoc, {
+        args: ["--lua-filter", filter, "-t", "plain"],
+        env: {
+          COURSE_PERF_MODE: "trace",
+          COURSE_PERF_SCOPE_FILE: scope,
+          COURSE_PERF_AGENT_LUA: project + "src/agents/lua/agent.lua",
+          COURSE_PERF_EXPERIMENT_ID: "e",
+          COURSE_PERF_RUN_ID: "r",
+          COURSE_PERF_PROCESS_ID: "p",
+          COURSE_PERF_OUTPUT_DIR: root,
+        },
+        stdin: "null",
+        stdout: "piped",
+        stderr: "piped",
+      }).output();
+      assert(result.success, new TextDecoder().decode(result.stderr));
+    }
+  } finally {
+    await Deno.remove(root, { recursive: true });
   }
 });

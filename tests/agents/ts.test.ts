@@ -1,3 +1,5 @@
+import { validateEvent } from "../../src/protocol/validate.ts";
+import { number, object, parseJson, parseObject } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { createMetrics } from "../../bridge/bridge.ts";
 import { installTsAgent } from "../../src/agents/ts/agent.ts";
@@ -36,7 +38,11 @@ Deno.test("recursive sync spans preserve this and original errors", async () => 
     assert.equal(recur(2), 2);
     const events = agent.events;
     const nested = events.filter((e) => e.event === "begin" && e.operation_id === "recursive");
+    assert(nested[1]);
+    assert(nested[0]);
     assert.equal(nested[1].parent_span_id, nested[0].span_id);
+    assert(nested[2]);
+
     assert.equal(nested[2].parent_span_id, nested[1].span_id);
     assert.equal(events.filter((e) => e.status === "error").length, 1);
     agent.flush();
@@ -68,6 +74,8 @@ Deno.test("parallel async branches retain distinct parents and rejection identit
     const starts = agent.events.filter((e) => e.event === "begin"),
       branches = starts.filter((e) => e.operation_id === "branch"),
       leaves = starts.filter((e) => e.operation_id === "leaf");
+    assert(leaves[0]);
+    assert(leaves[1]);
     assert.notEqual(leaves[0].parent_span_id, leaves[1].parent_span_id);
     assert.deepEqual(leaves.map((e) => e.parent_span_id), branches.map((e) => e.span_id));
     const error = { bad: true },
@@ -95,9 +103,9 @@ Deno.test("bounded writer reports dropped events but keeps exact operation count
     const fn = agent.metrics.wrapSync({ id: "n", kind: "function" }, () => 2);
     for (let n = 0; n < 5; n++) assert.equal(fn(), 2);
     agent.flush();
-    const summary = JSON.parse(await Deno.readTextFile(join(root, "events/p/ts.summary.json")));
-    assert.equal(summary.counters["calls.n"], 5);
-    assert(summary.dropped_events > 0);
+    const summary = parseObject(await Deno.readTextFile(join(root, "events/p/ts.summary.json")));
+    assert.equal(object(summary.counters)["calls.n"], 5);
+    assert(number(summary.dropped_events) > 0);
     assert.equal(summary.data_valid, false);
   } finally {
     Reflect.deleteProperty(globalThis, Symbol.for("course.performance.agent.v1"));
@@ -132,7 +140,7 @@ Deno.test("a failed telemetry clock cannot replace sync/async values or original
     assert.throws(bad, (e) => e === error);
     assert.equal(await asyncFn(), 7);
     agent.flush();
-    const summary = JSON.parse(await Deno.readTextFile(join(root, "events/p/ts.summary.json")));
+    const summary = parseObject(await Deno.readTextFile(join(root, "events/p/ts.summary.json")));
     assert.equal(summary.data_valid, false);
   } finally {
     Object.defineProperty(performance, "now", { configurable: true, value: original });
@@ -159,7 +167,7 @@ Deno.test("bootstrap preserves import.meta.main, shebang, args and relative impo
       stderr: "piped",
     }).output();
     assert(out.success, new TextDecoder().decode(out.stderr));
-    assert.deepEqual(JSON.parse(new TextDecoder().decode(out.stdout)), [
+    assert.deepEqual(parseJson(new TextDecoder().decode(out.stdout)), [
       7,
       ["arg with spaces"],
       true,
@@ -184,8 +192,8 @@ Deno.test("calibration uncertainty includes a stalled epoch-clock read", async (
       mode: "summary",
     });
     a.flush();
-    const s = JSON.parse(await Deno.readTextFile(join(root, "events/p/ts.summary.json")));
-    assert(s.calibration.uncertainty_us >= 10000);
+    const s = parseObject(await Deno.readTextFile(join(root, "events/p/ts.summary.json")));
+    assert(number(object(s.calibration).uncertainty_us) >= 10000);
   } finally {
     Date.now = original;
     Reflect.deleteProperty(globalThis, Symbol.for("course.performance.agent.v1"));
@@ -220,7 +228,9 @@ Deno.test("ABI 1 records explicit context without leaking parallel document IDs 
     agent.metrics.wrapSync({ id: "old-bridge", kind: "phase" }, () => {})();
     const begins = agent.events.filter((e) => e.event === "begin");
     assert.deepEqual(begins.map((e) => e.document_id), ["a.qmd", "b.qmd", undefined, undefined]);
+    assert(begins[0]);
     assert.deepEqual(begins[0].attributes, { custom: 7, extension_id: "owner" });
+    assert(begins[3]);
     assert.equal(begins[3].attributes, undefined);
     assert.equal(spec.attributes.extension_id, "wrong");
     const ambient = Deno.env.get("COURSE_PERF_PARENT_SPAN_ID");
@@ -246,7 +256,7 @@ Deno.test("ABI 1 records explicit context without leaking parallel document IDs 
     }).output();
     if (ambient === undefined) Deno.env.delete("COURSE_PERF_PARENT_SPAN_ID");
     else Deno.env.set("COURSE_PERF_PARENT_SPAN_ID", ambient);
-    assert.deepEqual(JSON.parse(new TextDecoder().decode(child.stdout)), [null, "yes"]);
+    assert.deepEqual(parseJson(new TextDecoder().decode(child.stdout)), [null, "yes"]);
     for (const e of agent.events.filter((e) => e.event === "end")) {
       assert(e.document_id === "a.qmd" || e.document_id === "b.qmd" || e.document_id === undefined);
     }
@@ -297,7 +307,7 @@ Deno.test("bootstrap sync-flushes fatal throw, rejected await and timer errors w
       const [name, code] of [["throw", "throw new Error('FATAL_MARKER')"], [
         "await",
         "await Promise.reject(new Error('FATAL_MARKER'))",
-      ], ["timer", "setTimeout(()=>{throw new Error('FATAL_MARKER')},0)"]]
+      ], ["timer", "setTimeout(()=>{throw new Error('FATAL_MARKER')},0)"]] as const
     ) {
       const entry = join(root, name + ".ts");
       await Deno.writeTextFile(entry, prefix + code);
@@ -329,12 +339,14 @@ Deno.test("bootstrap sync-flushes fatal throw, rejected await and timer errors w
       assert.equal(out.signal, native.signal);
       assert.deepEqual(out.stderr, native.stderr);
       assert.deepEqual(out.stdout, native.stdout);
-      const summary = JSON.parse(await Deno.readTextFile(join(output, "events/p/ts.summary.json")));
+      const summary = parseObject(
+        await Deno.readTextFile(join(output, "events/p/ts.summary.json")),
+      );
       assert.equal(summary.schema_version, 1);
       assert.equal(summary.incomplete_spans, 1);
       assert.equal(summary.data_valid, false);
       const events = (await Deno.readTextFile(join(output, "events/p/ts.jsonl"))).trim().split("\n")
-        .map((x) => JSON.parse(x));
+        .map((x) => validateEvent(parseJson(x)));
       assert.equal(
         events.filter((e) =>
           e.operation_id === "complete" && e.event === "end" && e.status === "ok"
@@ -351,6 +363,33 @@ Deno.test("bootstrap sync-flushes fatal throw, rejected await and timer errors w
       );
     }
   } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("Promise-returning callback сохраняет синхронный throw до создания Promise", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const agent = installTsAgent({
+      experimentId: "e",
+      runId: "r",
+      processId: "p",
+      outputDirectory: root,
+      mode: "summary",
+    });
+    const error = { code: "sync-before-promise" };
+    const wrapped = agent.metrics.wrapAsync(
+      { id: "sync-throw", kind: "function" },
+      (): Promise<number> => {
+        throw error;
+      },
+    );
+    assert.throws(() => {
+      void wrapped().catch(() => {});
+    }, (actual) => actual === error);
+    assert.equal(agent.events.filter((event) => event.status === "error").length, 1);
+  } finally {
+    Reflect.deleteProperty(globalThis, Symbol.for("course.performance.agent.v1"));
     await Deno.remove(root, { recursive: true });
   }
 });

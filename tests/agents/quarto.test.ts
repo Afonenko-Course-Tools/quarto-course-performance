@@ -1,3 +1,8 @@
+import type { Event } from "../../src/protocol/types.ts";
+import { validateEvent } from "../../src/protocol/validate.ts";
+import { validateRunSummary } from "../../src/report/types.ts";
+import { validateRunRecord } from "../../src/report/types.ts";
+import { array, number, object, parseJson, parseObject, string } from "../../src/json.ts";
 import { dataDir, pandoc, quarto as nativeQuarto } from "../runtime.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
@@ -31,9 +36,9 @@ Deno.test("filter adapter excludes skipped nil/empty filters and does not preten
       stderr: "piped",
     }).output();
     assert(result.success, new TextDecoder().decode(result.stderr));
-    const s = JSON.parse(await Deno.readTextFile(join(root, "events/p/lua.summary.json")));
-    assert.equal(s.counters.filter_runs, 1);
-    assert(!Object.keys(s.counters).some((k) => k.startsWith("walk_api_calls")));
+    const s = parseObject(await Deno.readTextFile(join(root, "events/p/lua.summary.json")));
+    assert.equal(object(s.counters).filter_runs, 1);
+    assert(!Object.keys(object(s.counters)).some((k) => k.startsWith("walk_api_calls")));
   } finally {
     await Deno.remove(root, { recursive: true });
   }
@@ -86,11 +91,14 @@ Deno.test("simple summary works without private Quarto filter adapter and cpu wr
         );
         if (mode === "off") continue;
         const [entry] = [...Deno.readDirSync(outputParent)];
+        assert(entry);
         const output = join(outputParent, entry.name);
-        const coverage = JSON.parse(await Deno.readTextFile(join(output, "coverage.json")));
+        const coverage = parseObject(await Deno.readTextFile(join(output, "coverage.json")));
         assert.equal(coverage.complete, false);
-        assert.equal(coverage.operations["quarto.filter.run"].available, false);
-        const run = JSON.parse(await Deno.readTextFile(join(output, "run.json")));
+        assert.equal(object(object(coverage.operations)["quarto.filter.run"]).available, false);
+        const run = validateRunRecord(
+          parseObject(await Deno.readTextFile(join(output, "run.json"))),
+        );
         assert.deepEqual(run.request.nativeArgv, ["doc.qmd", ...form]);
         assert(run.preparation.length > 0);
         assert(!run.preparation.some((r: { kind: string }) => r.kind === "quarto-adapter"));
@@ -98,14 +106,14 @@ Deno.test("simple summary works without private Quarto filter adapter and cpu wr
           () => Deno.stat(join(output, "diagnostic/share/filters/main.lua")),
           Deno.errors.NotFound,
         );
-        const events: Record<string, unknown>[] = [];
+        const events: Event[] = [];
         for (const dir of Deno.readDirSync(join(output, "events"))) {
           for (const file of Deno.readDirSync(join(output, "events", dir.name))) {
             if (file.name.endsWith(".jsonl")) {
               events.push(
                 ...(await Deno.readTextFile(join(output, "events", dir.name, file.name))).split(
                   "\n",
-                ).filter(Boolean).map((line) => JSON.parse(line)),
+                ).filter(Boolean).map((line) => validateEvent(parseJson(line))),
               );
             }
           }
@@ -115,7 +123,9 @@ Deno.test("simple summary works without private Quarto filter adapter and cpu wr
         )!;
         assert.equal(owner.document_id, join(root, "doc.qmd"));
         assert.deepEqual(owner.attributes, { extension_id: "fixture" });
-        const summary = JSON.parse(await Deno.readTextFile(join(output, "summary.json")));
+        const summary = validateRunSummary(
+          parseObject(await Deno.readTextFile(join(output, "summary.json"))),
+        );
         assert(
           summary.operations.some((o: { operationId: string; completed: number }) =>
             o.operationId === "fixture.owner" && o.completed === 1
@@ -124,11 +134,12 @@ Deno.test("simple summary works without private Quarto filter adapter and cpu wr
         if (mode === "cpu") {
           const profiles = [...Deno.readDirSync(join(output, "profiles"))];
           assert(profiles.length > 0);
-          const profile = JSON.parse(
+          assert(profiles[0]);
+          const profile = parseObject(
             await Deno.readTextFile(join(output, "profiles", profiles[0].name, "cpu.cpuprofile")),
           );
-          assert(profile.nodes.length > 0);
-          assert(profile.endTime > profile.startTime);
+          assert(array(profile.nodes).length > 0);
+          assert(number(profile.endTime) > number(profile.startTime));
         }
       }
     }
@@ -157,7 +168,9 @@ Deno.test("public render preparation preserves selected binaries share and funct
     const selectedDeno = join(root, "selected-deno"),
       selectedPandoc = join(root, "selected-pandoc");
     const quote = (value: string) => "'" + value.replaceAll("'", "'\\''") + "'";
-    for (const [path, binary] of [[selectedDeno, Deno.execPath()], [selectedPandoc, pandoc]]) {
+    for (
+      const [path, binary] of [[selectedDeno, Deno.execPath()], [selectedPandoc, pandoc]] as const
+    ) {
       await Deno.writeTextFile(path, `#!/bin/sh\nexec ${quote(binary)} "$@"\n`);
       await Deno.chmod(path, 0o755);
     }
@@ -168,7 +181,7 @@ Deno.test("public render preparation preserves selected binaries share and funct
       "--location=https://fixture.invalid/",
       "--stack-size=2048",
     ];
-    keys.forEach((key, i) => Deno.env.set(key, values[i]));
+    keys.forEach((key, i) => Deno.env.set(key, string(values[i])));
     const request = {
       cwd: root,
       quarto: nativeQuarto,

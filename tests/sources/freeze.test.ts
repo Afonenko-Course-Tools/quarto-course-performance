@@ -65,8 +65,11 @@ Deno.test("freeze pins generic trusted local candidates without Hyperfine and pr
     };
     const workspace = join(root, "experiment");
     const frozen = await freezeVariants(inputs, workspace, nativeQuarto);
-    assert.equal(frozen.candidate?.sources[0].sha, candidateSha);
+    assert(frozen.candidate?.sources[0]);
+    assert.equal(frozen.candidate?.sources[0]?.sha, candidateSha);
+
     assert.equal(frozen.candidate?.sources[0].baseSha, baseSha);
+
     assert.equal(frozen.candidate?.sources[0].sourceKind, "local-candidate");
     assert.equal(frozen.candidate?.schema_version, 2);
     assert.equal(frozen.candidate?.runtime.hyperfine, undefined);

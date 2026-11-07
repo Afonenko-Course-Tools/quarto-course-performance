@@ -1,3 +1,4 @@
+import { oneOf, strings as stringValues } from "../json.ts";
 import type { Mode, PreparationReceipt } from "../config/types.ts";
 import type { QualitySummary } from "../analysis/normalize.ts";
 
@@ -49,6 +50,26 @@ export interface RunRecord {
   collectionDirectory: string;
   outputDirectory: string;
   artifacts: Record<string, string>;
+}
+/** Дополнительные metadata, которые записывает экспериментальный runner. */
+export interface ExperimentRunRecord extends RunRecord {
+  scenario: string;
+  variant: "upstream" | "clean-control" | "candidate";
+  mode: Mode;
+  argv: string[];
+  cwd: string;
+  cachePolicy: "clean-output" | "repeat-render";
+  experimentId: string;
+  buildExitCode: number;
+  wallSeconds: number;
+  signal: Deno.Signal | null;
+  resources: {
+    cpu_user_seconds: number | null;
+    cpu_system_seconds: number | null;
+    peak_rss_kib: number | null;
+  };
+  signalAvailability: "unavailable" | "observed";
+  resourceScope: "native-hyperfine-command" | "tool-and-resource-supervisor" | "unavailable";
 }
 export interface CounterAggregate {
   processId: string;
@@ -128,7 +149,24 @@ function metadata(value: unknown): Record<string, unknown> {
   string(m.runId, "runId");
   boolean(m.dataValid, "dataValid");
   quality(m.quality);
+  if ("importProvenance" in m) provenance(m.importProvenance);
   return m;
+}
+function provenance(value: unknown): void {
+  const p = object(value, "importProvenance");
+  if (p.schema_version !== 1) invalid("importProvenance.schema_version");
+  string(p.adapterVersion, "importProvenance.adapterVersion");
+  string(p.sourceDirectory, "importProvenance.sourceDirectory");
+  for (const name of ["manifest", "run", ...("runManifest" in p ? ["runManifest"] : [])]) {
+    const receipt = object(p[name], `importProvenance.${name}`);
+    string(receipt.path, "receipt.path");
+    string(receipt.sha256, "receipt.sha256");
+    number(receipt.schemaVersion, "receipt.schemaVersion", true, true);
+  }
+  const status = object(p.sourceStatus, "importProvenance.sourceStatus");
+  number(status.buildExitCode, "sourceStatus.buildExitCode", false, true);
+  if (status.dataValid !== null) boolean(status.dataValid, "sourceStatus.dataValid");
+  string(status.signalAvailability, "sourceStatus.signalAvailability");
 }
 const signals: readonly Deno.Signal[] = [
   "SIGABRT",
@@ -169,23 +207,25 @@ const signals: readonly Deno.Signal[] = [
   "SIGXFSZ",
 ];
 
-export function validateRunRecord(value: unknown): RunRecord {
+export function validateSignal(value: unknown): Deno.Signal | null {
+  return value === null ? null : oneOf(value, signals, "signal");
+}
+
+function assertRunRecord(value: unknown): asserts value is RunRecord {
   const r = metadata(value), request = object(r.request, "request");
   string(request.cwd, "request.cwd");
   string(request.quarto, "request.quarto");
   strings(request.nativeArgv, "request.nativeArgv");
   if (!["off", "summary", "cpu", "trace"].includes(request.mode as string)) invalid("request.mode");
-  if (request.outputParent !== undefined) string(request.outputParent, "request.outputParent");
+  if ("outputParent" in request) string(request.outputParent, "request.outputParent");
   const outcome = object(r.outcome, "outcome");
   number(outcome.code, "outcome.code", false, true);
-  if (outcome.escalated !== undefined) boolean(outcome.escalated, "outcome.escalated");
+  if ("escalated" in outcome) boolean(outcome.escalated, "outcome.escalated");
   if (
-    outcome.stdioMode !== undefined &&
+    "stdioMode" in outcome &&
     !["separate", "pty-combined"].includes(outcome.stdioMode as string)
   ) invalid("outcome.stdioMode");
-  if (outcome.signal !== null && !signals.includes(outcome.signal as Deno.Signal)) {
-    invalid("outcome.signal");
-  }
+  validateSignal(outcome.signal);
   number(outcome.wallSeconds, "outcome.wallSeconds");
   number(outcome.cpuUserSeconds, "outcome.cpuUserSeconds", true);
   number(outcome.cpuSystemSeconds, "outcome.cpuSystemSeconds", true);
@@ -199,7 +239,7 @@ export function validateRunRecord(value: unknown): RunRecord {
     for (const field of ["path", "sourceHash", "preparedHash"]) {
       string(p[field], `preparation.${field}`);
     }
-    if (p.sourceMapPath !== undefined) string(p.sourceMapPath, "preparation.sourceMapPath");
+    if ("sourceMapPath" in p) string(p.sourceMapPath, "preparation.sourceMapPath");
   }
   const versions = object(r.versions, "versions");
   for (const field of ["tool", "quarto"]) string(versions[field], `versions.${field}`);
@@ -218,10 +258,13 @@ export function validateRunRecord(value: unknown): RunRecord {
   string(r.outputDirectory, "outputDirectory");
   const artifacts = object(r.artifacts, "artifacts");
   for (const [name, path] of Object.entries(artifacts)) string(path, `artifacts.${name}`);
-  return r as unknown as RunRecord;
+}
+export function validateRunRecord(value: unknown): RunRecord {
+  assertRunRecord(value);
+  return value;
 }
 
-export function validateRunSummary(value: unknown): RunSummary {
+function assertRunSummary(value: unknown): asserts value is RunSummary {
   const s = metadata(value);
   if (!Array.isArray(s.counters)) invalid("counters");
   for (const counter of s.counters) {
@@ -236,6 +279,10 @@ export function validateRunSummary(value: unknown): RunSummary {
   for (const operation of s.operations) {
     const o = object(operation, "operations");
     string(o.operationId, "operations.operationId");
+    if ("extensionId" in o && o.extensionId !== null) string(o.extensionId, "extensionId");
+    if ("extensionAttribution" in o) {
+      oneOf(o.extensionAttribution, ["recorded", "derived", "unavailable"], "extensionAttribution");
+    }
     if (!["monotonic_process", "process_cpu"].includes(o.clockDomain as string)) {
       invalid("operations.clockDomain");
     }
@@ -245,10 +292,13 @@ export function validateRunSummary(value: unknown): RunSummary {
     number(o.selfMicroseconds, "operations.selfMicroseconds", true);
     if (!["observed-exact", "partial"].includes(o.quality as string)) invalid("operations.quality");
   }
-  return s as unknown as RunSummary;
+}
+export function validateRunSummary(value: unknown): RunSummary {
+  assertRunSummary(value);
+  return value;
 }
 
-export function validateDiagnosticExpectations(value: unknown): DiagnosticExpectations {
+function assertDiagnosticExpectations(value: unknown): asserts value is DiagnosticExpectations {
   const e = object(value, "expectations");
   if (e.schema_version !== 2 || !Array.isArray(e.processes)) {
     invalid("expectations.schema_version/processes");
@@ -268,9 +318,10 @@ export function validateDiagnosticExpectations(value: unknown): DiagnosticExpect
       invalid("activation");
     }
     for (const field of ["summary_path", "profile_path"]) {
-      if (p[field] === undefined) continue;
+      if (!(field in p)) continue;
       string(p[field], field);
-      const path = p[field] as string;
+      const path = p[field];
+      if (typeof path !== "string") invalid(field);
       if (path.startsWith("/") || path.includes("\\") || path.split("/").includes("..")) {
         invalid(field);
       }
@@ -283,5 +334,35 @@ export function validateDiagnosticExpectations(value: unknown): DiagnosticExpect
       if (!p.activated) invalid(`${field}/activation`);
     }
   }
-  return e as unknown as DiagnosticExpectations;
+}
+export function validateDiagnosticExpectations(value: unknown): DiagnosticExpectations {
+  assertDiagnosticExpectations(value);
+  return value;
+}
+
+function assertExperimentRunRecord(value: unknown): asserts value is ExperimentRunRecord {
+  validateRunRecord(value);
+  const record = object(value, "experiment run");
+  for (const key of ["scenario", "cwd", "experimentId"]) string(record[key], key);
+  oneOf(record.variant, ["upstream", "clean-control", "candidate"], "variant");
+  oneOf(record.mode, ["off", "summary", "cpu", "trace"], "mode");
+  oneOf(record.cachePolicy, ["clean-output", "repeat-render"], "cachePolicy");
+  oneOf(record.signalAvailability, ["unavailable", "observed"], "signalAvailability");
+  oneOf(record.resourceScope, [
+    "native-hyperfine-command",
+    "tool-and-resource-supervisor",
+    "unavailable",
+  ], "resourceScope");
+  stringValues(record.argv, "argv");
+  number(record.buildExitCode, "buildExitCode", false, true);
+  number(record.wallSeconds, "wallSeconds");
+  validateSignal(record.signal);
+  const resources = object(record.resources, "resources");
+  for (const key of ["cpu_user_seconds", "cpu_system_seconds", "peak_rss_kib"]) {
+    number(resources[key], key, true);
+  }
+}
+export function validateExperimentRunRecord(value: unknown): ExperimentRunRecord {
+  assertExperimentRunRecord(value);
+  return value;
 }

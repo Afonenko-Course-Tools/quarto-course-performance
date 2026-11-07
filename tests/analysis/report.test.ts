@@ -1,3 +1,4 @@
+import { array, object, parseJson, parseObject, string } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { operationTotals, writeExperimentReport } from "../../src/analysis/report.ts";
 import type { NormalizedRun } from "../../src/analysis/normalize.ts";
@@ -26,7 +27,7 @@ Deno.test("report separates clock totals, does not claim self time, and retains 
     origin: "manual",
     clock_domain: clock,
     timestamp_us: time,
-    status: event === "end" ? "ok" : undefined,
+    ...(event === "end" ? { status: "ok" as const } : {}),
   });
   const run: NormalizedRun = {
     runId: "r",
@@ -67,16 +68,17 @@ Deno.test("report separates clock totals, does not claim self time, and retains 
     }, [
       run,
     ], root);
+    assert(array(parseJson(await Deno.readTextFile(join(root, "builds.json"))))[0]);
     assert.equal(
-      JSON.parse(await Deno.readTextFile(join(root, "builds.json")))[0].buildExitCode,
+      object(array(parseJson(await Deno.readTextFile(join(root, "builds.json"))))[0]).buildExitCode,
       23,
     );
     assert((await Deno.readTextFile(join(root, "report.md"))).includes("23"));
-    assert.deepEqual(JSON.parse(await Deno.readTextFile(join(root, "coverage.json"))), []);
+    assert.deepEqual(parseJson(await Deno.readTextFile(join(root, "coverage.json"))), []);
     assert.deepEqual(
-      JSON.parse(await Deno.readTextFile(join(root, "runs/r/causal.json"))).spans.map((
-        s: { clock_domain: string },
-      ) => s.clock_domain),
+      array(parseObject(await Deno.readTextFile(join(root, "runs/r/causal.json"))).spans).map((
+        span,
+      ) => object(span).clock_domain),
       ["monotonic_process", "process_cpu"],
     );
   } finally {
@@ -108,7 +110,7 @@ Deno.test("report processes an async run stream before requesting the next raw j
       yield run;
       assert((await Deno.stat(join(root, "runs/r/wall.trace.json"))).isFile);
       assert.equal(
-        JSON.parse(await Deno.readTextFile(join(root, "runs/r/summary.json"))).schema_version,
+        parseObject(await Deno.readTextFile(join(root, "runs/r/summary.json"))).schema_version,
         2,
       );
       await Deno.stat(join(root, "runs/r/report.md"));
@@ -138,8 +140,8 @@ Deno.test("report processes an async run stream before requesting the next raw j
       runs(),
       root,
     );
-    const summary = JSON.parse(await Deno.readTextFile(join(root, "summary.json")));
-    assert.deepEqual(summary.runs.map((r: { run_id: string }) => r.run_id), ["r", "second"]);
+    const summary = parseObject(await Deno.readTextFile(join(root, "summary.json")));
+    assert.deepEqual(array(summary.runs).map((r) => object(r).run_id), ["r", "second"]);
     assert(
       (await Deno.readTextFile(join(root, "report.md"))).includes(
         "benchmarks/scenario.initial10.json",
@@ -266,7 +268,7 @@ Deno.test("experiment links survive relocation with trace CPU and off adapters",
     for (const file of ["report.md", "runs/fixture/report.md", "runs/off/report.md"]) {
       const report = await Deno.readTextFile(join(final, file));
       for (const match of report.matchAll(/\]\(([^)]+)\)/g)) {
-        await Deno.stat(resolve(final, file, "..", decodeURI(match[1])));
+        await Deno.stat(resolve(final, file, "..", decodeURI(string(match[1]))));
       }
     }
     assert(
@@ -278,7 +280,7 @@ Deno.test("experiment links survive relocation with trace CPU and off adapters",
       () => Deno.stat(join(final, "runs/off/wall.trace.json")),
       Deno.errors.NotFound,
     );
-    const metadata = JSON.parse(await Deno.readTextFile(join(final, "runs/fixture/run.json")));
+    const metadata = parseObject(await Deno.readTextFile(join(final, "runs/fixture/run.json")));
     assert.equal(metadata.collectionDirectory, join(stage, "runs/fixture"));
     assert.equal(metadata.outputDirectory, "/final/test");
   } finally {

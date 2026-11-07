@@ -1,3 +1,4 @@
+import { object, parseObject } from "../../src/json.ts";
 import { quarto as nativeQuarto } from "../runtime.ts";
 import { strict as assert } from "node:assert";
 import { validateConfig } from "../../src/config/validate.ts";
@@ -19,7 +20,9 @@ Deno.test("config rejects unknown modes, escaped cwd, duplicate scenarios and mi
     sources: [{ repository: "org/Other", refPolicy: "remote-default-head" }],
     scenarios: [s],
   };
-  assert.equal(validateConfig(cfg).scenarios[0].id, "one");
+  const scenario = validateConfig(cfg).scenarios[0];
+  assert(scenario);
+  assert.equal(scenario.id, "one");
   for (
     const bad of [
       { ...cfg, scenarios: [{ ...s, mode: "invalid" }] },
@@ -94,9 +97,82 @@ Deno.test("experiment capabilities works outside a project without config, Git, 
       stderr: "piped",
     }).output();
     assert(out.success, new TextDecoder().decode(out.stderr));
-    assert.equal(JSON.parse(new TextDecoder().decode(out.stdout)).runtime.quarto.version, "1.11.6");
+    const nativeVersion = await new Deno.Command(nativeQuarto, {
+      args: ["--version"],
+      stdout: "piped",
+      stderr: "piped",
+    }).output();
+    assert(nativeVersion.success, new TextDecoder().decode(nativeVersion.stderr));
+    assert.equal(
+      object(object(parseObject(new TextDecoder().decode(out.stdout)).runtime).quarto).version,
+      new TextDecoder().decode(nativeVersion.stdout).trim(),
+    );
     await assert.rejects(() => Deno.stat(root + "/forbidden"), Deno.errors.NotFound);
   } finally {
     await Deno.remove(root, { recursive: true });
   }
+});
+
+Deno.test("config проверяет элементы scope и cleanPaths до передачи runner", () => {
+  const scenario = {
+    id: "typed",
+    cwd: ".",
+    executable: "quarto",
+    args: ["render"],
+    cachePolicy: "clean-output",
+    mode: "off",
+    scope: { modules: [], extensions: [], strict: true },
+    resources: { wall: true, cpu: true, peakRss: true },
+  };
+  const config = {
+    schema_version: 2,
+    projectSource: "org/Other",
+    replacements: [],
+    sources: [{ repository: "org/Other", refPolicy: "remote-default-head" }],
+    scenarios: [scenario],
+  };
+  for (
+    const patch of [
+      { scenarios: [{ ...scenario, scope: { ...scenario.scope, modules: [7] } }] },
+      { scenarios: [{ ...scenario, scope: { ...scenario.scope, extensions: [false] } }] },
+      { cleanPaths: [null] },
+      { runtime: { quarto: 42 } },
+    ]
+  ) assert.throws(() => validateConfig({ ...config, ...patch }));
+});
+
+Deno.test("config сохраняет дополнительные metadata всех вложенных records", () => {
+  const input = {
+    schema_version: 2,
+    projectSource: "org/Other",
+    sources: [{
+      repository: "org/Other",
+      refPolicy: "remote-default-head",
+      extra: { owner: "source" },
+    }],
+    replacements: [{
+      repository: "org/Other",
+      extensionId: "owner",
+      destinations: ["_extensions/owner"],
+      extra: { owner: "replacement" },
+    }],
+    scenarios: [{
+      id: "custom",
+      cwd: ".",
+      executable: "quarto",
+      args: [],
+      cachePolicy: "repeat-render",
+      mode: "off",
+      extra: { owner: "scenario" },
+      scope: { modules: [], extensions: [], strict: true, extra: { owner: "scope" } },
+      resources: { wall: true, cpu: true, peakRss: true, extra: { owner: "resources" } },
+    }],
+    benchmark: { maxSlowdownRatio: 1.2, extra: { owner: "benchmark" } },
+    runtime: { quarto: "quarto", extra: { owner: "runtime" } },
+  };
+  assert.deepEqual(validateConfig(input), {
+    ...input,
+    outputPolicy: "strict",
+    benchmark: { ...input.benchmark, pairs: 10 },
+  });
 });

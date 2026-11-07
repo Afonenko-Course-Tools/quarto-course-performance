@@ -1,8 +1,9 @@
+import { parseObject, string } from "../json.ts";
 import { join, resolve } from "node:path";
 import { preparePandocArgs } from "./pandoc-data.ts";
 import type { ProcessExpectation } from "../report/types.ts";
 const [kind, ...originalArgs] = Deno.args;
-if (!["deno", "pandoc"].includes(kind)) throw new Error("Неизвестный launcher");
+if (kind !== "deno" && kind !== "pandoc") throw new Error("Неизвестный launcher");
 const env = Deno.env.toObject(), id = crypto.randomUUID();
 const binary = env[kind === "deno" ? "COURSE_PERF_REAL_DENO" : "COURSE_PERF_REAL_PANDOC"];
 if (!binary || binary === env[kind === "deno" ? "QUARTO_DENO" : "QUARTO_PANDOC"]) {
@@ -39,6 +40,7 @@ if (kind === "deno" && args[0] === "run") {
   ]);
   for (let i = 1; i < args.length; i++) {
     const arg = args[i];
+    if (arg === undefined) break;
     if (["--help", "-h", "--version", "-V"].includes(arg) || arg.startsWith("--help=")) break;
     if (arg === "--" || !arg.startsWith("-") || arg === "-") {
       denoExecutable = true;
@@ -90,7 +92,7 @@ const receipt = {
 const receiptPath = join(env.COURSE_PERF_OUTPUT_DIR ?? ".", "processes", id + ".json");
 async function writeReceipt() {
   if (!requested) return;
-  await Deno.mkdir(join(env.COURSE_PERF_OUTPUT_DIR, "processes"), { recursive: true });
+  await Deno.mkdir(join(string(env.COURSE_PERF_OUTPUT_DIR), "processes"), { recursive: true });
   const temporary = receiptPath + ".tmp";
   await Deno.writeTextFile(temporary, JSON.stringify(receipt));
   await Deno.rename(temporary, receiptPath);
@@ -98,9 +100,9 @@ async function writeReceipt() {
 await writeReceipt();
 if (mode && mode !== "off") {
   if (kind === "deno" && denoExecutable) {
-    args.splice(1, 0, "--preload", env.COURSE_PERF_AGENT_TS);
+    args.splice(1, 0, "--preload", string(env.COURSE_PERF_AGENT_TS));
     if (mode === "cpu") {
-      const profiles = join(env.COURSE_PERF_OUTPUT_DIR, "profiles", id);
+      const profiles = join(string(env.COURSE_PERF_OUTPUT_DIR), "profiles", id);
       await Deno.mkdir(profiles, { recursive: true });
       args.splice(1, 0, "--cpu-prof-dir", profiles, "--cpu-prof-name", "cpu.cpuprofile");
     }
@@ -109,7 +111,7 @@ if (mode && mode !== "off") {
     const prepared = await preparePandocArgs(binary, args, env, id);
     args.splice(0, args.length, ...prepared.args);
     if (prepared.preparation) {
-      const directory = join(env.COURSE_PERF_OUTPUT_DIR, "preparation");
+      const directory = join(string(env.COURSE_PERF_OUTPUT_DIR), "preparation");
       await Deno.mkdir(directory, { recursive: true });
       await Deno.writeTextFile(join(directory, id + ".json"), JSON.stringify(prepared.preparation));
     }
@@ -141,14 +143,19 @@ if (requested) {
   receipt.signal = status.signal;
   {
     try {
-      for await (const file of Deno.readDir(join(env.COURSE_PERF_OUTPUT_DIR, "events", id))) {
+      for await (
+        const file of Deno.readDir(join(string(env.COURSE_PERF_OUTPUT_DIR), "events", id))
+      ) {
         if (!file.isFile || !file.name.endsWith(".started.json")) continue;
-        const started = JSON.parse(
-          await Deno.readTextFile(join(env.COURSE_PERF_OUTPUT_DIR, "events", id, file.name)),
+        const started = parseObject(
+          await Deno.readTextFile(
+            join(string(env.COURSE_PERF_OUTPUT_DIR), "events", id, file.name),
+          ),
         );
         if (
           started.schema_version === 1 && started.process_id === id &&
-          started.agent === expectation.agent && started.executed === true
+          started.agent === expectation.agent && started.executed === true &&
+          typeof started.executor_id === "string"
         ) {
           expectation.activated = true;
           expectation.executed = true;

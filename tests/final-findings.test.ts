@@ -1,3 +1,4 @@
+import { array, parseJson, parseObject } from "../src/json.ts";
 import { quarto as nativeQuarto } from "./runtime.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
@@ -162,10 +163,10 @@ Deno.test("W-F4 new off experiment runs immediately write v2 records summaries r
       outputRoot: join(root, "runs"),
     });
     validateRunRecord(
-      JSON.parse(await Deno.readTextFile(join(result.outputDirectory, "run.json"))),
+      parseJson(await Deno.readTextFile(join(result.outputDirectory, "run.json"))),
     );
     validateRunSummary(
-      JSON.parse(await Deno.readTextFile(join(result.outputDirectory, "summary.json"))),
+      parseJson(await Deno.readTextFile(join(result.outputDirectory, "summary.json"))),
     );
     await Deno.stat(join(result.outputDirectory, "report.md"));
     await Deno.writeTextFile(
@@ -199,9 +200,9 @@ Deno.test("W-F4 new off experiment runs immediately write v2 records summaries r
       }).output();
       assert.equal(out.code, 0, new TextDecoder().decode(out.stderr));
     }
-    const aggregate = JSON.parse(await Deno.readTextFile(join(root, "summary.json")));
+    const aggregate = parseObject(await Deno.readTextFile(join(root, "summary.json")));
     assert.equal(aggregate.schema_version, 2);
-    assert.equal(aggregate.runs.length, 1);
+    assert.equal(array(aggregate.runs).length, 1);
   } finally {
     await Deno.remove(root, { recursive: true });
   }
@@ -370,12 +371,12 @@ Deno.test("W-F4 diagnostic success and failure immediately use shared v2 artifac
         { outputRoot: join(root, "runs") },
       );
       const record = validateRunRecord(
-        JSON.parse(await Deno.readTextFile(join(result.outputDirectory, "run.json"))),
+        parseJson(await Deno.readTextFile(join(result.outputDirectory, "run.json"))),
       );
       assert.equal(record.outcome.code, code);
       assert.equal(record.request.mode, "summary");
       validateRunSummary(
-        JSON.parse(await Deno.readTextFile(join(result.outputDirectory, "summary.json"))),
+        parseJson(await Deno.readTextFile(join(result.outputDirectory, "summary.json"))),
       );
       await Deno.stat(join(result.outputDirectory, "report.md"));
     }

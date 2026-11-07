@@ -1,3 +1,4 @@
+import { array, number, object, parseJson, parseObject } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { cleanEnvironment, executeScenario } from "../../src/runner/execute.ts";
 import type { PreparedVariant, Scenario } from "../../src/config/types.ts";
@@ -54,7 +55,7 @@ Deno.test("runner keeps argv, cwd, outputs and build exit code and off creates n
     assert.equal(result.dataValid, true);
     assert.equal(result.preparation.length, 0);
     assert.deepEqual(
-      JSON.parse(await Deno.readTextFile(join(result.outputDirectory, "stdout.log"))),
+      parseJson(await Deno.readTextFile(join(result.outputDirectory, "stdout.log"))),
       [["arg with spaces"], root, "student", null],
     );
     assert.equal(
@@ -108,13 +109,17 @@ Deno.test("Hyperfine 2 records raw resource metrics and literal argv without exe
       useHyperfine: true,
     });
     assert.equal(result.buildExitCode, 23);
-    assert.deepEqual(JSON.parse(await Deno.readTextFile(join(root, "args.json"))), [literal]);
+    assert.deepEqual(parseJson(await Deno.readTextFile(join(root, "args.json"))), [literal]);
     await assert.rejects(() => Deno.stat(join(root, "forbidden")), Deno.errors.NotFound);
-    const raw = JSON.parse(await Deno.readTextFile(join(result.outputDirectory, "hyperfine.json")));
+    const raw = parseObject(
+      await Deno.readTextFile(join(result.outputDirectory, "hyperfine.json")),
+    );
     assert.equal(raw.schema_version, 2);
-    assert.equal(raw.results[0].measurements[0].exit_code, 23);
+    const measurement = object(array(object(array(raw.results)[0]).measurements)[0]);
+    assert.equal(measurement.exit_code, 23);
     assert(result.wallSeconds > 0);
-    assert(raw.results[0].measurements[0].time_cpu.value >= 0);
+
+    assert(number(object(measurement.time_cpu).value) >= 0);
   } finally {
     await Deno.remove(root, { recursive: true });
   }

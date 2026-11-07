@@ -1,3 +1,4 @@
+import { string } from "../json.ts";
 import { relative } from "node:path";
 import type { OutputPolicy } from "../config/types.ts";
 import { files, hashFile } from "../sources/snapshot.ts";
@@ -22,30 +23,32 @@ export function normalizeOutput(
       if (body.replace(/([^\s=/>]+)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?/g, "").trim()) {
         return chunk;
       }
-      const names = attrs.map((a) => a[1].toLowerCase());
+      const names = attrs.map((a) => string(a[1]).toLowerCase());
       if (new Set(names).size !== names.length) return chunk;
       const value = (name: string) => {
-        const attr = attrs.find((a) => a[1].toLowerCase() === name);
+        const attr = attrs.find((a) => string(a[1]).toLowerCase() === name);
         return attr?.[0].match(/=\s*(?:"([^"]*)"|'([^']*)'|([^\s]+))$/)?.slice(1).find((v) =>
           v !== undefined
         );
       };
 
-      const allowed = (value("id") ?? "").startsWith("exr-") && prefix[1].toLowerCase() === "div"
-        ? [
-          "target",
-          "data-statement-visibility",
-          "data-course-difficulty",
-          "data-course-time",
-          "data-course-role",
-        ]
-        : [];
-      const selected = attrs.filter((a) => allowed.includes(a[1].toLowerCase()));
-      const ordered = [...selected].sort((a, b) => a[1].localeCompare(b[1]));
+      const allowed =
+        (value("id") ?? "").startsWith("exr-") && string(prefix[1]).toLowerCase() === "div"
+          ? [
+            "target",
+            "data-statement-visibility",
+            "data-course-difficulty",
+            "data-course-time",
+            "data-course-role",
+          ]
+          : [];
+      const selected = attrs.filter((a) => allowed.includes(string(a[1]).toLowerCase()));
+      const ordered = [...selected].sort((a, b) => string(a[1]).localeCompare(string(b[1])));
       let result = chunk.slice(0, start), cursor = 0, index = 0;
       for (const attr of selected) {
         const next = ordered[index++];
-        let text = next[0];
+        if (!next) throw new Error("Неполная перестановка HTML-атрибутов");
+        const text = next[0];
         result += body.slice(cursor, attr.index) + text;
         cursor = attr.index! + attr[0].length;
       }

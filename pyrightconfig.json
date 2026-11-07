@@ -1,0 +1,6 @@
+{
+  "include": ["tests/runner/fixtures/zombie-group.py"],
+  "typeCheckingMode": "strict",
+  "pythonPlatform": "Linux",
+  "pythonVersion": "3.13"
+}

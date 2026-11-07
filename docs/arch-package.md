@@ -202,13 +202,12 @@ cd "$PERF_BUILD_DIR"
 
 ## Исходники npm и сборка без сети
 
-В `deno.lock` закреплены `typescript@5.9.3` и `luaparse@0.3.1`. В `source` рецепта указаны
-официальные архивы с SHA-256:
+В `deno.lock` закреплён `typescript@5.9.3`. В `source` рецепта указан
+официальный архив с SHA-256:
 
 | Архив                                                                                | SHA-256                                                            |
 | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
 | [typescript-5.9.3.tgz](https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz) | `10e108c9cf7d5f2879053dff18515fb405abf2ccef63eaaf017d9c571687a1d3` |
-| [luaparse-0.3.1.tgz](https://registry.npmjs.org/luaparse/-/luaparse-0.3.1.tgz)       | `facb9742bf9ddecb2a2fa2935d486a05e359db51f5fd6147f4f23d433e3c854b` |
 
 В подготовленном каталоге с конкретным `PKGBUILD` выполните:
 
@@ -223,7 +222,7 @@ makepkg --packagelist
 настроенном `SRCDEST` и установите все зависимости. Локально подготовленный архив приложения уже
 лежит рядом с рецептом; повторно скачивать его из Release не требуется. После подготовки исходников
 и зависимостей `makepkg -s` работает без сети. Функция `prepare()` распаковывает npm-архивы в
-обычные локальные каталоги `node_modules/typescript` и `node_modules/luaparse`; `check()` запускает
+обычный локальный каталог `node_modules/typescript`; `check()` запускает
 CLI с `--cached-only`. Проверка контрольных сумм и зависимостей остаётся включённой. Поля `source`,
 `sha256sums` и функции рецепта описаны в [PKGBUILD(5)](https://man.archlinux.org/man/PKGBUILD.5.en).
 
@@ -285,19 +284,14 @@ if [ -z "${NPM_SOURCE_DIR:-}" ]; then
   NPM_SOURCE_DIR=$(mktemp -d)
   curl --fail --location --output "$NPM_SOURCE_DIR/typescript-5.9.3.tgz" \
     https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz
-  curl --fail --location --output "$NPM_SOURCE_DIR/luaparse-0.3.1.tgz" \
-    https://registry.npmjs.org/luaparse/-/luaparse-0.3.1.tgz
+
 fi
 printf '%s  %s\n' \
   10e108c9cf7d5f2879053dff18515fb405abf2ccef63eaaf017d9c571687a1d3 \
-  "$NPM_SOURCE_DIR/typescript-5.9.3.tgz" \
-  facb9742bf9ddecb2a2fa2935d486a05e359db51f5fd6147f4f23d433e3c854b \
-  "$NPM_SOURCE_DIR/luaparse-0.3.1.tgz" | sha256sum -c -
-mkdir -p node_modules/typescript node_modules/luaparse
+  "$NPM_SOURCE_DIR/typescript-5.9.3.tgz" | sha256sum -c -
+mkdir -p node_modules/typescript
 tar -xzf "$NPM_SOURCE_DIR/typescript-5.9.3.tgz" \
   --strip-components=1 -C node_modules/typescript
-tar -xzf "$NPM_SOURCE_DIR/luaparse-0.3.1.tgz" \
-  --strip-components=1 -C node_modules/luaparse
 ```
 
 Если архивы уже получены, перед блоком задайте `NPM_SOURCE_DIR=/absolute/path/to/npm-archives`;
@@ -384,7 +378,7 @@ quarto-course-perf W: Dependency included, but may not be needed ('util-linux')
 лицензировании. Сопровождающий пакета также не назначался искусственно ради устранения
 предупреждения.
 
-Предупреждение `node` относится к сохранённым upstream-командам `tsc`, `tsserver` и `luaparse`;
+Историческое предупреждение `node` относится к сохранённым тогда upstream-командам `tsc`, `tsserver` и `luaparse`;
 приложение их не вызывает, а использует модули через Deno. Предупреждение `sh` относится к
 запускающей оболочке: в проверенной базовой Arch присутствовал bash, и оболочка действительно
 выполнялась. Зависимости `deno`, `quarto`, `time` и `util-linux` вызываются динамически из

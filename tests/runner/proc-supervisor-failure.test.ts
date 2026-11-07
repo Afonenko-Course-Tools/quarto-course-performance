@@ -1,3 +1,4 @@
+import { parseObject, string } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 for (const kind of ["permission", "io", "enumeration"]) {
@@ -18,10 +19,10 @@ for (const kind of ["permission", "io", "enumeration"]) {
           stderr: "piped",
         }).output();
         assert(output.success, new TextDecoder().decode(output.stderr));
-        const result = JSON.parse(await Deno.readTextFile(join(root, "result.json")));
+        const result = parseObject(await Deno.readTextFile(join(root, "result.json")));
         assert(result.injected, JSON.stringify(result));
         assert.match(
-          result.error,
+          string(result.error),
           kind === "permission"
             ? /persistent proc permission/
             : kind === "enumeration"

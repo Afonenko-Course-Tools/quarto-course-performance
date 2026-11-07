@@ -47,3 +47,23 @@ Deno.test("optional ABI 1 context preserves primitive attributes and rejects inv
     }, { attributes: { bad: NaN } }]
   ) assert.throws(() => validateEvent({ ...event, ...patch }));
 });
+
+Deno.test("span требует строковые идентификаторы вместо truthy значений", () => {
+  const span = {
+    ...event,
+    event: "begin",
+    kind: "phase",
+    clock_domain: "monotonic_process",
+    timestamp_us: 1,
+    span_id: "s",
+    operation_id: "operation",
+  };
+  for (const patch of [{ span_id: 1 }, { operation_id: [] }, { parent_span_id: 7 }]) {
+    assert.throws(() => validateEvent({ ...span, ...patch }));
+  }
+});
+
+Deno.test("Event отвергает explicit undefined у optional document_id", () => {
+  assert.equal(validateEvent(event).document_id, undefined);
+  assert.throws(() => validateEvent({ ...event, document_id: undefined }));
+});

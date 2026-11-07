@@ -170,6 +170,7 @@ Deno.test("summary operations preserve separate clocks and unavailable self time
     ["monotonic_process", 12],
     ["process_cpu", 5],
   ]);
+  assert(parsed.operations[0]);
   assert.equal(parsed.operations[0].selfMicroseconds, null);
   for (
     const change of [

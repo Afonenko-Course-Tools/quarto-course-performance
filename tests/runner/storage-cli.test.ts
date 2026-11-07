@@ -1,3 +1,5 @@
+import { validateRunRecord } from "../../src/report/types.ts";
+import { parseObject, string } from "../../src/json.ts";
 import { denoCache, quarto as nativeQuarto } from "../runtime.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
@@ -31,6 +33,7 @@ async function onlyRun(root: string) {
   const dirs = [];
   for await (const e of Deno.readDir(root)) if (e.isDirectory) dirs.push(e.name);
   assert.equal(dirs.length, 1);
+  assert(dirs[0]);
   return join(root, dirs[0]);
 }
 Deno.test("off CLI preserves two separators, force-clean logs and report without adding no-clean", async () => {
@@ -49,7 +52,7 @@ Deno.test("off CLI preserves two separators, force-clean logs and report without
       "render\n--output-dir\n_site\n--\n--help\n",
     );
     assert.equal(await Deno.readTextFile(join(dir, "stderr.log")), "stderr-evidence\n");
-    const r = JSON.parse(await Deno.readTextFile(join(dir, "run.json")));
+    const r = validateRunRecord(parseObject(await Deno.readTextFile(join(dir, "run.json"))));
     assert.equal(r.outcome.code, 7);
     assert.equal(r.request.mode, "off");
     assert.equal(r.schema_version, 2);
@@ -130,7 +133,10 @@ Deno.test("git provenance precedes output creation and allows dirty and non-git 
       ]);
       assert.equal(out.code, 0, decoder.decode(out.stderr));
       const dir = await onlyRun(join(root, dirty ? "second" : "first"));
-      assert.equal(JSON.parse(await Deno.readTextFile(join(dir, "run.json"))).git.dirty, dirty);
+      assert.equal(
+        validateRunRecord(parseObject(await Deno.readTextFile(join(dir, "run.json")))).git?.dirty,
+        dirty,
+      );
     }
     await assert.rejects(() => Deno.stat(join(root, ".gitignore")), Deno.errors.NotFound);
   } finally {
@@ -206,7 +212,7 @@ Deno.test("CLI saves available evidence then re-raises original external signals
             await Deno.readTextFile(join(dir, "stdout.log")),
             "evidence-before-signal\n",
           );
-          const r = JSON.parse(await Deno.readTextFile(join(dir, "run.json")));
+          const r = validateRunRecord(parseObject(await Deno.readTextFile(join(dir, "run.json"))));
           assert.equal(r.outcome.signal, "SIGKILL");
           assert.equal(r.outcome.escalated, true);
           await Deno.stat(join(dir, "report.md"));
@@ -248,9 +254,10 @@ Deno.test("prior default run history does not make unchanged sources dirty", asy
       assert.equal(out.code, 0, decoder.decode(out.stderr));
     }
     for await (const e of Deno.readDir(join(root, ".quarto/course-perf/runs"))) {
-      const r = JSON.parse(
+      const r = validateRunRecord(parseObject(
         await Deno.readTextFile(join(root, ".quarto/course-perf/runs", e.name, "run.json")),
-      );
+      ));
+      assert(r.git);
       assert.equal(r.git.dirty, false);
     }
     await assert.rejects(() => Deno.stat(join(root, ".gitignore")), Deno.errors.NotFound);
@@ -285,7 +292,8 @@ Deno.test("custom output history is excluded without hiding source files beside 
       assert.equal(out.code, 0, decoder.decode(out.stderr));
       const dir = decoder.decode(out.stderr).match(/Отчёт Performance: (.+)/)?.[1];
       assert(dir);
-      const r = JSON.parse(await Deno.readTextFile(join(dir, "run.json")));
+      const r = validateRunRecord(parseObject(await Deno.readTextFile(join(dir, "run.json"))));
+      assert(r.git);
       assert.equal(r.git.dirty, i === 2);
     }
   } finally {
@@ -316,8 +324,9 @@ Deno.test("foreign target provenance describes rendered sources rather than invo
     const out = await run(caller, quarto, [root]);
     assert.equal(out.code, 0, decoder.decode(out.stderr));
     const dir = await onlyRun(join(root, ".quarto/course-perf/runs"));
-    const r = JSON.parse(await Deno.readTextFile(join(dir, "run.json")));
+    const r = validateRunRecord(parseObject(await Deno.readTextFile(join(dir, "run.json"))));
     assert.equal(r.git?.root, root);
+    assert(r.git);
     assert.equal(r.git.dirty, false);
     assert.equal(r.request.cwd, caller);
   } finally {
@@ -371,7 +380,7 @@ Deno.test("mixed TTY rejected sink retains native exit and mandatory report or p
             stages.push(stage);
             dir = stage;
           } else dir = await onlyRun(parent);
-          const r = JSON.parse(await Deno.readTextFile(join(dir, "run.json")));
+          const r = validateRunRecord(parseObject(await Deno.readTextFile(join(dir, "run.json"))));
           assert.equal(r.outcome.code, code);
           assert.equal(r.dataValid, false);
           assert(r.quality.errors.some((s: string) => s.includes("mixed downstream closed")));
@@ -386,9 +395,10 @@ Deno.test("mixed TTY rejected sink retains native exit and mandatory report or p
             unlink,
           );
           assert(
-            JSON.parse(await Deno.readTextFile(join(dir, "performance-error.json"))).error.includes(
-              "mixed downstream closed",
-            ),
+            string(parseObject(await Deno.readTextFile(join(dir, "performance-error.json"))).error)
+              .includes(
+                "mixed downstream closed",
+              ),
           );
         }
       }
@@ -442,7 +452,7 @@ Deno.test("sink failure and failed finalization preserve original external signa
         const stage = message.match(/staging сохранён: ([^: \n]+)/)?.[1];
         assert(stage, message);
         stages.push(stage);
-        const r = JSON.parse(await Deno.readTextFile(join(stage, "run.json")));
+        const r = validateRunRecord(parseObject(await Deno.readTextFile(join(stage, "run.json"))));
         assert.equal(r.outcome.signal, "SIGKILL");
         assert(r.quality.errors.some((s: string) => s.includes("signal downstream closed")));
         await Deno.stat(join(stage, "report.md"));
@@ -481,7 +491,10 @@ Deno.test("unwritable diagnostic stderr preserves native payload and known exit 
       assert.equal(decoder.decode(out.stderr), "");
       const dir = await onlyRun(parent);
       await Deno.stat(join(dir, "report.md"));
-      assert.equal(JSON.parse(await Deno.readTextFile(join(dir, "run.json"))).outcome.code, code);
+      assert.equal(
+        validateRunRecord(parseObject(await Deno.readTextFile(join(dir, "run.json")))).outcome.code,
+        code,
+      );
       await Deno.stat(join(dir, "performance-error.json"));
     }
     const blocked = join(root, "blocked-parent");
@@ -513,9 +526,11 @@ Deno.test("diagnostic receipt does not follow an existing symlink after failed f
     const quarto = await fixture(root, "exit 7");
     const source = `import {main} from ${
       JSON.stringify(new URL("../../src/cli.ts", import.meta.url).href)
-    };const write=Deno.writeTextFile;Deno.writeTextFile=async(path,data,options)=>{if(String(path).endsWith('/run.json')){const record=JSON.parse(data);await Deno.symlink(${
+    };import {parseObject,string} from ${
+      JSON.stringify(new URL("../../src/json.ts", import.meta.url).href)
+    };const write=Deno.writeTextFile;Deno.writeTextFile=async(path,data,options)=>{if(String(path).endsWith('/run.json')){const record=parseObject(string(data));await Deno.symlink(${
       JSON.stringify(keep)
-    },record.collectionDirectory+'/performance-error.json');}return await write(path,data,options);};Deno.exit(await main(['render']));`;
+    },string(record.collectionDirectory)+'/performance-error.json');}return await write(path,data,options);};Deno.exit(await main(['render']));`;
     const out = await new Deno.Command(Deno.execPath(), {
       args: ["eval", source],
       cwd: root,
@@ -544,7 +559,9 @@ Deno.test("CLI keeps native zero and seven and reports complete final after part
       const quarto = await fixture(root, `echo native-payload\nexit ${code}`);
       const source = `import {main} from ${
         JSON.stringify(new URL("../../src/cli.ts", import.meta.url).href)
-      };const write=Deno.writeTextFile;Deno.writeTextFile=async(path,data,options)=>{if(String(path).endsWith('/run.json')){const record=JSON.parse(data),stage=record.collectionDirectory;await write(${
+      };import {parseObject,string} from ${
+        JSON.stringify(new URL("../../src/json.ts", import.meta.url).href)
+      };const write=Deno.writeTextFile;Deno.writeTextFile=async(path,data,options)=>{if(String(path).endsWith('/run.json')){const record=parseObject(string(data)),stage=string(record.collectionDirectory);await write(${
         JSON.stringify(stageReceipt)
       },stage);await Deno.mkdir(stage+'/protected');await write(stage+'/protected/raw.jsonl','raw');await Deno.chmod(stage+'/protected',0o500);}return await write(path,data,options);};Deno.exit(await main(['render','--perf-output',${
         JSON.stringify(parent)
@@ -569,7 +586,11 @@ Deno.test("CLI keeps native zero and seven and reports complete final after part
       ) await Deno.stat(join(final, file));
       assert(message.includes("не удалось полностью очистить остаток staging"), message);
       assert(message.includes(stage), message);
-      assert.equal(JSON.parse(await Deno.readTextFile(join(final, "run.json"))).outcome.code, code);
+      assert.equal(
+        validateRunRecord(parseObject(await Deno.readTextFile(join(final, "run.json")))).outcome
+          .code,
+        code,
+      );
     }
   } finally {
     for (const stage of stages) {

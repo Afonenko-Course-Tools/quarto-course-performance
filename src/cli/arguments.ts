@@ -17,15 +17,17 @@ export function parseCommand(argv: readonly string[]): Command {
   let mode: SimpleMode = "off", outputParent: string | undefined;
   const seen = new Set<string>();
   let n = 0;
-  while (n < args.length && args[n].startsWith("--perf-")) {
-    const equal = args[n].indexOf("=");
-    const flag = equal < 0 ? args[n] : args[n].slice(0, equal);
+  while (true) {
+    const arg = args[n];
+    if (!arg?.startsWith("--perf-")) break;
+    const equal = arg.indexOf("=");
+    const flag = equal < 0 ? arg : arg.slice(0, equal);
     if (flag !== "--perf-mode" && flag !== "--perf-output") {
       throw new Error(`Неизвестный параметр ${flag}`);
     }
     if (seen.has(flag)) throw new Error(`Повторный параметр ${flag}`);
     seen.add(flag);
-    const value = equal < 0 ? args[++n] : args[n].slice(equal + 1);
+    const value = equal < 0 ? args[++n] : arg.slice(equal + 1);
     if (!value || value.startsWith("--")) throw new Error(`Необходимо значение ${flag}`);
     if (flag === "--perf-mode") {
       if (value === "trace") {

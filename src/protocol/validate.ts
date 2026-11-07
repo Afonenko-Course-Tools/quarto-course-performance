@@ -1,43 +1,51 @@
+import { number, object, oneOf, string } from "../json.ts";
 import type { Event } from "./types.ts";
-export function validateEvent(value: unknown): Event {
-  if (!value || typeof value !== "object") throw new Error("Event должен быть объектом");
-  const e = value as Event;
-  if (e.schema_version !== 1 || !Number.isInteger(e.sequence) || e.sequence < 1) {
+
+function assertEvent(value: unknown): asserts value is Event {
+  const e = object(value, "Event");
+  if (e.schema_version !== 1 || !Number.isInteger(e.sequence) || number(e.sequence) < 1) {
     throw new Error("Некорректная версия или sequence");
   }
   for (const key of ["experiment_id", "run_id", "process_id", "executor_id"] as const) {
     if (typeof e[key] !== "string" || !e[key]) throw new Error(`Отсутствует ${key}`);
   }
-  if (
-    !["begin", "end", "counter", "quality"].includes(e.event) ||
-    !["phase", "function", "ast_walk", "io", "command"].includes(e.kind) ||
-    !["manual", "auto", "runtime"].includes(e.origin) ||
-    !["monotonic_process", "process_cpu", "none"].includes(e.clock_domain)
-  ) throw new Error("Неизвестный Event или clock domain");
-  if (e.document_id !== undefined && (typeof e.document_id !== "string" || !e.document_id)) {
+  oneOf(e.event, ["begin", "end", "counter", "quality"], "event");
+  oneOf(e.kind, ["phase", "function", "ast_walk", "io", "command"], "kind");
+  oneOf(e.origin, ["manual", "auto", "runtime"], "origin");
+  oneOf(e.clock_domain, ["monotonic_process", "process_cpu", "none"], "clock_domain");
+  for (const key of ["span_id", "parent_span_id", "operation_id", "symbol_id"] as const) {
+    if (key in e) string(e[key], key);
+  }
+  if ("document_id" in e && (typeof e.document_id !== "string" || !e.document_id)) {
     throw new Error("Некорректный document_id");
   }
-  if (
-    e.attributes !== undefined &&
-    (!e.attributes || typeof e.attributes !== "object" || Array.isArray(e.attributes) ||
-      Object.values(e.attributes).some((value) =>
-        value !== null && typeof value !== "string" && typeof value !== "boolean" &&
-        !(typeof value === "number" && Number.isFinite(value))
-      ))
-  ) throw new Error("Некорректные attributes");
-  if (e.event === "begin" || e.event === "end") {
-    if (
-      !e.span_id || !e.operation_id || !Number.isFinite(e.timestamp_us) || e.timestamp_us! < 0 ||
-      e.clock_domain === "none"
-    ) throw new Error("Некорректный span");
-    if (e.event === "end" && !["ok", "error", "aborted"].includes(e.status!)) {
-      throw new Error("End без status");
+  if ("attributes" in e) {
+    for (const value of Object.values(object(e.attributes, "attributes"))) {
+      if (value !== null && typeof value !== "string" && typeof value !== "boolean") {
+        number(value, "attributes");
+      }
     }
   }
-  if (
-    e.event === "counter" &&
-    (!e.counter || typeof e.counter.name !== "string" || !Number.isFinite(e.counter.value) ||
-      e.counter.value < 0 || !["observed-exact", "partial"].includes(e.counter.quality))
-  ) throw new Error("Counter должен быть наблюдаемым приращением");
-  return e;
+  if ("timestamp_us" in e) number(e.timestamp_us, "timestamp_us");
+  if ("status" in e) oneOf(e.status, ["ok", "error", "aborted"], "status");
+  if (e.event === "begin" || e.event === "end") {
+    if (
+      typeof e.span_id !== "string" || !e.span_id ||
+      typeof e.operation_id !== "string" || !e.operation_id ||
+      typeof e.timestamp_us !== "number" || e.timestamp_us < 0 || e.clock_domain === "none"
+    ) throw new Error("Некорректный span");
+    if (e.event === "end" && e.status === undefined) throw new Error("End без status");
+  }
+  if (e.event === "counter" || "counter" in e) {
+    const counter = object(e.counter, "counter");
+    string(counter.name, "counter.name");
+    if (number(counter.value, "counter.value") < 0) {
+      throw new Error("Counter должен быть наблюдаемым приращением");
+    }
+    oneOf(counter.quality, ["observed-exact", "partial"], "counter.quality");
+  }
+}
+export function validateEvent(value: unknown): Event {
+  assertEvent(value);
+  return value;
 }

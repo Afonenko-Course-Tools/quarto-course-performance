@@ -1,5 +1,6 @@
+import { number, numberMap, object, parseObject, string, strings } from "../json.ts";
 import { join } from "node:path";
-import { observePackages, type PackageCoverage } from "../runner/package-coverage.ts";
+import { observePackages, validatePackageCoverage } from "../runner/package-coverage.ts";
 import { files } from "../sources/snapshot.ts";
 import type { Event } from "../protocol/types.ts";
 import { validateEvent } from "../protocol/validate.ts";
@@ -44,7 +45,9 @@ export function validatedIntervals(run: NormalizedRun): ValidatedInterval[] {
     if (rows.length !== 2) continue;
     // Порядок хранения журналов не задаёт порядок границ; sequence принадлежит executor.
     const [begin, end] = [...rows].sort((a, b) => a.sequence - b.sequence);
-    if (begin.event !== "begin" || end.event !== "end" || end.status === "aborted") continue;
+    if (
+      !begin || !end || begin.event !== "begin" || end.event !== "end" || end.status === "aborted"
+    ) continue;
     if (
       ["experiment_id", "run_id", "process_id", "executor_id", "operation_id", "clock_domain"].some(
         (key) => begin[key as keyof Event] !== end[key as keyof Event],
@@ -88,18 +91,20 @@ export async function normalizeRun(
   let runId = options.identity?.runId ?? "";
   let experimentId = options.identity?.experimentId ?? "";
   try {
-    const identity = JSON.parse(await Deno.readTextFile(join(directory, "mode.json")));
+    const identity = parseObject(await Deno.readTextFile(join(directory, "mode.json")));
     if (options.identity && (identity.runId !== runId || identity.experimentId !== experimentId)) {
       quality.errors.push("Mode receipt расходится с identity metadata");
     } else {
-      runId = identity.runId ?? runId;
-      experimentId = identity.experimentId ?? experimentId;
+      runId = identity.runId === undefined ? runId : string(identity.runId);
+      experimentId = identity.experimentId === undefined
+        ? experimentId
+        : string(identity.experimentId);
     }
   } catch { /* Старые fixture не имеют receipt. */ }
   let expectations: DiagnosticExpectations | undefined;
   try {
     expectations = validateDiagnosticExpectations(
-      JSON.parse(await Deno.readTextFile(join(directory, "expectations.json"))),
+      parseObject(await Deno.readTextFile(join(directory, "expectations.json"))),
     );
   } catch (e) {
     if (!(e instanceof Deno.errors.NotFound)) quality.errors.push(`Expectations: ${String(e)}`);
@@ -108,19 +113,23 @@ export async function normalizeRun(
   try {
     for await (const entry of Deno.readDir(join(directory, "processes"))) {
       if (!entry.isFile || !entry.name.endsWith(".json")) continue;
-      const process = JSON.parse(await Deno.readTextFile(join(directory, "processes", entry.name)));
+      const process = parseObject(
+        await Deno.readTextFile(join(directory, "processes", entry.name)),
+      );
       processes.push(process);
       if (process.expectation) {
         const receipt = validateDiagnosticExpectations({
           schema_version: 2,
           processes: [process.expectation],
         });
+        const expected = receipt.processes[0];
+        if (!expected) throw new Error("Нет ожидаемого process receipt");
         expectations ??= { schema_version: 2, processes: [] };
         const old = expectations.processes.findIndex((p) =>
-          p.process_id === process.expectation.process_id && p.agent === process.expectation.agent
+          p.process_id === expected.process_id && p.agent === expected.agent
         );
-        if (old >= 0) expectations.processes[old] = receipt.processes[0];
-        else expectations.processes.push(receipt.processes[0]);
+        if (old >= 0) expectations.processes[old] = expected;
+        else expectations.processes.push(expected);
       }
     }
   } catch (e) {
@@ -141,26 +150,35 @@ export async function normalizeRun(
   for (const path of entries) {
     if (path.endsWith(".started.json")) {
       try {
-        const receipt = JSON.parse(await Deno.readTextFile(path));
+        const receipt = parseObject(await Deno.readTextFile(path));
         if (
           receipt.schema_version !== 1 || typeof receipt.process_id !== "string" ||
           !receipt.process_id || typeof receipt.executor_id !== "string" || !receipt.executor_id ||
-          !["ts", "lua"].includes(receipt.agent) || receipt.executed !== true
+          receipt.agent !== "ts" && receipt.agent !== "lua" || receipt.executed !== true
         ) throw new Error("Некорректный executor started receipt");
-        started.push({ ...receipt, path });
+        started.push({
+          path,
+          process_id: receipt.process_id,
+          executor_id: receipt.executor_id,
+          agent: receipt.agent,
+        });
       } catch (e) {
         quality.errors.push(`Started ${path}: ${String(e)}`);
       }
     } else if (path.endsWith(".summary.json")) {
       try {
-        const s = JSON.parse(await Deno.readTextFile(path));
+        const s = parseObject(await Deno.readTextFile(path));
         if (
-          s.schema_version !== 1 || !s.run_id || !s.experiment_id || !s.process_id ||
-          !s.executor_id ||
-          !["monotonic_process", "process_cpu"].includes(s.clock_domain) ||
-          !Number.isSafeInteger(s.dropped_events) || s.dropped_events < 0 ||
-          !Number.isSafeInteger(s.incomplete_spans) || s.incomplete_spans < 0 ||
-          !s.counters || Object.values(s.counters).some((n) =>
+          s.schema_version !== 1 || typeof s.run_id !== "string" || !s.run_id ||
+          typeof s.experiment_id !== "string" || !s.experiment_id ||
+          typeof s.process_id !== "string" || !s.process_id ||
+          typeof s.executor_id !== "string" || !s.executor_id ||
+          !["monotonic_process", "process_cpu"].includes(string(s.clock_domain)) ||
+          typeof s.dropped_events !== "number" || !Number.isSafeInteger(s.dropped_events) ||
+          s.dropped_events < 0 ||
+          typeof s.incomplete_spans !== "number" || !Number.isSafeInteger(s.incomplete_spans) ||
+          s.incomplete_spans < 0 ||
+          !s.counters || Object.values(object(s.counters)).some((n) =>
             typeof n !== "number" || !Number.isFinite(n) || n < 0
           )
         ) {
@@ -178,7 +196,10 @@ export async function normalizeRun(
         summaryPaths.set(path, s);
         quality.droppedEvents += s.dropped_events ?? 0;
         quality.incompleteSpans += s.incomplete_spans ?? 0;
-        quality.errors.push(...s.errors ?? [], ...s.abi_failures ?? []);
+        quality.errors.push(
+          ...s.errors === undefined ? [] : strings(s.errors),
+          ...s.abi_failures === undefined ? [] : strings(s.abi_failures),
+        );
         if (!s.data_valid) {
           quality.errors.push(`Невалидный executor ${path}`);
         }
@@ -189,7 +210,7 @@ export async function normalizeRun(
     } else if (path.endsWith(".jsonl")) {
       for (const line of (await Deno.readTextFile(path)).split("\n").filter(Boolean)) {
         try {
-          const e = validateEvent(JSON.parse(line));
+          const e = validateEvent(parseObject(line));
           events.push(e);
           if (runId && e.run_id !== runId) throw new Error("Смешаны run_id");
           if (experimentId && e.experiment_id !== experimentId) {
@@ -262,7 +283,7 @@ export async function normalizeRun(
   }
   let coverageInput: Record<string, unknown> | undefined;
   try {
-    const c = JSON.parse(await Deno.readTextFile(join(directory, "coverage.json")));
+    const c = parseObject(await Deno.readTextFile(join(directory, "coverage.json")));
     if (!c || typeof c !== "object" || Array.isArray(c)) throw new Error("Некорректный coverage");
     coverageInput = c;
     quality.coverageComplete = c.complete === true;
@@ -270,7 +291,7 @@ export async function normalizeRun(
     if (!(e instanceof Deno.errors.NotFound)) quality.errors.push(`Coverage: ${String(e)}`);
   }
   try {
-    const invalid = JSON.parse(await Deno.readTextFile(join(directory, "invalidated.json")));
+    const invalid = parseObject(await Deno.readTextFile(join(directory, "invalidated.json")));
     quality.errors.push(`Измерение отозвано: ${invalid.reason}`);
   } catch (e) {
     if (!(e instanceof Deno.errors.NotFound)) quality.errors.push(`Invalidation: ${String(e)}`);
@@ -326,12 +347,12 @@ export async function normalizeRun(
       }
       if (expected.profile_path) {
         try {
-          const profile = JSON.parse(
+          const profile = parseObject(
             await Deno.readTextFile(join(directory, expected.profile_path)),
           );
           if (
             !Array.isArray(profile.nodes) || !Number.isFinite(profile.startTime) ||
-            !Number.isFinite(profile.endTime) || profile.endTime < profile.startTime
+            !Number.isFinite(profile.endTime) || number(profile.endTime) < number(profile.startTime)
           ) throw new Error("Некорректный CPU profile");
         } catch (e) {
           quality.errors.push(`CPU ${expected.process_id}: ${String(e)}`);
@@ -366,7 +387,7 @@ export async function normalizeRun(
     }
     // Только исторический импорт без v2 receipt использует прежнюю эвристику argv.
     if (expectations) continue;
-    const argv = Array.isArray(process.argv) ? process.argv as string[] : [];
+    const argv = Array.isArray(process.argv) ? strings(process.argv) : [];
     if (
       process.kind === "pandoc" && argv.some((a) =>
         a === "--lua-filter" || a.startsWith("--lua-filter=")
@@ -399,9 +420,8 @@ export async function normalizeRun(
     deltas.set(key, delta);
   }
   for (const delta of deltas.values()) {
-    const totals = executors[`${delta.process}/${delta.executor}`]?.counters as
-      | Record<string, number>
-      | undefined;
+    const rawTotals = executors[`${delta.process}/${delta.executor}`]?.counters;
+    const totals = rawTotals === undefined ? undefined : numberMap(rawTotals);
     // Отсутствие события/total не означает нулевое наблюдение. Два источника
     // сохраняются отдельно даже при потере журнала и никогда не складываются.
     if (totals && Object.hasOwn(totals, delta.name) && totals[delta.name] !== delta.value) {
@@ -423,7 +443,7 @@ export async function normalizeRun(
       ...coverageInput,
       complete: quality.coverageComplete,
       packageCoverage: observePackages(
-        coverageInput.packageCoverage as PackageCoverage | undefined,
+        validatePackageCoverage(coverageInput.packageCoverage),
         scoped,
         dataValid,
       ),

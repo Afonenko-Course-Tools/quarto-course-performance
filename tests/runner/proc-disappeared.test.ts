@@ -1,3 +1,4 @@
+import { object, parseObject, string } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 for (const stage of ["ownership", "live"]) {
@@ -18,15 +19,15 @@ for (const stage of ["ownership", "live"]) {
           stderr: "piped",
         }).output();
         assert(child.success, new TextDecoder().decode(child.stderr));
-        const result = JSON.parse(await Deno.readTextFile(join(root, "result.json")));
+        const result = parseObject(await Deno.readTextFile(join(root, "result.json")));
         assert(result.injected && result.thrown);
         if (kind === "esrch") {
           assert.equal(result.error, undefined, JSON.stringify(result));
-          assert.equal(result.outcome.code, 7);
-          assert.equal(result.outcome.signal, null);
+          assert.equal(object(result.outcome).code, 7);
+          assert.equal(object(result.outcome).signal, null);
           assert.equal(await Deno.readTextFile(join(root, "stdout.log")), "available");
         } else {assert.match(
-            result.error,
+            string(result.error),
             kind === "permission" ? /fixture proc permission/ : /Input\/output error/,
           );}
       } finally {

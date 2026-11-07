@@ -1,3 +1,4 @@
+import { array, object, parseJson, parseObject, string } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join, resolve } from "node:path";
 import { writeRunArtifacts } from "../../src/report/run.ts";
@@ -29,13 +30,14 @@ Deno.test("single off report is versioned, portable and does not invent diagnost
     const moved = join(root, "moved");
     await Deno.rename(dir, moved);
     const metadata = validateRunRecord(
-      JSON.parse(await Deno.readTextFile(join(moved, "run.json"))),
+      parseJson(await Deno.readTextFile(join(moved, "run.json"))),
     );
     assert.equal(metadata.collectionDirectory, dir);
     assert.equal(metadata.outputDirectory, "/final/test");
+    assert(metadata.preparation[0]);
     assert.equal(metadata.preparation[0].path, "/original/bootstrap");
     const summary = validateRunSummary(
-      JSON.parse(await Deno.readTextFile(join(moved, "summary.json"))),
+      parseJson(await Deno.readTextFile(join(moved, "summary.json"))),
     );
     assert.deepEqual(summary.operations, []);
     assert.deepEqual(summary.counters, []);
@@ -44,6 +46,7 @@ Deno.test("single off report is versioned, portable and does not invent diagnost
     const markdown = await Deno.readTextFile(join(moved, "report.md"));
     assert(markdown.includes("7"));
     for (const match of markdown.matchAll(/\]\(([^)]+)\)/g)) {
+      assert(match[1]);
       assert(!match[1].startsWith("/"));
       await Deno.stat(resolve(moved, match[1]));
     }
@@ -76,7 +79,7 @@ Deno.test("run summary retains event deltas and executor totals as separate obse
       }],
     });
     const summary = validateRunSummary(
-      JSON.parse(await Deno.readTextFile(join(root, "summary.json"))),
+      parseJson(await Deno.readTextFile(join(root, "summary.json"))),
     );
     assert.deepEqual(summary.counters.map((c) => [c.name, c.value, c.source, c.semantics]), [[
       "calls",
@@ -102,8 +105,12 @@ Deno.test("trace bundle and versioned export survive staging with relative exist
       ...pair("lua", 3, 7, { clock_domain: "process_cpu", executor_id: "lua" }),
     ]);
     r.runId = normalized.runId;
-    normalized.executors[`${normalized.events[0].process_id}/local`].calibration = undefined;
+    assert(normalized.events[0]);
+    const local = normalized.executors[`${normalized.events[0].process_id}/local`];
+    assert(local);
+    local.calibration = undefined;
     await Deno.mkdir(join(stage, "processes"));
+
     await Deno.writeTextFile(
       join(stage, "processes/p.json"),
       JSON.stringify({ process_id: normalized.events[0].process_id, parent_process_id: "root" }),
@@ -121,19 +128,20 @@ Deno.test("trace bundle and versioned export survive staging with relative exist
         bundle.luaCpu,
       ], ...bundle.localWall.map((x) => [x.fileName, x.trace])] as const
     ) {
-      assert.deepEqual(JSON.parse(await Deno.readTextFile(join(final, String(file)))), expected);
+      assert.deepEqual(parseJson(await Deno.readTextFile(join(final, String(file)))), expected);
     }
-    const sidecar = JSON.parse(await Deno.readTextFile(join(final, "export.json")));
+    const sidecar = parseObject(await Deno.readTextFile(join(final, "export.json")));
     assert.equal(sidecar.schema_version, 1);
     assert.equal(sidecar.format, "chrome-trace-event-json");
     assert.equal(sidecar.run_id, normalized.runId);
     assert.equal(sidecar.data_valid, true);
     assert.equal(sidecar.coverage_complete, false);
-    assert.equal(sidecar.files.length, 3);
-    assert(sidecar.files.some((f: { clock: string }) => f.clock === "local-wall"));
+    assert.equal(array(sidecar.files).length, 3);
+    assert(array(sidecar.files).some((f) => object(f).clock === "local-wall"));
     assert(
-      sidecar.executors.some((e: { process_id: string; executor_id: string }) =>
-        e.process_id === normalized.events[0].process_id && e.executor_id === "local"
+      array(sidecar.executors).some((e) =>
+        object(e).process_id === normalized.events[0]?.process_id &&
+        object(e).executor_id === "local"
       ),
     );
     const report = await Deno.readTextFile(join(final, "report.md"));
@@ -142,7 +150,7 @@ Deno.test("trace bundle and versioned export survive staging with relative exist
     assert.match(report, /Lua CPU/);
     assert.match(report, /run\.json: outcome\.peakRssKiB/);
     for (const link of report.matchAll(/\]\(([^)]+)\)/g)) {
-      await Deno.stat(resolve(final, decodeURI(link[1])));
+      await Deno.stat(resolve(final, decodeURI(string(link[1]))));
     }
     assert.equal(JSON.stringify(normalized), before);
     await assert.rejects(() => Deno.stat(join(final, "runs")), Deno.errors.NotFound);
@@ -169,7 +177,7 @@ Deno.test("report links only existing CPU profiles", async () => {
     assert(!report.includes("profiles/missing/cpu.cpuprofile"));
     assert(report.includes("profiles/with%20spaces/cpu.cpuprofile"));
     for (const link of report.matchAll(/\]\(([^)]+)\)/g)) {
-      await Deno.stat(resolve(root, decodeURI(link[1])));
+      await Deno.stat(resolve(root, decodeURI(string(link[1]))));
     }
   } finally {
     await Deno.remove(root, { recursive: true });
@@ -203,13 +211,13 @@ Deno.test("common builder writes corrected clocks relationships and preserved qu
           expected.luaCpu,
         ], ...expected.localWall.map((l) => [l.fileName, l.trace])] as const
       ) {
-        assert.deepEqual(JSON.parse(await Deno.readTextFile(join(dir, String(file)))), trace);
+        assert.deepEqual(parseJson(await Deno.readTextFile(join(dir, String(file)))), trace);
       }
-      const sidecar = JSON.parse(await Deno.readTextFile(join(dir, "export.json")));
+      const sidecar = parseObject(await Deno.readTextFile(join(dir, "export.json")));
       assert.equal(sidecar.data_valid, input.dataValid);
       assert.deepEqual(sidecar.quality, input.quality);
       const summary = validateRunSummary(
-        JSON.parse(await Deno.readTextFile(join(dir, "summary.json"))),
+        parseJson(await Deno.readTextFile(join(dir, "summary.json"))),
       );
       assert.equal(summary.operations.length, input.events.length / 2);
       assert.equal(JSON.stringify(input.events), raw);
@@ -217,4 +225,15 @@ Deno.test("common builder writes corrected clocks relationships and preserved qu
   } finally {
     await Deno.remove(root, { recursive: true });
   }
+});
+
+Deno.test("RunRecord отвергает explicit undefined у optional outputParent", () => {
+  const input = record("/fixture");
+  assert.equal(validateRunRecord(input).request.outputParent, undefined);
+  assert.throws(() =>
+    validateRunRecord({
+      ...input,
+      request: { ...input.request, outputParent: undefined },
+    })
+  );
 });

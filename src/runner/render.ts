@@ -1,3 +1,4 @@
+import { parseObject } from "../json.ts";
 import { join, relative, resolve } from "node:path";
 import type {
   BuildOutcome,
@@ -11,7 +12,7 @@ import { finalizeRun, prepareRunStorage } from "./storage.ts";
 import { prepareRenderDiagnostic } from "./diagnostic.ts";
 import { type NormalizedRun, normalizeRun } from "../analysis/normalize.ts";
 import { jsonFiles } from "../report/run.ts";
-import type { PreparationReceipt } from "../config/types.ts";
+import { validatePreparationReceipt } from "../config/types.ts";
 import { validateTelemetryEnvironment } from "./environment.ts";
 
 export async function runNativeRender(
@@ -45,7 +46,7 @@ async function gitProvenance(cwd: string, outputParent?: string): Promise<GitPro
           const directory = join(parent, entry.name), rel = relative(gitRoot, directory);
           if (rel === ".." || rel.startsWith("../")) continue;
           try {
-            const previous = JSON.parse(await Deno.readTextFile(join(directory, "run.json")));
+            const previous = parseObject(await Deno.readTextFile(join(directory, "run.json")));
             if (
               previous.schema_version === 2 && previous.runId === entry.name &&
               previous.outputDirectory === directory
@@ -82,6 +83,7 @@ function diagnostic(message: string): unknown | undefined {
   } catch (error) {
     return error;
   }
+  return undefined;
 }
 export async function renderCommand(request: NativeRenderRequest): Promise<number> {
   const conflicts = validateTelemetryEnvironment(Deno.env.toObject());
@@ -154,10 +156,10 @@ export async function renderCommand(request: NativeRenderRequest): Promise<numbe
         try {
           normalized = await normalizeRun(paths.stagingDirectory);
           preparation.push(
-            ...await jsonFiles(
+            ...(await jsonFiles(
               join(paths.stagingDirectory, "preparation"),
               ".json",
-            ) as unknown as PreparationReceipt[],
+            )).map(validatePreparationReceipt),
           );
         } catch (error) {
           failure ??= error;

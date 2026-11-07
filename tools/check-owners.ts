@@ -1,3 +1,4 @@
+import { array, object, parseJson, string } from "../src/json.ts";
 import { join, relative } from "node:path";
 import { files } from "../src/sources/snapshot.ts";
 import { bridgeLanguages, syncBridge } from "./sync-bridge.ts";
@@ -45,9 +46,16 @@ for (
 ) {
   if (!extensions.has(extension)) throw new Error("Отсутствует owner: " + extension);
 }
-const registry = JSON.parse(
+const registry = array(parseJson(
   await Deno.readTextFile(new URL("../docs/operation-registry.json", import.meta.url)),
-) as { extension: string; path: string; operation: string }[];
+)).map((value) => {
+  const entry = object(value);
+  return {
+    extension: string(entry.extension),
+    path: string(entry.path),
+    operation: string(entry.operation),
+  };
+});
 const ids = new Set<string>();
 for (const entry of registry) {
   if (ids.has(entry.operation)) throw new Error("Повтор operation: " + entry.operation);

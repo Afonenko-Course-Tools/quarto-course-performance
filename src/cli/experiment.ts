@@ -1,7 +1,10 @@
+import { validatePackageCoverage } from "../runner/package-coverage.ts";
+import { validateRunRecord } from "../report/types.ts";
+import { oneOf, parseObject, string as oneOfPath } from "../json.ts";
 import { join, resolve } from "node:path";
 import { validateConfig } from "../config/validate.ts";
 import { resolveSources } from "../sources/resolve.ts";
-import { freezeVariants } from "../sources/freeze.ts";
+import { freezeVariants, validateFreezeInputs } from "../sources/freeze.ts";
 import { prepareVariant } from "../sources/prepare.ts";
 import { executablePath, probeQuarto } from "../adapters/quarto/capabilities.ts";
 import { executeScenario } from "../runner/execute.ts";
@@ -14,22 +17,20 @@ import {
   importHistoricalExperiment,
   writeExperimentReport,
 } from "../analysis/report.ts";
-import {
-  importSourceManifest,
-  liveSourceManifest,
-  type Mode,
-  type Variant,
-} from "../config/types.ts";
+import { importSourceManifest, liveSourceManifest, type Variant } from "../config/types.ts";
 function parseFlags(args: readonly string[]): Record<string, string> {
   const flags: Record<string, string> = {};
   for (let n = 0; n < args.length; n++) {
-    if (args[n] === "--import-historical") {
-      if (flags[args[n]]) throw new Error("Повтор --import-historical");
-      flags[args[n]] = "true";
+    const arg = args[n];
+    if (arg === undefined) break;
+    const next = args[n + 1];
+    if (arg === "--import-historical") {
+      if (flags[arg]) throw new Error("Повтор --import-historical");
+      flags[arg] = "true";
       continue;
     }
     if (
-      !args[n].startsWith("--") || !args[n + 1] || args[n + 1].startsWith("--") || flags[args[n]]
+      !arg.startsWith("--") || !next || next.startsWith("--") || flags[arg]
     ) {
       throw new Error("Некорректные/повторные CLI параметры");
     }
@@ -48,9 +49,9 @@ function parseFlags(args: readonly string[]): Record<string, string> {
         "--mode",
         "--variant",
         "--experiment",
-      ].includes(args[n])
+      ].includes(arg)
     ) throw new Error("Неизвестный CLI параметр");
-    flags[args[n]] = args[n + 1];
+    flags[arg] = next;
     n++;
   }
   return flags;
@@ -59,6 +60,7 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
   const [command, ...args] = argv;
   const flags = parseFlags(args);
   if (
+    !command ||
     !["sources", "freeze", "run", "benchmark", "report", "verify", "capabilities"].includes(command)
   ) throw new Error("Команды: sources, freeze, run, benchmark, report, verify, capabilities");
   if (
@@ -81,10 +83,11 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
   }
   const workspace = resolve(flags["--workspace"] ?? ".workspace/experiment");
   const historical = command === "report" || command === "verify";
-  if (!historical && !flags["--config"]) throw new Error("Необходим --config v2");
-  const config = historical
+  const configPath = flags["--config"];
+  if (!historical && !configPath) throw new Error("Необходим --config v2");
+  const config = historical || configPath === undefined
     ? undefined
-    : validateConfig(JSON.parse(await Deno.readTextFile(flags["--config"])));
+    : validateConfig(parseObject(await Deno.readTextFile(configPath)));
   const quarto = flags["--quarto"] ?? config?.runtime?.quarto ?? "quarto";
   function assertSelection(
     manifest: { projectSource: string; replacements: unknown; sources: { repository: string }[] },
@@ -98,8 +101,8 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
   }
   if (command === "freeze") {
     if (!flags["--inputs"]) throw new Error("Необходим --inputs");
-    const inputs = JSON.parse(await Deno.readTextFile(flags["--inputs"]));
-    assertSelection(liveSourceManifest(JSON.parse(await Deno.readTextFile(inputs.baseline))));
+    const inputs = validateFreezeInputs(parseObject(await Deno.readTextFile(flags["--inputs"])));
+    assertSelection(liveSourceManifest(parseObject(await Deno.readTextFile(inputs.baseline))));
     const manifests = await freezeVariants(
       inputs,
       workspace,
@@ -125,7 +128,7 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
   }
   const manifestFor = async (variant: Variant) => {
     const manifest = liveSourceManifest(
-      JSON.parse(await Deno.readTextFile(join(workspace, variant + ".manifest.json"))),
+      parseObject(await Deno.readTextFile(join(workspace, variant + ".manifest.json"))),
     );
     assertSelection(manifest);
     return manifest;
@@ -169,8 +172,8 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
         version: new TextDecoder().decode(hyperfine.stdout).trim(),
         hash: await hashFile(hyperfinePath),
       };
-      const a = await prepare(left as Variant),
-        b = await prepare(right as Variant),
+      const a = await prepare(oneOf(left, ["upstream", "clean-control", "candidate"])),
+        b = await prepare(oneOf(right, ["upstream", "clean-control", "candidate"])),
         seed = Number(flags["--seed"] ?? 42),
         pairs = Number(flags["--pairs"] ?? config.benchmark.pairs ?? 10);
       for (const prepared of [a, b]) prepared.manifest.runtime.hyperfine = hyperfineReceipt;
@@ -181,15 +184,15 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
           executeOptions: {
             outputRoot: runRoot,
             env,
-            cleanPaths: config.cleanPaths,
+            ...(config.cleanPaths === undefined ? {} : { cleanPaths: config.cleanPaths }),
             useHyperfine: true,
-            runtimeRegistry,
+            ...(runtimeRegistry === undefined ? {} : { runtimeRegistry }),
           },
           onProgress: async (progress) => {
             await Deno.writeTextFile(
               join(workspace, "benchmarks", scenario.id + ".partial.json"),
               JSON.stringify(
-                { scenario: scenario.id, left, right, ...progress as object },
+                { scenario: scenario.id, left, right, ...progress },
                 null,
                 2,
               ) + "\n",
@@ -210,8 +213,12 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
       console.log(JSON.stringify(result));
       return comparison.status === "PASS" ? 0 : 5;
     }
-    const mode = (flags["--mode"] ?? scenario.mode) as Mode,
-      variant = (flags["--variant"] ?? "candidate") as Variant;
+    const mode = oneOf(flags["--mode"] ?? scenario.mode, ["off", "summary", "cpu", "trace"]),
+      variant = oneOf(flags["--variant"] ?? "candidate", [
+        "upstream",
+        "clean-control",
+        "candidate",
+      ]);
     if (
       !["off", "summary", "cpu", "trace"].includes(mode) ||
       !["upstream", "clean-control", "candidate"].includes(variant)
@@ -228,22 +235,23 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
     const result = await executeScenario(actual, prepared, mode, {
       outputRoot: runRoot,
       env,
-      cleanPaths: config.cleanPaths,
-      preparation: diagnostic?.preparation,
-      diagnosticEnv: diagnostic?.env,
-      coverage: diagnostic?.coverage,
-      runtimeRegistry,
+      ...(config.cleanPaths === undefined ? {} : { cleanPaths: config.cleanPaths }),
+      ...(diagnostic === undefined ? {} : {
+        preparation: diagnostic.preparation,
+        diagnosticEnv: diagnostic.env,
+        coverage: diagnostic.coverage,
+      }),
+      ...(runtimeRegistry === undefined ? {} : { runtimeRegistry }),
     });
     if (diagnostic) {
-      const coverage = JSON.parse(
+      const coverage = parseObject(
         await Deno.readTextFile(join(result.outputDirectory, "coverage.json")),
       );
       const observations = Object.fromEntries(
         diagnostic.coverage.requestedExtensions.map((ext) => [
           ext,
-          coverage.packageCoverage?.observations?.some((
-              entry: { extensionId: string; attribution: string },
-            ) => entry.extensionId === ext && entry.attribution === "recorded"
+          validatePackageCoverage(coverage.packageCoverage)?.observations.some(
+              (entry) => entry.extensionId === ext && entry.attribution === "recorded",
             )
             ? "observed"
             : "unknown",
@@ -265,14 +273,14 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
     if (flags["--import-historical"]) {
       const report = await importHistoricalExperiment(
         workspace,
-        flags["--output"],
+        oneOfPath(flags["--output"]),
         flags["--experiment"],
       );
       console.log(`Отчёт: ${join(report.outputDirectory, "report.md")}`);
       return report.exitCode;
     }
     const manifest = importSourceManifest(
-      JSON.parse(await Deno.readTextFile(join(workspace, "candidate.manifest.json"))),
+      parseObject(await Deno.readTextFile(join(workspace, "candidate.manifest.json"))),
       true,
     );
     await assertWritableExperiment(manifest, workspace);
@@ -282,7 +290,7 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
           const dir = join(runRoot, item.name);
           let meta;
           try {
-            meta = JSON.parse(await Deno.readTextFile(join(dir, "run.json")));
+            meta = validateRunRecord(parseObject(await Deno.readTextFile(join(dir, "run.json"))));
           } catch (e) {
             if (e instanceof Deno.errors.NotFound) continue;
             throw e;
@@ -311,7 +319,9 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
       if (!item.isDirectory) continue;
       let meta;
       try {
-        meta = JSON.parse(await Deno.readTextFile(join(runRoot, item.name, "run.json")));
+        meta = validateRunRecord(
+          parseObject(await Deno.readTextFile(join(runRoot, item.name, "run.json"))),
+        );
       } catch (e) {
         if (e instanceof Deno.errors.NotFound) return 4;
         throw e;

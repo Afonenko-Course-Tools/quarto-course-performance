@@ -1,7 +1,8 @@
+import { array, string } from "../../json.ts";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { join } from "node:path";
 import type { Mode } from "../../config/types.ts";
-import type { Event, Metrics, OperationSpec, WalkSpec } from "../../protocol/types.ts";
+import type { Event, Metrics, OperationSpec } from "../../protocol/types.ts";
 export interface AgentConfig {
   experimentId: string;
   runId: string;
@@ -12,7 +13,7 @@ export interface AgentConfig {
   executorId?: string;
 }
 export function installTsAgent(config: AgentConfig) {
-  const registry = globalThis as unknown as Record<symbol, unknown>;
+  const registry = globalThis as Record<symbol, unknown>;
   const context = new AsyncLocalStorage<string>();
   const events: Event[] = [];
   const counters: Record<string, number> = {};
@@ -59,17 +60,22 @@ export function installTsAgent(config: AgentConfig) {
       errors.push(String(e));
     }
   }
+  function recordedContext(spec: OperationSpec): Pick<Event, "document_id" | "attributes"> {
+    return {
+      ...(spec.document_id === undefined ? {} : { document_id: spec.document_id }),
+      ...(spec.attributes === undefined ? {} : { attributes: { ...spec.attributes } }),
+    };
+  }
   function begin(spec: OperationSpec) {
     const id = `${config.processId}-${executorId}-${++serial}`;
     const parent = context.getStore() ?? Deno.env.get("COURSE_PERF_PARENT_SPAN_ID");
     counters[`calls.${spec.id}`] = (counters[`calls.${spec.id}`] ?? 0) + 1;
     if (spec.kind === "ast_walk") {
-      const key = `walk_api_calls.${(spec as WalkSpec).scope}`;
+      const key = `walk_api_calls.${"scope" in spec ? spec.scope : undefined}`;
       counters[key] = (counters[key] ?? 0) + 1;
       emit({
         event: "counter",
-        document_id: spec.document_id,
-        attributes: spec.attributes ? { ...spec.attributes } : undefined,
+        ...recordedContext(spec),
         kind: "ast_walk",
         origin: spec.origin ?? "manual",
         clock_domain: "none",
@@ -81,11 +87,10 @@ export function installTsAgent(config: AgentConfig) {
       event: "begin",
       kind: spec.kind,
       span_id: id,
-      parent_span_id: parent,
+      ...(parent === undefined ? {} : { parent_span_id: parent }),
       operation_id: spec.id,
-      symbol_id: spec.symbol_id,
-      document_id: spec.document_id,
-      attributes: spec.attributes ? { ...spec.attributes } : undefined,
+      ...(spec.symbol_id === undefined ? {} : { symbol_id: spec.symbol_id }),
+      ...recordedContext(spec),
       origin: spec.origin ?? "manual",
       clock_domain: "monotonic_process",
       timestamp_us: timestamp(),
@@ -99,8 +104,7 @@ export function installTsAgent(config: AgentConfig) {
       kind: spec.kind,
       span_id: id,
       operation_id: spec.id,
-      document_id: spec.document_id,
-      attributes: spec.attributes ? { ...spec.attributes } : undefined,
+      ...recordedContext(spec),
       origin: spec.origin ?? "manual",
       clock_domain: "monotonic_process",
       timestamp_us: timestamp(),
@@ -124,10 +128,11 @@ export function installTsAgent(config: AgentConfig) {
       }
     }
   }
-  // deno-lint-ignore no-explicit-any
-  type Fn = (...args: any[]) => any;
-  function wrapSync<T extends Fn>(spec: OperationSpec, fn: T): T {
-    return function (this: unknown, ...args: unknown[]) {
+  function wrapSync<This, Args extends unknown[], Result>(
+    spec: OperationSpec,
+    fn: (this: This, ...args: Args) => Result,
+  ): (this: This, ...args: Args) => Result {
+    return function (this: This, ...args: Args): Result {
       const id = safeBegin(spec);
       const call = () => {
         try {
@@ -140,23 +145,33 @@ export function installTsAgent(config: AgentConfig) {
         }
       };
       return id ? context.run(id, call) : call();
-    } as T;
+    };
   }
-  function wrapAsync<T extends Fn>(spec: OperationSpec, fn: T): T {
-    return function (this: unknown, ...args: unknown[]) {
+  function wrapAsync<This, Args extends unknown[], Result>(
+    spec: OperationSpec,
+    fn: (this: This, ...args: Args) => Promise<Result>,
+  ): (this: This, ...args: Args) => Promise<Result> {
+    return function (this: This, ...args: Args): Promise<Result> {
       const id = safeBegin(spec);
-      const call = async () => {
+      const call = (): Promise<Result> => {
         try {
-          const value = await fn.apply(this, args);
-          safeEnd(id, spec, "ok");
-          return value;
+          return fn.apply(this, args).then(
+            (value) => {
+              safeEnd(id, spec, "ok");
+              return value;
+            },
+            (error: unknown) => {
+              safeEnd(id, spec, "error");
+              throw error;
+            },
+          );
         } catch (error) {
           safeEnd(id, spec, "error");
           throw error;
         }
       };
       return id ? context.run(id, call) : call();
-    } as T;
+    };
   }
   const metrics: Metrics = {
     wrapSync,
@@ -182,7 +197,10 @@ export function installTsAgent(config: AgentConfig) {
     uncertainty_scope: "локальное чтение epoch; системный дрейф не ограничен",
   };
   function flush() {
-    const failures = (registry[Symbol.for("course.performance.failures.v1")] ?? []) as string[];
+    const rawFailures = registry[Symbol.for("course.performance.failures.v1")];
+    const failures = rawFailures === undefined
+      ? []
+      : array(rawFailures).map((failure) => string(failure));
     try {
       const dir = join(config.outputDirectory, "events", config.processId);
       Deno.mkdirSync(dir, { recursive: true });

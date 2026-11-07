@@ -1,3 +1,4 @@
+import { array, boolean, number, object, oneOf, string, strings } from "../json.ts";
 import { isAbsolute } from "node:path";
 import {
   type OutputPolicy,
@@ -19,14 +20,96 @@ export interface PerformanceConfig {
 }
 export function validateConfig(value: unknown): PerformanceConfig {
   if (!value || typeof value !== "object") throw new Error("Конфигурация должна быть объектом");
-  const c = value as PerformanceConfig;
-  if (
-    !Array.isArray(c.sources) || !Array.isArray(c.scenarios) || !c.sources.length ||
-    !c.scenarios.length
-  ) throw new Error("Отсутствуют sources/scenarios");
+  const c = object(value, "config");
   if (c.schema_version !== 2) throw new Error("Необходима конфигурация v2");
+  const sources: SourceRequest[] = array(c.sources, "sources").map((value) => {
+    const source = object(value, "source");
+    const { ref, ...sourceFields } = source;
+    return {
+      ...sourceFields,
+      repository: string(source.repository, "source.repository"),
+      refPolicy: oneOf(source.refPolicy, ["remote-default-head", "explicit-remote-ref"]),
+      ...(ref === undefined ? {} : { ref: string(ref) }),
+    };
+  });
+  const replacements: Replacement[] = array(c.replacements, "replacements").map((value) => {
+    const replacement = object(value, "replacement");
+    return {
+      ...replacement,
+      repository: string(replacement.repository),
+      extensionId: string(replacement.extensionId),
+      destinations: strings(replacement.destinations),
+    };
+  });
+  const scenarios: Scenario[] = array(c.scenarios, "scenarios").map((value) => {
+    const scenario = object(value, "scenario");
+    const scope = object(scenario.scope, "scope"),
+      resources = object(scenario.resources, "resources");
+    if ("project" in scenario || "courseProfile" in scenario) {
+      throw new Error("Недопустимый scenario");
+    }
+    return {
+      ...scenario,
+      id: string(scenario.id),
+      cwd: string(scenario.cwd),
+      executable: oneOf(scenario.executable, ["quarto"]),
+      args: strings(scenario.args),
+      mode: oneOf(scenario.mode, ["off", "summary", "cpu", "trace"]),
+      cachePolicy: oneOf(scenario.cachePolicy, ["clean-output", "repeat-render"]),
+      scope: {
+        ...scope,
+        modules: strings(scope.modules),
+        extensions: strings(scope.extensions),
+        strict: boolean(scope.strict),
+      },
+      resources: {
+        ...resources,
+        wall: boolean(resources.wall),
+        cpu: boolean(resources.cpu),
+        peakRss: boolean(resources.peakRss),
+      },
+    };
+  });
+  const { benchmark: benchmarkValue, cleanPaths, runtime, outputPolicy, ...fields } = c;
+  let checkedBenchmark: PerformanceConfig["benchmark"];
+  if (benchmarkValue !== undefined) {
+    const { pairs, ...benchmarkFields } = object(benchmarkValue, "benchmark");
+    checkedBenchmark = {
+      ...benchmarkFields,
+      maxSlowdownRatio: number(benchmarkFields.maxSlowdownRatio),
+      ...(pairs === undefined ? {} : { pairs: number(pairs) }),
+    };
+  }
+  let checkedRuntime: PerformanceConfig["runtime"];
+  if (runtime !== undefined) {
+    const { quarto, ...runtimeFields } = object(runtime, "runtime");
+    checkedRuntime = {
+      ...runtimeFields,
+      ...(quarto === undefined ? {} : { quarto: string(quarto) }),
+    };
+  }
+  const checked: PerformanceConfig = {
+    ...fields,
+    schema_version: 2,
+    projectSource: string(c.projectSource),
+    sources,
+    replacements,
+    scenarios,
+    ...(outputPolicy === undefined
+      ? {}
+      : { outputPolicy: oneOf(outputPolicy, ["strict", "java-pilot-core-qrc-v1"]) }),
+    ...(checkedBenchmark === undefined ? {} : { benchmark: checkedBenchmark }),
+    ...(cleanPaths === undefined ? {} : { cleanPaths: strings(cleanPaths) }),
+    ...(checkedRuntime === undefined ? {} : { runtime: checkedRuntime }),
+  };
+  if (
+    !Array.isArray(checked.sources) || !Array.isArray(checked.scenarios) ||
+    !checked.sources.length ||
+    !checked.scenarios.length
+  ) throw new Error("Отсутствуют sources/scenarios");
+  if (checked.schema_version !== 2) throw new Error("Необходима конфигурация v2");
   const repos = new Set<string>();
-  for (const s of c.sources) {
+  for (const s of checked.sources) {
     if (!/^[\w.-]+\/[\w.-]+$/.test(s.repository) || repos.has(s.repository)) {
       throw new Error("Недопустимый repository");
     }
@@ -36,18 +119,20 @@ export function validateConfig(value: unknown): PerformanceConfig {
       s.refPolicy === "explicit-remote-ref" && !s.ref?.startsWith("refs/")
     ) throw new Error("Explicit ref отсутствует или некорректен");
   }
-  validateSourceSelection(c);
+  validateSourceSelection(checked);
   if (
-    c.outputPolicy !== undefined && !["strict", "java-pilot-core-qrc-v1"].includes(c.outputPolicy)
+    checked.outputPolicy !== undefined &&
+    !["strict", "java-pilot-core-qrc-v1"].includes(checked.outputPolicy)
   ) throw new Error("Недопустимая outputPolicy");
   if (
-    c.benchmark !== undefined &&
-    (!Number.isFinite(c.benchmark.maxSlowdownRatio) || c.benchmark.maxSlowdownRatio <= 0 ||
-      c.benchmark.pairs !== undefined &&
-        (!Number.isInteger(c.benchmark.pairs) || c.benchmark.pairs < 1))
+    checked.benchmark !== undefined &&
+    (!Number.isFinite(checked.benchmark.maxSlowdownRatio) ||
+      checked.benchmark.maxSlowdownRatio <= 0 ||
+      checked.benchmark.pairs !== undefined &&
+        (!Number.isInteger(checked.benchmark.pairs) || checked.benchmark.pairs < 1))
   ) throw new Error("Необходим явный benchmark maxSlowdownRatio и положительное pairs");
   const ids = new Set<string>();
-  for (const s of c.scenarios) {
+  for (const s of checked.scenarios) {
     if (!/^[\w-]+$/.test(s.id) || ids.has(s.id)) {
       throw new Error("Повтор или некорректный scenario id");
     }
@@ -65,8 +150,10 @@ export function validateConfig(value: unknown): PerformanceConfig {
     ) throw new Error("Недопустимый scenario");
   }
   return {
-    ...c,
-    outputPolicy: c.outputPolicy ?? "strict",
-    ...(c.benchmark ? { benchmark: { ...c.benchmark, pairs: c.benchmark.pairs ?? 10 } } : {}),
+    ...checked,
+    outputPolicy: checked.outputPolicy ?? "strict",
+    ...(checked.benchmark
+      ? { benchmark: { ...checked.benchmark, pairs: checked.benchmark.pairs ?? 10 } }
+      : {}),
   };
 }

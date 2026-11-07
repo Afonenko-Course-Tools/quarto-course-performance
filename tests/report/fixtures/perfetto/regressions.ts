@@ -1,3 +1,4 @@
+import { strict as assert } from "node:assert";
 import { pair, run } from "./control.ts";
 
 // Контрольные регрессии независимого ревью; не измерения курса.
@@ -14,7 +15,11 @@ export function regressionRuns() {
     ...pair("wall", 0, 10),
     ...pair("cpu", 1, 9, { clock_domain: "process_cpu" }),
   ]);
-  mixedClocks.executors[`${mixedClocks.events[0].process_id}/ts`].calibration = {
+  const mixedFirst = mixedClocks.events[0];
+  assert(mixedFirst);
+  const mixedExecutor = mixedClocks.executors[`${mixedFirst.process_id}/ts`];
+  assert(mixedExecutor);
+  mixedExecutor.calibration = {
     time_origin_ms: 0,
   };
   mixedClocks.dataValid = false;
@@ -37,6 +42,10 @@ export function regressionRuns() {
     ...pair("parent", 0, 10),
     ...pair("child", 30, 40, { parent_span_id: "parent" }),
   ]);
-  localWall.executors[`${localWall.events[0].process_id}/ts`].calibration = undefined;
+  const localFirst = localWall.events[0];
+  assert(localFirst);
+  const localExecutor = localWall.executors[`${localFirst.process_id}/ts`];
+  assert(localExecutor);
+  localExecutor.calibration = undefined;
   return { equalStart, equalBounds, mixedClocks, cycle, leadingCycle, localCpu, localWall };
 }

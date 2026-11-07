@@ -7,9 +7,9 @@
 
 ## Подготовка зависимостей
 
-Перед `deno task check`, `deno task test` и `deno task perf` подготовьте обычные локальные каталоги
-`node_modules/typescript` и `node_modules/luaparse`. Версии `typescript@5.9.3` и `luaparse@0.3.1`
-закреплены в `deno.lock`; SHA-256 официальных архивов и полный блок загрузки/распаковки находятся в
+Перед `deno task check`, `deno task test` и `deno task perf` подготовьте обычный локальный каталог
+`node_modules/typescript`. Версия `typescript@5.9.3`
+закреплена в `deno.lock`; SHA-256 официального архива и полный блок загрузки/распаковки находятся в
 [Arch-инструкции](arch-package.md#подготовка-исходного-checkout-для-разработки-и-ci). CI выполняет
 эту подготовку до check/test.
 
@@ -30,8 +30,15 @@ deno task test
 deno task check:perfetto --trace-processor /absolute/path/to/trace_processor_shell
 ```
 
-`check` выполняет typecheck точек входа и проверяет форматирование `src`, `bridge`, `tools`,
-`tests`. `test` включает небольшие native fixtures, поэтому нужны доступные Deno/Quarto/Pandoc и
+`check:types` включает все собственные TypeScript-файлы `src`, `bridge`, `tools` и `tests`,
+включая отдельные preload/subprocess entrypoints, инструменты и fixtures. Включены `strict`,
+`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitReturns`,
+`noFallthroughCasesInSwitch`, `noImplicitOverride` и `useUnknownInCatchVariables`. `check` также
+проверяет запрет явного `any` и подавляющих TS-комментариев, форматирование этого состава,
+строгий LuaLS, Pyright и shellcheck. Для `check` нужны LuaLS 3.19.2, Pyright 1.1.414 и shellcheck;
+CI готовит их до запуска. [Общий Lua checker](lua-checker.md) использует реальные типы выбранного
+Quarto и отдельный отрицательный контроль. `check:lua`, `check:python` и `check:shell` позволяют
+проверять соответствующую часть отдельно. Собственная Lua-проверка явно подключает `typecheck/native.lua` как декларативное дополнение пробелов типов выбранного Quarto; это не исполняемый Lua-файл. Внешние владельцы передают собственные каталоги типов в общий checker, декларации Performance им автоматически не подключаются. `test` включает небольшие native fixtures, поэтому нужны доступные Deno/Quarto/Pandoc и
 зависимости соответствующих действий. `check:perfetto` импортирует контрольные трассы настоящим
 Trace Processor и проверяет интервалы, дорожки, идентичность и точные концы связей. Версии и
 контрольные суммы Perfetto приведены в [инструкции визуализации](visualization.md).
@@ -182,8 +189,8 @@ deno run -A tools/sync-bridge.ts --check \
 ```
 
 Print и Moodle используют TS-фасад, Cloud — Lua-фасад; остальные перечисленные пакеты — оба.
-`tools/instrument-owners.ts` служил однократной миграции исходной разметки. Уже размеченные
-источники он отклоняет. Новые операции добавляются у соответствующего владельца вместе с его
+Однократная миграция исходной разметки завершена; её генератор удалён из поддерживаемого состава.
+Новые операции добавляются у соответствующего владельца вместе с его
 проверками поведения; постоянные пакеты содержат фасады и ручную разметку. Общий runtime курса ради
 наблюдаемости не вводится.
 

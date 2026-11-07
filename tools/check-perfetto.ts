@@ -160,7 +160,9 @@ export async function checkPerfetto(binary: string, directory: string): Promise<
     1,
     0,
   ]);
-  await imported("local-wall-flow", traces(regression.localWall).localWall[0].trace, relationSql, [
+  const localWall = traces(regression.localWall).localWall[0];
+  assert(localWall);
+  await imported("local-wall-flow", localWall.trace, relationSql, [
     2,
     1,
     0,

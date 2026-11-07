@@ -50,7 +50,9 @@ Deno.test("installs_all_subproject_copies and records identical owner hashes", a
       ],
     }]);
     assert.equal(receipts.length, 1);
+    assert(receipts[0]);
     assert.equal(receipts[0].destinationPaths.length, 3);
+
     assert.match(receipts[0].packageHash, /^[0-9a-f]{64}$/);
     for (const dest of receipts[0].destinationPaths) {
       assert.equal(await Deno.readTextFile(join(dest, "filter.lua")), "return {}\n");
@@ -179,6 +181,8 @@ Deno.test("new package receipts and replacement copies exclude prior source meas
     );
     await Deno.writeTextFile(join(source, ".quarto/course-perf/old.json"), "new measurement");
     const second = await installPackages(course, owners, replacements);
+    assert(first[0]);
+    assert(second[0]);
     assert.equal(first[0].packageHash, second[0].packageHash);
   } finally {
     await Deno.remove(root, { recursive: true });

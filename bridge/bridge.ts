@@ -11,12 +11,19 @@ export interface WalkSpec extends OperationSpec {
   kind: "ast_walk";
   scope: "full-document" | "fragment" | "block" | "inline" | "unknown";
 }
-// deno-lint-ignore no-explicit-any
-type Fn = (...args: any[]) => any;
 export interface Metrics {
-  wrapSync<T extends Fn>(spec: OperationSpec, fn: T): T;
-  wrapAsync<T extends Fn>(spec: OperationSpec, fn: T): T;
-  wrapWalk<T extends Fn>(spec: WalkSpec, fn: T): T;
+  wrapSync<This, Args extends unknown[], Result>(
+    spec: OperationSpec,
+    fn: (this: This, ...args: Args) => Result,
+  ): (this: This, ...args: Args) => Result;
+  wrapAsync<This, Args extends unknown[], Result>(
+    spec: OperationSpec,
+    fn: (this: This, ...args: Args) => Promise<Result>,
+  ): (this: This, ...args: Args) => Promise<Result>;
+  wrapWalk<This, Args extends unknown[], Result>(
+    spec: WalkSpec,
+    fn: (this: This, ...args: Args) => Result,
+  ): (this: This, ...args: Args) => Result;
   childEnv(base: Record<string, string>): Record<string, string>;
 }
 const identity: Metrics = {
@@ -25,6 +32,13 @@ const identity: Metrics = {
   wrapWalk: (_spec, fn) => fn,
   childEnv: (base) => base,
 };
+function isMetrics(value: unknown): value is Metrics {
+  return value !== null && typeof value === "object" &&
+    "wrapSync" in value && typeof value.wrapSync === "function" &&
+    "wrapAsync" in value && typeof value.wrapAsync === "function" &&
+    "wrapWalk" in value && typeof value.wrapWalk === "function" &&
+    "childEnv" in value && typeof value.childEnv === "function";
+}
 export function createMetrics(extensionId: string, abiVersion: 1 = 1): Metrics {
   let mode: string | undefined;
   try {
@@ -33,12 +47,13 @@ export function createMetrics(extensionId: string, abiVersion: 1 = 1): Metrics {
     return identity;
   }
   if (!mode || mode === "off") return identity;
-  const registry = globalThis as unknown as Record<symbol, unknown>;
-  const agent = registry[Symbol.for("course.performance.agent.v1")] as {
-    abiVersion: number;
-    metrics: Metrics;
-  } | undefined;
-  if (agent?.abiVersion === abiVersion && agent.metrics) {
+  const registry = globalThis as Record<symbol, unknown>;
+  const agent = registry[Symbol.for("course.performance.agent.v1")];
+  if (
+    agent !== null && typeof agent === "object" &&
+    "abiVersion" in agent && agent.abiVersion === abiVersion &&
+    "metrics" in agent && isMetrics(agent.metrics)
+  ) {
     const metrics = agent.metrics;
     const bound = <T extends OperationSpec>(spec: T): T => ({
       ...spec,

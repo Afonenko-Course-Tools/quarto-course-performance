@@ -1,3 +1,4 @@
+import { array, object } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { regressionRuns } from "./fixtures/perfetto/regressions.ts";
 import { traces } from "../../src/report/perfetto.ts";
@@ -16,20 +17,36 @@ Deno.test("UUID mapping is numeric stable and preserves original context", () =>
   const b = pair("b", 1, 4, { process_id: "uuid-second", operation_id: "course-core.work" });
   const first = traces(run([...a, ...b])), second = traces(run([...b, ...a]));
   const slices = first.wall.traceEvents.filter((e) => e.ph === "X");
+  assert(slices[0]);
   assert.equal(typeof slices[0].pid, "number");
+
+  assert(slices[1]);
   assert.notEqual(slices[0].pid, slices[1].pid);
   assert.deepEqual(first, second);
+
+  assert(a[0]);
   assert.equal(slices[0].args.process_id, a[0].process_id);
+
   assert.equal(slices[0].args.executor_id, "ts");
+
   assert.equal(slices[0].args.span_id, "a");
+
   assert.equal(slices[0].args.parent_span_id, null);
+
   assert.equal(slices[0].args.document_id, "doc");
+
   assert.equal(slices[0].args.symbol_id, "sym");
+
   assert.equal(slices[0].args.origin, "manual");
+
   assert.equal(slices[0].args.status, "ok");
+
   assert.deepEqual(slices[0].args.source_attributes, a[0].attributes);
+
   assert.equal(slices[0].args.extension_attribution, "recorded");
+
   assert.equal(slices[1].args.extension_attribution, "derived");
+
   assert.equal(slices[1].args.document_id, null);
   assert(
     first.wall.traceEvents.some((e) =>
@@ -40,13 +57,19 @@ Deno.test("UUID mapping is numeric stable and preserves original context", () =>
 Deno.test("async siblings use separate logical lanes", () => {
   const bundle = traces(run([...pair("a", 0, 10), ...pair("b", 5, 15)]));
   const slices = bundle.wall.traceEvents.filter((e) => e.ph === "X");
+  assert(slices[0]);
+  assert(slices[1]);
   assert.notEqual(slices[0].tid, slices[1].tid);
 });
 Deno.test("confirmed nested children share lanes while equal-bound siblings do not", () => {
   const slices = traces(
     run([...pair("a", 0, 20), ...pair("b", 0, 20), ...pair("c", 5, 10, { parent_span_id: "a" })]),
   ).wall.traceEvents.filter((e) => e.ph === "X");
+  assert(slices[0]);
+  assert(slices[1]);
   assert.notEqual(slices[0].tid, slices[1].tid);
+
+  assert(slices[2]);
   assert.equal(slices[0].tid, slices[2].tid);
 });
 Deno.test("uncalibrated wall stays local", () => {
@@ -54,11 +77,16 @@ Deno.test("uncalibrated wall stays local", () => {
     const calibration of [undefined, {}, { time_origin_ms: NaN }, { time_origin_ms: Infinity }]
   ) {
     const input = run(pair("a", 1, 10));
-    input.executors[Object.keys(input.executors)[0]].calibration = calibration;
+    const executor = Object.values(input.executors)[0];
+    assert(executor);
+    if (calibration === undefined) delete executor.calibration;
+    else executor.calibration = calibration;
     const bundle = traces(input);
     assert.equal(bundle.localWall.length, 1);
+    assert(bundle.localWall[0]);
     assert.equal(bundle.localWall[0].fileName, "local-wall-001.trace.json");
     assert.equal(bundle.wall.traceEvents.filter((e) => e.ph === "X").length, 0);
+
     assert.equal(bundle.localWall[0].trace.traceEvents.find((e) => e.ph === "X")?.ts, 1);
   }
   const calibrated = traces(run(pair("zero", 2, 9), { time_origin_ms: 0, uncertainty_us: 7 }));
@@ -106,9 +134,13 @@ Deno.test("confirmed comparable parent has one logical flow", () => {
     ]));
     const links = bundle.wall.traceEvents.filter((e) => e.ph === "s" || e.ph === "f");
     assert.deepEqual(links.map((e) => e.ph), ["s", "f"]);
+    assert(links[0]);
+    assert(links[1]);
     assert.equal(links[0].id, links[1].id);
+
     assert.equal(typeof links[0].id, "number");
     assert.deepEqual(links.map((e) => e.ts), [0, 30]);
+
     assert.equal(links[0].args.relationship, "logical-parent");
   }
 });
@@ -147,6 +179,7 @@ Deno.test("unknown reversed cross-run and incomparable parents have no flows", (
     ...pair("parent", 0, 10),
     ...pair("child", 30, 40, { process_id: "remote", parent_span_id: "parent" }),
   ]);
+  assert(calibrated.executors["remote/ts"]);
   calibrated.executors["remote/ts"].calibration = { time_origin_ms: -1 };
   assert.equal(
     traces(calibrated).wall.traceEvents.filter((e) => e.ph === "s" || e.ph === "f").length,
@@ -154,15 +187,17 @@ Deno.test("unknown reversed cross-run and incomparable parents have no flows", (
   );
 });
 Deno.test("untimed counters and totals stay aggregates with independent quality and receipts", () => {
+  const counter = { ...pair("counter", 0, 1)[0] };
+  delete counter.timestamp_us;
   const input = run([...pair("ok", 0, 1), {
-    ...pair("counter", 0, 1)[0],
+    ...counter,
     event: "counter",
     executor_id: "counter",
     clock_domain: "none",
-    timestamp_us: undefined,
     counter: { name: "calls", value: 1, quality: "partial" },
   }]);
   input.dataValid = false;
+  assert(input.events[0]);
   const bundle = traces(input, [{
     process_id: input.events[0].process_id,
     parent_process_id: "parent",
@@ -173,8 +208,9 @@ Deno.test("untimed counters and totals stay aggregates with independent quality 
   assert.equal(slice.args.data_valid, false);
   assert.equal(slice.args.coverage_complete, false);
   const metadata = bundle.wall.traceEvents.find((e) => e.name === "process_name")!;
+  const receipt = object(array(metadata.args.receipts)[0]);
   assert.equal(
-    (metadata.args.receipts as Record<string, unknown>[])[0].parent_process_id,
+    receipt.parent_process_id,
     "parent",
   );
   assert(!bundle.wall.traceEvents.some((e) => e.ph === "s" || e.ph === "f"));
@@ -187,6 +223,7 @@ Deno.test("event storage order never changes validated slice mapping", () => {
 
 Deno.test("aborted-only runs and unmeasured process relationships remain metadata", () => {
   const events = pair("aborted", 1, 9);
+  assert(events[1]);
   events[1].status = "aborted";
   const input = run(events);
   input.dataValid = false;
@@ -207,10 +244,14 @@ Deno.test("equal-start parents keep exact anchors on unambiguous logical lanes",
   for (const input of [regressionRuns().equalStart, regressionRuns().equalBounds]) {
     const events = traces(input).wall.traceEvents;
     const slices = events.filter((e) => e.ph === "X");
+    assert(slices[0]);
+    assert(slices[1]);
     assert.notEqual(slices[0].tid, slices[1].tid);
     const links = events.filter((e) => e.ph === "s" || e.ph === "f");
     assert.deepEqual(links.map((e) => e.ts), [0, 0]);
+    assert(links[0]);
     assert.equal(links[0].tid, slices.find((e) => e.name === "parent")!.tid);
+    assert(links[1]);
     assert.equal(links[1].tid, slices.find((e) => e.name === "child")!.tid);
   }
 });
@@ -219,12 +260,15 @@ Deno.test("150000 correct pairs export without argument spread or historical lan
   input.events = [];
   for (let i = 0; i < 150000; i++) {
     const events = pair(`s${i}`, i * 2, i * 2 + 1);
+    assert(events[0]);
     events[0].sequence = i * 2 + 1;
+    assert(events[1]);
     events[1].sequence = i * 2 + 2;
     input.events.push(...events);
   }
   const slices = traces(input).wall.traceEvents.filter((e) => e.ph === "X");
   assert.equal(slices.length, 150000);
+  assert(slices[0]);
   assert.equal(slices[0].ts, 0);
   assert.equal(slices.at(-1)!.ts, 299998);
   assert.equal(new Set(slices.map((e) => e.tid)).size, 1);
@@ -236,7 +280,9 @@ Deno.test("invalid mixed-clock executor keeps pair clocks in separate files", ()
   ]);
   const cpu = bundle.luaCpu.traceEvents.filter((e) => e.ph === "X");
   assert.deepEqual(cpu.map((e) => e.name), ["cpu"]);
+  assert(cpu[0]);
   assert.equal(cpu[0].args.clock_alignment, "local-executor-only");
+
   assert.equal(cpu[0].args.data_valid, false);
   assert(!bundle.wall.traceEvents.some((e) => e.ph === "s" || e.ph === "f"));
 });
@@ -252,7 +298,9 @@ Deno.test("one local executor supports confirmed flows without cross-executor sy
   const inputs = regressionRuns();
   for (const input of [inputs.localCpu, inputs.localWall]) {
     const bundle = traces(input);
-    const trace = input === inputs.localCpu ? bundle.luaCpu : bundle.localWall[0].trace;
+    if (input === inputs.localWall) assert(bundle.localWall[0]);
+    const localWall = bundle.localWall[0];
+    const trace = input === inputs.localCpu ? bundle.luaCpu : (assert(localWall), localWall.trace);
     const links = trace.traceEvents.filter((e) => e.ph === "s" || e.ph === "f");
     assert.deepEqual(links.map((e) => e.ph), ["s", "f"]);
     assert.deepEqual(links.map((e) => e.ts), [0, 30]);
@@ -272,6 +320,7 @@ Deno.test("excluded span metadata is deterministic across all scales and storage
   );
   assert(metadata.length >= 3);
   for (const event of metadata) {
+    assert(metadata[0]);
     assert.deepEqual(event.args.excluded_spans, metadata[0].args.excluded_spans);
   }
 });

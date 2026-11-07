@@ -1,3 +1,4 @@
+import { array, number, object, parseJson, parseObject, string } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 import { runOwnedProcess } from "../../src/runner/process.ts";
@@ -176,7 +177,7 @@ Deno.test("redirected stdin and PTY interaction preserve terminal output journal
     );
     for (const terminal of [false, true]) {
       const argv = [Deno.execPath(), "run", "-A", entry];
-      const child = new Deno.Command(terminal ? "script" : argv[0], {
+      const child = new Deno.Command(terminal ? "script" : string(argv[0]), {
         args: terminal
           ? [
             "-qefc",
@@ -272,7 +273,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
       supervisor.kill(signal);
       const output = await supervisor.output();
       assert(output.success, new TextDecoder().decode(output.stderr));
-      const result = JSON.parse(await Deno.readTextFile(outcome));
+      const result = parseObject(await Deno.readTextFile(outcome));
       assert.equal(result.signal, signal);
       assert.equal(result.escalated, false);
       assert.equal(new TextDecoder().decode(output.stdout), "");
@@ -363,8 +364,10 @@ async function cleanupFixture(root: string, supervisor?: Deno.ChildProcess) {
   for await (const entry of Deno.readDir(root)) {
     if (!entry.name.endsWith(".ready")) continue;
     try {
-      const { group } = JSON.parse(await Deno.readTextFile(join(root, entry.name)));
-      if (Number.isSafeInteger(group) && group > 1) Deno.kill(-group, "SIGKILL");
+      const { group } = parseObject(await Deno.readTextFile(join(root, entry.name)));
+      if (typeof group === "number" && Number.isSafeInteger(group) && group > 1) {
+        Deno.kill(-group, "SIGKILL");
+      }
     } catch { /* Только собственные receipts fixture; group могла уже остановиться. */ }
   }
   try {
@@ -457,7 +460,7 @@ Deno.test("keyboard Ctrl-C is observed once and escalates a stubborn PTY child",
     await input.write(new Uint8Array([3]));
     input.releaseLock();
     await bounded(waitFor(outcome), 1500);
-    const result = JSON.parse(await Deno.readTextFile(outcome));
+    const result = parseObject(await Deno.readTextFile(outcome));
     assert.equal(result.escalated, true);
     assert.equal(result.signal, "SIGKILL");
     assert.equal(await Deno.readTextFile(signals), "I");
@@ -485,14 +488,8 @@ Deno.test("keyboard Ctrl-C is observed once and escalates a stubborn PTY child",
 Deno.test("readiness is atomically published after delayed write and validates positive integer PGID", async () => {
   const root = await Deno.makeTempDir();
   try {
-    const helper = await import("../../src/runner/resource-child.ts") as Record<string, unknown>;
-    const process = await import("../../src/runner/process.ts") as Record<string, unknown>;
-    const publish = helper.publishReceipt as (
-      path: string,
-      value: unknown,
-      write?: (path: string, data: string) => Promise<void>,
-    ) => Promise<void>;
-    const read = process.readOwnedGroup as (path: string) => Promise<number>;
+    const { publishReceipt: publish } = await import("../../src/runner/resource-child.ts");
+    const { readOwnedGroup: read } = await import("../../src/runner/process.ts");
     assert.equal(typeof publish, "function");
     assert.equal(typeof read, "function");
     const path = join(root, "ready");
@@ -573,7 +570,7 @@ Deno.test("invalid readiness stops only the proven owned descendants before repo
       await assert.rejects(() => Deno.stat(beat), Deno.errors.NotFound);
       for await (const entry of Deno.readDir(root)) {
         if (!entry.name.endsWith(".ready")) continue;
-        const { group } = JSON.parse(await Deno.readTextFile(join(root, entry.name)));
+        const { group } = parseObject(await Deno.readTextFile(join(root, entry.name)));
         await assert.rejects(
           () => Deno.stat(join(root, entry.name.replace(/\.ready$/, ".registered"))),
           Deno.errors.NotFound,
@@ -656,7 +653,9 @@ Deno.test("registered PTY group waits for orphan descendant after fast native ex
       for await (const entry of Deno.readDir(root)) {
         if (!entry.isFile) continue;
         materials[entry.name] = await Deno.readTextFile(join(root, entry.name));
-        if (entry.name.endsWith(".ready")) groups.add(JSON.parse(materials[entry.name]).group);
+        if (entry.name.endsWith(".ready")) {
+          groups.add(number(parseObject(string(materials[entry.name])).group));
+        }
       }
       const processes: string[] = [];
       for await (const entry of Deno.readDir("/proc")) {
@@ -678,7 +677,7 @@ Deno.test("registered PTY group waits for orphan descendant after fast native ex
       throw new Error(`${error}; snapshot=${path}`);
     }
     assert.equal(error, "");
-    const outcome = JSON.parse(await Deno.readTextFile(join(root, "outcome")));
+    const outcome = parseObject(await Deno.readTextFile(join(root, "outcome")));
     assert.equal(outcome.code, 7);
     assert.equal(outcome.signal, null);
     assert.equal(outcome.escalated, false);
@@ -726,7 +725,7 @@ Deno.test("registered PTY ownership remains available for cleanup after native p
         if (!entry.isFile || entry.name === "beat") continue;
         const text = await Deno.readTextFile(join(root, entry.name));
         snapshot[entry.name] = text;
-        if (entry.name.endsWith(".ready")) groups.add(JSON.parse(text).group);
+        if (entry.name.endsWith(".ready")) groups.add(number(parseObject(text).group));
       }
       const processes: string[] = [];
       for await (const entry of Deno.readDir("/proc")) {
@@ -842,7 +841,7 @@ Deno.test("external cancellation bounds stopped registered bootstrap before nati
       supervisor.kill("SIGTERM");
       const output = await bounded(completion, 2000);
       assert(output.success, new TextDecoder().decode(output.stderr));
-      const outcome = JSON.parse(await Deno.readTextFile(join(directory, "outcome")));
+      const outcome = parseObject(await Deno.readTextFile(join(directory, "outcome")));
       assert.equal(outcome.signal, "SIGKILL");
       assert.equal(outcome.escalated, true);
       await assert.rejects(() => Deno.stat(native), Deno.errors.NotFound);
@@ -852,15 +851,15 @@ Deno.test("external cancellation bounds stopped registered bootstrap before nati
       for await (const entry of Deno.readDir(directory)) {
         if (!entry.name.endsWith(".ready")) continue;
         groupsChecked++;
-        const { group } = JSON.parse(await Deno.readTextFile(join(directory, entry.name)));
+        const { group } = parseObject(await Deno.readTextFile(join(directory, entry.name)));
         const prefix = join(directory, entry.name.slice(0, -".ready".length));
-        assert.equal(JSON.parse(await Deno.readTextFile(prefix + ".cancel")).signal, "SIGTERM");
+        assert.equal(parseObject(await Deno.readTextFile(prefix + ".cancel")).signal, "SIGTERM");
         await assert.rejects(() => Deno.stat(prefix + ".native.started"), Deno.errors.NotFound);
         const trace = (await Deno.readTextFile(join(directory, "signal-trace"))).trim().split("\n")
-          .map((line) => JSON.parse(line));
-        assert(trace.every((call) => call.pid === -group));
+          .map((line) => parseJson(line));
+        assert(trace.every((call) => object(call).pid === -number(group)));
         assert.deepEqual(
-          trace.filter((call) => call.signal !== 0).map((call) => call.signal),
+          trace.filter((call) => object(call).signal !== 0).map((call) => object(call).signal),
           held ? ["SIGKILL"] : ["SIGTERM", "SIGKILL"],
         );
         for await (const process of Deno.readDir("/proc")) {
@@ -967,15 +966,15 @@ Deno.test("a stale proc directory snapshot cannot hide a new live member of the 
       }).spawn();
       const output = await bounded(outer.output());
       assert(output.success, new TextDecoder().decode(output.stderr));
-      const flight = JSON.parse(await Deno.readTextFile(join(root, "flight.json")));
+      const flight = parseObject(await Deno.readTextFile(join(root, "flight.json")));
       assert.equal(flight.kernelExists, true);
       assert(
-        flight.processes.some((p: { state: string; presentInSnapshot: boolean }) =>
+        array(flight.processes).map((p) => object(p)).some((p) =>
           p.state !== "Z" && !p.presentInSnapshot
         ),
       );
-      const result = JSON.parse(await Deno.readTextFile(join(root, "result.json")));
-      assert.equal(result.outcome.code, 7);
+      const result = parseObject(await Deno.readTextFile(join(root, "result.json")));
+      assert.equal(object(result.outcome).code, 7);
       assert.equal(result.injectedSnapshots, mode === "double-empty" ? 2 : 1);
       const evidenceDirectory = Deno.env.get("PERF_TEST_EVIDENCE_DIRECTORY");
       if (evidenceDirectory) {
@@ -1024,11 +1023,12 @@ Deno.test("zombie-only group returns while a real live member beside a zombie st
         return outcome;
       });
       await waitFor(join(root, "state.json"));
-      const state = JSON.parse(await Deno.readTextFile(join(root, "state.json")));
-      holder = state.holder;
+      const state = parseObject(await Deno.readTextFile(join(root, "state.json")));
+      holder = number(state.holder);
       const fields = async (pid: number) =>
-        (await Deno.readTextFile(`/proc/${pid}/stat`)).split(") ")[1].split(" ");
-      const zombie = await fields(state.zombie), holderStat = await fields(state.holder);
+        (await Deno.readTextFile(`/proc/${pid}/stat`)).split(") ")[1]?.split(" ") ?? [];
+      const zombie = await fields(number(state.zombie)),
+        holderStat = await fields(number(state.holder));
       assert.equal(zombie[0], "Z");
       assert.equal(Number(zombie[2]), state.group);
       assert.equal(Number(zombie[3]), state.session);
@@ -1037,14 +1037,14 @@ Deno.test("zombie-only group returns while a real live member beside a zombie st
       assert.notEqual(state.holderGroup, state.group);
       if (withLive) {
         await waitFor(join(root, "live-ready"));
-        const live = await fields(state.live);
+        const live = await fields(number(state.live));
         assert.notEqual(live[0], "Z");
         assert.equal(Number(live[2]), state.group);
         await Deno.writeTextFile(join(root, "finish-live"), "");
       }
       const result = await bounded(running) as { code: number };
       assert.equal(result.code, 7);
-      Deno.kill(-state.group, 0); // The unreaped zombie is still visible to the kernel.
+      Deno.kill(-number(state.group), 0); // The unreaped zombie is still visible to the kernel.
       const evidenceDirectory = Deno.env.get("PERF_TEST_EVIDENCE_DIRECTORY");
       if (evidenceDirectory) {
         await Deno.mkdir(evidenceDirectory, { recursive: true });
@@ -1055,7 +1055,7 @@ Deno.test("zombie-only group returns while a real live member beside a zombie st
       }
       if (withLive) assert.equal(doneAtReturn, true);
       else {assert.notEqual(
-          (await fields(state.holder))[0],
+          (await fields(number(state.holder)))[0],
           "Z",
           "unreaped zombies must not wait for a live holder in another process group",
         );}
@@ -1100,17 +1100,17 @@ Deno.test("known registered group survives a stale error-path proc snapshot unti
       throw new Error(`${error}; snapshot=${path}`);
     });
     assert(output.success, new TextDecoder().decode(output.stderr));
-    const flight = JSON.parse(await Deno.readTextFile(join(root, "flight.json")));
+    const flight = parseObject(await Deno.readTextFile(join(root, "flight.json")));
     assert(flight.kernelExists);
     assert(
-      flight.processes.some((p: { state: string; presentInSnapshot: boolean }) =>
+      array(flight.processes).map((p) => object(p)).some((p) =>
         p.state !== "Z" && !p.presentInSnapshot
       ),
     );
-    const result = JSON.parse(await Deno.readTextFile(join(root, "result.json")));
-    assert.equal(result.outcome.code, 7);
-    assert.equal(result.outcome.escalated, true);
-    assert.match(result.error, /stale error-path downstream/);
+    const result = parseObject(await Deno.readTextFile(join(root, "result.json")));
+    assert.equal(object(result.outcome).code, 7);
+    assert.equal(object(result.outcome).escalated, true);
+    assert.match(string(result.error), /stale error-path downstream/);
     for await (const entry of Deno.readDir("/proc")) {
       if (!/^\d+$/.test(entry.name)) continue;
       try {

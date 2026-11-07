@@ -1,3 +1,5 @@
+import { type ExperimentRunRecord, validateSignal } from "../report/types.ts";
+import { array, number, object, parseObject } from "../json.ts";
 import { appDenoArgs, assetPath } from "../assets.ts";
 import { join, relative, resolve } from "node:path";
 import type {
@@ -149,40 +151,49 @@ export async function executeScenario(
     peak_rss_kib: number | null;
   } = { cpu_user_seconds: null, cpu_system_seconds: null, peak_rss_kib: null };
   if (options.useHyperfine) {
-    const raw = JSON.parse(await Deno.readTextFile(join(outputDirectory, "hyperfine.json")));
+    const raw = parseObject(await Deno.readTextFile(join(outputDirectory, "hyperfine.json")));
     if (
-      raw.schema_version !== 2 || raw.results.length !== 1 ||
-      raw.results[0].measurements.length !== 1
+      raw.schema_version !== 2 || array(raw.results).length !== 1 ||
+      array(object(array(raw.results)[0]).measurements).length !== 1
     ) throw new Error("Неподдержанный формат Hyperfine");
-    const measurement = raw.results[0].measurements[0];
+    const measurement = object(array(object(array(raw.results)[0]).measurements)[0]);
+    const wall = object(measurement.time_wall_clock);
     if (
-      measurement.time_wall_clock?.unit !== "second" ||
-      !Number.isFinite(measurement.time_wall_clock.value) ||
+      wall.unit !== "second" ||
+      !Number.isFinite(wall.value) ||
       !Number.isInteger(measurement.exit_code)
     ) throw new Error("Невалидное измерение Hyperfine");
-    wallSeconds = measurement.time_wall_clock.value;
-    buildExitCode = measurement.exit_code;
+    wallSeconds = number(wall.value);
+    buildExitCode = number(measurement.exit_code);
     resources = {
-      cpu_user_seconds: measurement.time_user?.value ?? null,
-      cpu_system_seconds: measurement.time_system?.value ?? null,
-      peak_rss_kib: measurement.memory_peak_resident?.unit === "byte"
-        ? measurement.memory_peak_resident.value / 1024
+      cpu_user_seconds: measurement.time_user === undefined
+        ? null
+        : number(object(measurement.time_user).value),
+      cpu_system_seconds: measurement.time_system === undefined
+        ? null
+        : number(object(measurement.time_system).value),
+      peak_rss_kib: measurement.memory_peak_resident !== undefined &&
+          object(measurement.memory_peak_resident).unit === "byte"
+        ? number(object(measurement.memory_peak_resident).value) / 1024
         : null,
     };
   } else if (useTime) {
-    const status = JSON.parse(await Deno.readTextFile(statusPath));
+    const status = parseObject(await Deno.readTextFile(statusPath));
     if (
       !Number.isInteger(status.code) || !Number.isFinite(status.toolWallSeconds) ||
       (status.signal !== null && typeof status.signal !== "string")
     ) {
       throw new Error("Невалидный native child status");
     }
-    buildExitCode = status.code;
-    signal = status.signal;
-    wallSeconds = status.toolWallSeconds;
+    buildExitCode = number(status.code);
+    signal = validateSignal(status.signal);
+    wallSeconds = number(status.toolWallSeconds);
     const line = (await Deno.readTextFile(resourcesPath)).trim().split("\n").at(-1)!;
     const [user, system, rss] = line.split(" ").map(Number);
-    if ([user, system, rss].every(Number.isFinite)) {
+    if (
+      user !== undefined && system !== undefined && rss !== undefined &&
+      [user, system, rss].every(Number.isFinite)
+    ) {
       resources = { cpu_user_seconds: user, cpu_system_seconds: system, peak_rss_kib: rss };
     }
   }
@@ -202,7 +213,7 @@ export async function executeScenario(
     wallSeconds,
     signal,
   };
-  await writeRunArtifacts(outputDirectory, {
+  const record: ExperimentRunRecord = {
     schema_version: 2,
     ...result,
     request: {
@@ -247,6 +258,7 @@ export async function executeScenario(
         ? "tool-and-resource-supervisor"
         : "unavailable",
     },
-  }, normalized);
+  };
+  await writeRunArtifacts(outputDirectory, record, normalized);
   return result;
 }

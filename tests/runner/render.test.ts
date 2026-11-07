@@ -1,3 +1,4 @@
+import { parseObject } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 
@@ -31,7 +32,7 @@ Deno.test("native render preserves argv cwd functional env and existing outputs"
       stderr: "piped",
     }).output();
     assert(output.success, new TextDecoder().decode(output.stderr));
-    const result = JSON.parse(await Deno.readTextFile(join(root, "result")));
+    const result = parseObject(await Deno.readTextFile(join(root, "result")));
     assert.equal(new TextDecoder().decode(output.stdout), "render\nfile space.qmd\n--\n--help\n");
     assert.equal(new TextDecoder().decode(output.stderr), `${root}\nstudent\n`);
     assert.equal(result.code, 7);
@@ -45,4 +46,16 @@ Deno.test("native render preserves argv cwd functional env and existing outputs"
   } finally {
     await Deno.remove(root, { recursive: true });
   }
+});
+
+Deno.test("preparation receipt сохраняет дополнительные metadata", async () => {
+  const { validatePreparationReceipt } = await import("../../src/config/types.ts");
+  const input = {
+    kind: "bootstrap",
+    path: "/fixture/bootstrap",
+    sourceHash: "a",
+    preparedHash: "b",
+    extra: { owner: "preparation" },
+  };
+  assert.deepEqual(validatePreparationReceipt(input), input);
 });
