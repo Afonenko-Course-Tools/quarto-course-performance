@@ -1,3 +1,4 @@
+import { parseObject } from "../json.ts";
 // Помощник GNU time и протокол собственной Linux group.
 export async function publishReceipt(
   path: string,
@@ -11,7 +12,7 @@ export async function publishReceipt(
 
 export function readCancellation(path: string): Deno.Signal | undefined {
   try {
-    const value = JSON.parse(Deno.readTextFileSync(path));
+    const value = parseObject(Deno.readTextFileSync(path));
     if (value.signal !== "SIGINT" && value.signal !== "SIGTERM") {
       throw new Error("Некорректный cancellation receipt");
     }

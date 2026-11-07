@@ -1,3 +1,5 @@
+import { validateRunRecord } from "../../src/report/types.ts";
+import { object, parseObject } from "../../src/json.ts";
 import { quarto as nativeQuarto } from "../runtime.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
@@ -97,8 +99,8 @@ Deno.test("experiment capabilities needs no Compiler API or npm cache", async ()
     ["experiment", "capabilities"],
     (_root, out) => {
       assert(out.success, decode(out.stderr));
-      const capabilities = JSON.parse(decode(out.stdout));
-      assert(capabilities.runtime.quarto.version);
+      const capabilities = parseObject(decode(out.stdout));
+      assert(object(object(capabilities.runtime).quarto).version);
     },
     { QUARTO: nativeQuarto },
   );
@@ -111,9 +113,11 @@ Deno.test("render off loads the real native path without experiment configuratio
       assert.equal(decode(out.stdout), "<render>\n<file space.qmd>\n");
       const directory = decode(out.stderr).match(/Отчёт Performance: (.+)/)?.[1];
       assert(directory);
-      const record = JSON.parse(await Deno.readTextFile(join(directory, "run.json")));
+      const record = validateRunRecord(
+        parseObject(await Deno.readTextFile(join(directory, "run.json"))),
+      );
       assert.equal(record.schema_version, 2);
-      assert.equal(record.outcome.code, 7);
+      assert.equal(object(record.outcome).code, 7);
       const message = decode(out.stderr);
       assert.match(message, /Performance: wall=\d+\.\d{3}s; CPU user=/);
       assert.match(message, /CPU system=.*peak RSS=.*KiB; status=7; data=VALID/);

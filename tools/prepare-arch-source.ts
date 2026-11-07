@@ -1,3 +1,4 @@
+import { parseObject, string } from "../src/json.ts";
 import { isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { hashFile } from "../src/sources/snapshot.ts";
@@ -13,8 +14,8 @@ export async function prepareArchSource(commit: string, output: string) {
     if (!result.success) throw new Error(new TextDecoder().decode(result.stderr));
     return result.stdout;
   };
-  const config = JSON.parse(new TextDecoder().decode(await git(["show", `${commit}:deno.json`])));
-  if (!/^\d+\.\d+\.\d+$/.test(config.version)) throw new Error("Некорректная версия");
+  const config = parseObject(new TextDecoder().decode(await git(["show", `${commit}:deno.json`])));
+  if (!/^\d+\.\d+\.\d+$/.test(string(config.version))) throw new Error("Некорректная версия");
   await Deno.mkdir(output); // Никогда не заменяет существующую сборку.
   const archive = join(output, `quarto-course-perf-${config.version}.tar.gz`);
   await git([
@@ -46,5 +47,5 @@ if (import.meta.main) {
   if (Deno.args.length !== 4 || Deno.args[0] !== "--commit" || Deno.args[2] !== "--output") {
     throw new Error("prepare-arch-source.ts --commit <полный SHA> --output /новый/каталог");
   }
-  await prepareArchSource(Deno.args[1], resolve(Deno.args[3]));
+  await prepareArchSource(string(Deno.args[1]), resolve(string(Deno.args[3])));
 }

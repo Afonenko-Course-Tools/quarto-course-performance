@@ -42,8 +42,10 @@ Deno.test("candidate preparation refuses dirty or mismatched frozen checkout", a
     await Deno.writeTextFile(join(root, "file"), "changed");
     await assert.rejects(() => verifySources(m), /изменён|dirty/i);
     await git(["checkout", "--", "file"]);
+    const source = m.sources[0];
+    assert(source);
     await assert.rejects(
-      () => verifySources({ ...m, sources: [{ ...m.sources[0], sha: "a".repeat(40) }] }),
+      () => verifySources({ ...m, sources: [{ ...source, sha: "a".repeat(40) }] }),
       /SHA/i,
     );
   } finally {
@@ -192,4 +194,31 @@ Deno.test("historical source manifest import is read only and never accepted by 
   assert.equal(JSON.stringify(legacy), bytes);
   assert.throws(() => liveSourceManifest(legacy), /v2/);
   await assert.rejects(() => prepareVariant(legacy as never, "candidate", "/never-mutate"), /v2/);
+});
+
+Deno.test("source manifest сохраняет дополнительные metadata replacement", async () => {
+  const { importSourceManifest } = await import("../../src/config/types.ts");
+  const input = {
+    schema_version: 2,
+    projectSource: "org/Other",
+    experimentId: "e",
+    sources: [{
+      repository: "org/Other",
+      sourceKind: "github-baseline",
+      remoteRef: "refs/heads/main",
+      sha: "a".repeat(40),
+      fetchedAt: "2026-11-07",
+      checkoutPath: "/fixture",
+      extra: { owner: "source" },
+    }],
+    packages: [],
+    runtime: {},
+    replacements: [{
+      repository: "org/Other",
+      extensionId: "owner",
+      destinations: ["_extensions/owner"],
+      extra: { owner: "replacement" },
+    }],
+  };
+  assert.deepEqual(importSourceManifest(input), input);
 });

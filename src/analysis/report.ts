@@ -1,9 +1,10 @@
+import { array, number, object, parseJson, parseObject } from "../json.ts";
 import { join } from "node:path";
 import type { ReportSourceManifest } from "../config/types.ts";
 import type { NormalizedRun } from "./normalize.ts";
 
 import { jsonFiles, operationTotals, writeRunArtifacts } from "../report/run.ts";
-import type { RunRecord } from "../report/types.ts";
+import { validateRunRecord } from "../report/types.ts";
 import { prepareHistoricalImport } from "./historical.ts";
 export { operationTotals } from "../report/run.ts";
 
@@ -37,8 +38,12 @@ export async function assertWritableExperiment(
     new Error("Исторические metadata доступны read-only; in-place report/verify не поддерживается");
   if (manifest.schema_version !== 2) throw historical();
   try {
-    const aggregate = JSON.parse(await Deno.readTextFile(join(output, "summary.json")));
-    if (!aggregate || aggregate.schema_version !== 2 || !Array.isArray(aggregate.runs)) {
+    const aggregate = parseJson(await Deno.readTextFile(join(output, "summary.json")));
+    if (
+      aggregate === null || typeof aggregate !== "object" || Array.isArray(aggregate) ||
+      !("schema_version" in aggregate) || aggregate.schema_version !== 2 ||
+      !("runs" in aggregate) || !Array.isArray(aggregate.runs)
+    ) {
       throw historical();
     }
   } catch (error) {
@@ -48,7 +53,7 @@ export async function assertWritableExperiment(
     for await (const item of Deno.readDir(join(output, "runs"))) {
       if (!item.isDirectory) continue;
       try {
-        const metadata = JSON.parse(
+        const metadata = parseObject(
           await Deno.readTextFile(join(output, "runs", item.name, "run.json")),
         );
         if (!metadata || metadata.schema_version !== 2) throw historical();
@@ -101,7 +106,7 @@ async function writeExperimentArtifacts(
       if (!item.isDirectory) continue;
       const dir = join(output, "runs", item.name);
       try {
-        const metadata = JSON.parse(await Deno.readTextFile(join(dir, "run.json")));
+        const metadata = parseObject(await Deno.readTextFile(join(dir, "run.json")));
         if (!metadata || metadata.schema_version !== 2) {
           throw new Error(
             "Исторические metadata доступны read-only; in-place report/verify не поддерживается",
@@ -115,7 +120,7 @@ async function writeExperimentArtifacts(
       try {
         coverage.push({
           run_id: item.name,
-          ...JSON.parse(await Deno.readTextFile(join(dir, "coverage.json"))),
+          ...parseObject(await Deno.readTextFile(join(dir, "coverage.json"))),
         });
       } catch (e) {
         if (!(e instanceof Deno.errors.NotFound)) throw e;
@@ -135,19 +140,19 @@ async function writeExperimentArtifacts(
     if (!build || build.schema_version !== 2) {
       throw new Error(`Отсутствуют текущие metadata запуска: ${run.runId}`);
     }
-    const record = {
+    const record = validateRunRecord({
       ...build,
       dataValid: run.dataValid,
       quality: run.quality,
-    } as unknown as RunRecord;
+    });
     await writeRunArtifacts(path, record, run);
     // Lazy normalization обновляет quality/coverage во время итерации runs.
     // Агрегаты получают тот же итоговый record, что сохранён per-run writer.
-    builds[builds.indexOf(build)] = JSON.parse(await Deno.readTextFile(join(path, "run.json")));
+    builds[builds.indexOf(build)] = parseObject(await Deno.readTextFile(join(path, "run.json")));
     try {
       const current = {
         run_id: run.runId,
-        ...JSON.parse(await Deno.readTextFile(join(path, "coverage.json"))),
+        ...parseObject(await Deno.readTextFile(join(path, "coverage.json"))),
       };
       const index = coverage.findIndex((item) => item.run_id === run.runId);
       if (index < 0) coverage.push(current);
@@ -214,17 +219,14 @@ async function writeExperimentArtifacts(
     "| Сценарий | Контроль / candidate | Пар | Порог ratio | Median ratio | 95% CI | Статус |",
     "| --- | --- | ---: | ---: | ---: | --- | --- |",
     ...benchmarks.filter((b) => b.complete === true).map((b) => {
-      const c = b.comparison as {
-        pairs: number;
-        maxSlowdownRatio?: number;
-        medianRatio: number;
-        interval95: number[];
-        status: string;
-      };
-      return `| [${b.scenario}](benchmarks/${b.file_name}) | ${b.left} / ${b.right} | ${c.pairs} | ${
-        c.maxSlowdownRatio?.toFixed(5) ?? "не сохранён"
-      } | ${c.medianRatio.toFixed(5)} | ${
-        c.interval95.map((n) => n.toFixed(5)).join("–")
+      const c = object(b.comparison, "comparison");
+      const pairs = number(c.pairs), medianRatio = number(c.medianRatio);
+      const interval = array(c.interval95).map((value) => number(value));
+      const threshold = c.maxSlowdownRatio === undefined ? undefined : number(c.maxSlowdownRatio);
+      return `| [${b.scenario}](benchmarks/${b.file_name}) | ${b.left} / ${b.right} | ${pairs} | ${
+        threshold?.toFixed(5) ?? "не сохранён"
+      } | ${medianRatio.toFixed(5)} | ${
+        interval.map((n) => n.toFixed(5)).join("–")
       } | ${c.status} |`;
     }),
     "",

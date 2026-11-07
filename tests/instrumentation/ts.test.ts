@@ -1,7 +1,12 @@
+import { number, object } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { instrumentModule } from "../../src/instrumentation/ts/transform.ts";
 import { join } from "node:path";
 const bridge = new URL("../../bridge/bridge.ts", import.meta.url).href;
+function invoke(exported: unknown, receiver: unknown, args: unknown[]): unknown {
+  assert(typeof exported === "function");
+  return Reflect.apply(exported, receiver, args);
+}
 Deno.test("automatic function trace preserves hoisting, recursion, this, args, async and error identity", async () => {
   const root = await Deno.makeTempDir();
   const source = `export const before=f(2); export function f(n:number):number{return n?f(n-1)+1:0;}
@@ -14,15 +19,22 @@ export function main(){return import.meta.main;}`;
     const out = instrumentModule(source, "fixture.ts", { strict: true, bridgeUrl: bridge });
     await Deno.writeTextFile(join(root, "original.ts"), source);
     await Deno.writeTextFile(join(root, "changed.ts"), out.source);
-    const original = await import("file://" + join(root, "original.ts")),
-      changed = await import("file://" + join(root, "changed.ts"));
+    const originalModule: unknown = await import("file://" + join(root, "original.ts")),
+      changedModule: unknown = await import("file://" + join(root, "changed.ts"));
+    const original = object(originalModule), changed = object(changedModule);
     assert.equal(changed.before, 2);
-    assert.equal(changed.f(4), original.f(4));
-    assert.equal(await changed.a(), 4);
-    assert.equal(changed.method.call({ x: 3 }, 2), 5);
-    assert.equal(changed.closure(), 2);
-    assert.throws(changed.bad, (e: unknown) => e === changed.err);
-    assert.equal(changed.main(), false);
+    assert.equal(
+      number(invoke(changed.f, undefined, [4])),
+      number(invoke(original.f, undefined, [4])),
+    );
+    const pending = invoke(changed.a, undefined, []);
+    assert(pending instanceof Promise);
+    const asyncResult: unknown = await pending;
+    assert.equal(asyncResult, 4);
+    assert.equal(number(invoke(changed.method, { x: 3 }, [2])), 5);
+    assert.equal(number(invoke(changed.closure, undefined, [])), 2);
+    assert.throws(() => invoke(changed.bad, undefined, []), (e: unknown) => e === changed.err);
+    assert.equal(invoke(changed.main, undefined, []), false);
     assert(out.symbols.some((s) => s.start === source.indexOf("export function f")));
     assert.equal(out.skipped.length, 0);
   } finally {
@@ -42,6 +54,7 @@ Deno.test("strict scope rejects unsupported generators and constructors and reco
 Deno.test("manual wrapper registration is excluded from automatic trace", () => {
   const source = "function f(){return 1;} f=metrics.wrapSync({id:'f',kind:'function'},f);";
   const result = instrumentModule(source, "manual.ts", { strict: true, bridgeUrl: bridge });
+  assert(result.symbols[0]);
   assert.equal(result.symbols[0].manuallyWrapped, true);
   assert(!result.source.includes("return __coursePerf"));
 });

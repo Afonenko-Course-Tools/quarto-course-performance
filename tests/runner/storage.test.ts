@@ -1,3 +1,6 @@
+import { validateRunSummary } from "../../src/report/types.ts";
+import { validateRunRecord } from "../../src/report/types.ts";
+import { parseObject } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join, relative } from "node:path";
 import { finalizeRun, prepareRunStorage } from "../../src/runner/storage.ts";
@@ -57,15 +60,24 @@ Deno.test("storage resolves output from original cwd and isolates simultaneous p
       stages.push(p.stagingDirectory);
       assert.equal(p.finalDirectory, join(root, "reports", p.runId));
     }
+    assert(paths[0]);
+    assert(paths[1]);
     assert.notEqual(paths[0].runId, paths[1].runId);
+
     assert.notEqual(paths[0].stagingDirectory, paths[1].stagingDirectory);
+
     await Deno.mkdir(paths[0].finalDirectory, { recursive: true });
+
     await Deno.writeTextFile(join(paths[0].finalDirectory, "keep"), "existing");
+
+    const first = paths[0];
     await assert.rejects(
-      () => finalizeRun(paths[0], record(paths[0].stagingDirectory, paths[0].runId)),
+      () => finalizeRun(first, record(first.stagingDirectory, first.runId)),
       new RegExp(paths[0].stagingDirectory),
     );
+
     assert.equal(await Deno.readTextFile(join(paths[0].finalDirectory, "keep")), "existing");
+
     await Deno.stat(join(paths[0].stagingDirectory, "report.md"));
   } finally {
     await Deno.remove(root, { recursive: true });
@@ -277,7 +289,8 @@ Deno.test("partial staging cleanup PermissionDenied returns the complete committ
     ) await Deno.stat(join(final, name));
     assert.equal(await Deno.readTextFile(join(final, "protected/raw.jsonl")), "unchanged raw");
     assert.equal(
-      JSON.parse(await Deno.readTextFile(join(final, "run.json"))).outputDirectory,
+      validateRunRecord(parseObject(await Deno.readTextFile(join(final, "run.json"))))
+        .outputDirectory,
       final,
     );
     const remaining = (await Array.fromAsync(Deno.readDir(stage))).map((e) => e.name);
@@ -362,7 +375,9 @@ Deno.test("finalize retains diagnostic aggregates after relocation without rewri
       }],
     };
     const output = await finalizeRun(paths, r, normalized);
-    const summary = JSON.parse(await Deno.readTextFile(join(output, "summary.json")));
+    const summary = validateRunSummary(
+      parseObject(await Deno.readTextFile(join(output, "summary.json"))),
+    );
     assert.deepEqual(
       summary.counters.map((c: { value: number; source: string }) => [c.value, c.source]),
       [[1, "event"], [2, "executor-summary"]],
@@ -370,7 +385,7 @@ Deno.test("finalize retains diagnostic aggregates after relocation without rewri
     assert.equal(await Deno.readTextFile(join(output, "events/raw.jsonl")), raw);
     assert.equal(await Deno.readTextFile(join(output, "receipt.json")), receipt);
     assert.deepEqual(
-      JSON.parse(await Deno.readTextFile(join(output, "run.json"))).preparation,
+      validateRunRecord(parseObject(await Deno.readTextFile(join(output, "run.json")))).preparation,
       r.preparation,
     );
   } finally {

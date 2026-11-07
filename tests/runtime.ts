@@ -1,3 +1,4 @@
+import { parseObject, string } from "../src/json.ts";
 import { join } from "node:path";
 import { executablePath } from "../src/adapters/quarto/capabilities.ts";
 export const quarto = await executablePath(Deno.env.get("QUARTO") ?? "quarto", Deno.env.toObject());
@@ -7,7 +8,7 @@ const cacheInfo = await new Deno.Command(Deno.execPath(), {
   stderr: "piped",
 }).output();
 if (!cacheInfo.success) throw new Error("Не удалось определить cache native fixtures");
-export const denoCache: string = JSON.parse(new TextDecoder().decode(cacheInfo.stdout)).denoDir;
+export const denoCache = string(parseObject(new TextDecoder().decode(cacheInfo.stdout)).denoDir);
 const result = await new Deno.Command(quarto, {
   args: ["--paths"],
   stdout: "piped",
@@ -15,6 +16,7 @@ const result = await new Deno.Command(quarto, {
 }).output();
 if (!result.success) throw new Error("Для native fixtures нужен Quarto");
 const [bin, share] = new TextDecoder().decode(result.stdout).trim().split("\n");
+if (!bin || !share) throw new Error("Quarto не вернул bin/share");
 let selected = join(bin, "tools", Deno.build.arch, "pandoc");
 try {
   await Deno.stat(selected);

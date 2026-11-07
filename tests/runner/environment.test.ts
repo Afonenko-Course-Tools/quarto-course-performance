@@ -1,3 +1,4 @@
+import { object, parseJson } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 import { validateTelemetryEnvironment } from "../../src/runner/environment.ts";
@@ -73,9 +74,11 @@ Deno.test("probe preserves effective runtime, Deno options, cache and network en
     assert.equal(caps.runtime.quartoFilters, undefined);
     assert.equal(caps.denoPreload, true);
     assert.equal(JSON.stringify(env), before);
-    const calls = (await Deno.readTextFile(log)).trim().split("\n").map((line) => JSON.parse(line));
+    const calls = (await Deno.readTextFile(log)).trim().split("\n").map((line) => parseJson(line));
     assert(calls.length >= 3);
-    for (const call of calls) assert.equal(call.env.PERF_TEST_FUNCTIONAL, "inherited");
+    for (const call of calls) {
+      assert.equal(object(object(call).env).PERF_TEST_FUNCTIONAL, "inherited");
+    }
     for (const call of calls) {
       for (
         const key of [
@@ -88,7 +91,7 @@ Deno.test("probe preserves effective runtime, Deno options, cache and network en
           "HTTPS_PROXY",
           "DENO_DIR",
         ]
-      ) assert.equal(call.env[key], env[key]);
+      ) assert.equal(object(object(call).env)[key], env[key]);
     }
   } finally {
     if (inherited === undefined) Deno.env.delete("PERF_TEST_FUNCTIONAL");
@@ -107,6 +110,7 @@ Deno.test("system Quarto probe observes bundled runtime capabilities", async () 
   assert.equal(caps.denoPreload, true);
   assert.equal(caps.denoCpu, true);
   assert.equal(caps.luaHook, true);
+  assert(caps.runtime.deno);
   assert(caps.runtime.deno.hash);
 });
 
@@ -118,7 +122,10 @@ Deno.test("probe resolves bare Deno and Pandoc overrides through effective PATH 
     await Deno.mkdir(first);
     await Deno.mkdir(selected);
     for (
-      const [name, binary] of [["selected-deno", bundled.deno], ["selected-pandoc", bundled.pandoc]]
+      const [name, binary] of [["selected-deno", bundled.deno], [
+        "selected-pandoc",
+        bundled.pandoc,
+      ]] as const
     ) {
       await Deno.writeTextFile(join(first, name), "not executable\n");
       await Deno.chmod(join(first, name), 0o644);
@@ -141,6 +148,8 @@ Deno.test("probe resolves bare Deno and Pandoc overrides through effective PATH 
           ? join(selected, name)
           : bundled[key];
         assert.equal(caps[key], expected);
+        assert(caps.runtime[key]);
+        assert(bundled.runtime[key]);
         assert.equal(caps.runtime[key].path, expected);
         assert.equal(caps.runtime[key].hash, bundled.runtime[key].hash);
         assert.equal(caps.runtime[key].version, bundled.runtime[key].version);

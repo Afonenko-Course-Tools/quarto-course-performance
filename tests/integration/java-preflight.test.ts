@@ -5,12 +5,13 @@ import { checkJava, parseJavaArgs, preflightJava } from "../../tools/check-java-
 async function withoutCommands(action: () => Promise<void>) {
   const original = Deno.Command;
   let spawned = 0;
-  Deno.Command = class {
-    constructor() {
+  Deno.Command = class extends original {
+    constructor(...args: ConstructorParameters<typeof original>) {
+      super(...args);
       spawned++;
       throw new Error("Unexpected subprocess during input rejection");
     }
-  } as unknown as typeof Deno.Command;
+  };
   try {
     await action();
     assert.equal(spawned, 0);
@@ -43,7 +44,7 @@ Deno.test("Java entry rejects missing and invalid owners before evidence or subp
     await Deno.mkdir(source);
     await withoutCommands(async () => {
       for (const owner of [undefined, "relative", join(root, "missing"), source]) {
-        await assert.rejects(() => checkJava(source, output, owner as string), /replacement-owner/);
+        await assert.rejects(() => checkJava(source, output, owner), /replacement-owner/);
         await assert.rejects(() => Deno.stat(output), Deno.errors.NotFound);
       }
     });

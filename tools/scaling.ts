@@ -1,3 +1,4 @@
+import { numberMap } from "../src/json.ts";
 // Native synthetic workload владельца Core; длительности не используются как off acceptance.
 import { join, resolve } from "node:path";
 import { copyTree, hashFile } from "../src/sources/snapshot.ts";
@@ -93,7 +94,7 @@ for (const factor of [1, 2, 4]) {
   const normalized = await normalizeRun(summary.outputDirectory),
     counters: Record<string, number> = {};
   for (const executor of Object.values(normalized.executors)) {
-    for (const [name, value] of Object.entries(executor.counters as Record<string, number>)) {
+    for (const [name, value] of Object.entries(numberMap(executor.counters))) {
       counters[name] = (counters[name] ?? 0) + value;
     }
   }

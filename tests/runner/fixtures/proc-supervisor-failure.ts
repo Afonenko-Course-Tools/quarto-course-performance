@@ -1,5 +1,7 @@
+import { number, parseObject, string } from "../../../src/json.ts";
 import { OwnedProcessError, runOwnedProcess } from "../../../src/runner/process.ts";
-const [root, kind, stage] = Deno.args;
+const [rootArg, kind, stage] = Deno.args;
+const root = string(rootArg);
 const readDir = Deno.readDir, readTextFile = Deno.readTextFile;
 let injected = false;
 Deno.readDir = ((path: string | URL) => {
@@ -79,9 +81,9 @@ const beat = `while :; do printf x >> '${root}/heartbeat'; sleep 0.01; done`;
 const watchdog = setTimeout(async () => {
   for await (const entry of readDir(root)) {
     if (!entry.name.endsWith(".ready")) continue;
-    const { group } = JSON.parse(await readTextFile(root + "/" + entry.name));
+    const { group } = parseObject(await readTextFile(root + "/" + entry.name));
     try {
-      Deno.kill(-group, "SIGKILL");
+      Deno.kill(-number(group), "SIGKILL");
     } catch { /* Собственная group. */ }
   }
   try {
@@ -124,9 +126,9 @@ try {
   const ready = entries.find((e) => e.name.endsWith(".ready"));
   let helperAlive = false;
   if (ready) {
-    const { group } = JSON.parse(await readTextFile(root + "/" + ready.name));
+    const { group } = parseObject(await readTextFile(root + "/" + ready.name));
     try {
-      kill(group, 0);
+      kill(number(group), 0);
       helperAlive = true;
     } catch { /* Own helper reaped. */ }
   }
@@ -154,9 +156,9 @@ try {
   // Только аварийная страховка fixture, ПОСЛЕ проверки heartbeat после return.
   for await (const entry of readDir(root)) {
     if (!entry.name.endsWith(".ready")) continue;
-    const { group } = JSON.parse(await readTextFile(root + "/" + entry.name));
+    const { group } = parseObject(await readTextFile(root + "/" + entry.name));
     try {
-      Deno.kill(-group, "SIGKILL");
+      Deno.kill(-number(group), "SIGKILL");
     } catch { /* Уже остановлен. */ }
   }
   try {

@@ -1,3 +1,5 @@
+import { validateRunRecord } from "../src/report/types.ts";
+import { array, object, parseObject, string } from "../src/json.ts";
 import { strict as assert } from "node:assert";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -54,7 +56,7 @@ type JavaInputs = { project: string; output: string; replacementOwner: string };
 const usage =
   "check-java-general-use.ts --project /absolute/checkout --output /absolute/new-evidence --replacement-owner /absolute/owner-checkout";
 
-function requireAbsolute(value: string, flag: string) {
+function requireAbsolute(value: unknown, flag: string): asserts value is string {
   assert(typeof value === "string" && isAbsolute(value), `${flag} требует абсолютный путь`);
 }
 
@@ -62,7 +64,10 @@ export function parseJavaArgs(args: string[]): JavaInputs {
   const flags: Record<string, string> = {};
   for (let i = 0; i < args.length; i += 2) {
     const key = args[i], value = args[i + 1];
-    if (!["--project", "--output", "--replacement-owner"].includes(key) || !value || flags[key]) {
+    if (
+      !key || !["--project", "--output", "--replacement-owner"].includes(key) || !value ||
+      flags[key]
+    ) {
       throw new Error(usage);
     }
     flags[key] = value;
@@ -71,9 +76,9 @@ export function parseJavaArgs(args: string[]): JavaInputs {
     requireAbsolute(flags[key], key);
   }
   return {
-    project: flags["--project"],
-    output: flags["--output"],
-    replacementOwner: flags["--replacement-owner"],
+    project: string(flags["--project"]),
+    output: string(flags["--output"]),
+    replacementOwner: string(flags["--replacement-owner"]),
   };
 }
 
@@ -91,7 +96,7 @@ const git = async (path: string, args: string[]) => {
 export async function preflightJava(
   project: string,
   output: string,
-  replacementOwner: string,
+  replacementOwner: string | undefined,
 ): Promise<JavaInputs> {
   requireAbsolute(project, "--project");
   requireAbsolute(output, "--output");
@@ -137,8 +142,16 @@ export async function preflightJava(
   return { project, output, replacementOwner };
 }
 
-export async function checkJava(project: string, output: string, replacementOwner: string) {
-  ({ project, output, replacementOwner } = await preflightJava(project, output, replacementOwner));
+export async function checkJava(
+  projectArg: string,
+  outputArg: string,
+  replacementOwnerArg: string | undefined,
+) {
+  const { project, output, replacementOwner } = await preflightJava(
+    projectArg,
+    outputArg,
+    replacementOwnerArg,
+  );
   await Deno.mkdir(output, { recursive: false });
   const commands: unknown[] = [], gates: unknown[] = [];
   const environment = Object.fromEntries([
@@ -369,8 +382,12 @@ export async function checkJava(project: string, output: string, replacementOwne
     assert(result.success, `${label}: ${decode(result.stderr)}`);
     const entries = await Array.fromAsync(Deno.readDir(reports));
     assert.equal(entries.length, 1);
-    const directory = join(reports, entries[0].name);
-    const record = JSON.parse(await Deno.readTextFile(join(directory, "run.json")));
+    const entry = entries[0];
+    assert(entry);
+    const directory = join(reports, entry.name);
+    const record = validateRunRecord(
+      parseObject(await Deno.readTextFile(join(directory, "run.json"))),
+    );
     assert.equal(record.outcome.code, 0);
     assert.equal(record.dataValid, true);
     if (mode !== "off") {
@@ -420,13 +437,14 @@ export async function checkJava(project: string, output: string, replacementOwne
     assert(summaryProcesses.length > 2, "Publisher nested процессы отсутствуют");
     const processes = await Promise.all(
       summaryProcesses.filter((p) => p.endsWith(".json")).map(async (p) =>
-        JSON.parse(await Deno.readTextFile(p))
+        parseObject(await Deno.readTextFile(p))
       ),
     );
     for (const nested of ["tasks", "slides"]) {
       assert(
         processes.some((p) =>
-          p.exit_code === 0 && p.expectation?.executed && p.cwd === join(summary, nested)
+          p.exit_code === 0 && p.expectation && object(p.expectation).executed &&
+          p.cwd === join(summary, nested)
         ),
         `Не подтверждено исполнение nested ${nested}`,
       );
@@ -441,9 +459,19 @@ export async function checkJava(project: string, output: string, replacementOwne
     );
     for (
       const selection of [
-        { label: "cwd-slides", cwd: "slides", args: [], outputs: [roots[2]] },
-        { label: "target-slides-directory", cwd: ".", args: ["slides"], outputs: [roots[2]] },
-        { label: "target-slides-file", cwd: ".", args: ["slides/index.qmd"], outputs: [roots[2]] },
+        { label: "cwd-slides", cwd: "slides", args: [], outputs: [string(roots[2])] },
+        {
+          label: "target-slides-directory",
+          cwd: ".",
+          args: ["slides"],
+          outputs: [string(roots[2])],
+        },
+        {
+          label: "target-slides-file",
+          cwd: ".",
+          args: ["slides/index.qmd"],
+          outputs: [string(roots[2])],
+        },
         { label: "cwd-tasks", cwd: "tasks", args: [], outputs: [roots[1]] },
         {
           label: "cwd-tasks-projects",
@@ -473,7 +501,7 @@ export async function checkJava(project: string, output: string, replacementOwne
         selection.label,
         native,
         await snapshot(selection.label + "-summary"),
-        selection.outputs,
+        selection.outputs.map((path) => string(path)),
       );
     }
     const cpu = await makeCopy("slides-cpu");
@@ -488,7 +516,9 @@ export async function checkJava(project: string, output: string, replacementOwne
       (await files(join(cpuRun.directory, "profiles"))).some((p) => p.endsWith(".cpuprofile")),
       "CPU profile отсутствует",
     );
-    await compare("slides-native-cpu", studentNative, await snapshot("slides-cpu"), [roots[2]]);
+    await compare("slides-native-cpu", studentNative, await snapshot("slides-cpu"), [
+      string(roots[2]),
+    ]);
 
     const sourceReceipt: SourceReceipt = {
       repository: "BSU-RFCT-Afonenko-Courses/Java",
@@ -592,8 +622,8 @@ export async function checkJava(project: string, output: string, replacementOwne
         ),
       ];
       const executedSymbols = diagnostic.coverage.ts.flatMap((entry) => {
-        const e = entry as { symbols: { id: string }[] };
-        return e.symbols.map((s) => s.id).filter((id) =>
+        const e = object(entry);
+        return array(e.symbols).map((symbol) => string(object(symbol).id)).filter((id) =>
           normalized.events.some((event) => event.operation_id === id && event.event === "begin")
         );
       });

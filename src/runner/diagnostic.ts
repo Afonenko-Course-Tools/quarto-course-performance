@@ -1,3 +1,4 @@
+import { array, parseJson } from "../json.ts";
 import { assetPath } from "../assets.ts";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -8,6 +9,7 @@ import { contained, hashFile } from "../sources/snapshot.ts";
 import type { NativeRenderRequest } from "../report/types.ts";
 import { type ProjectTarget, resolveRenderProject } from "../adapters/quarto/inspect.ts";
 import { collectPackageCoverage } from "./package-coverage.ts";
+import type { InstrumentedModule } from "../instrumentation/ts/transform.ts";
 import { validateTelemetryEnvironment } from "./environment.ts";
 import type { PreparationReceipt, PreparedVariant, Scenario } from "../config/types.ts";
 export async function prepareDiagnostic(
@@ -51,7 +53,11 @@ export async function prepareDiagnostic(
     instrumented: { ts: true, lua: true },
     observed: { ts: false, lua: false },
     integrity: "pending",
-    ts: [] as unknown[],
+    ts: [] as ({ path: string; instrumentation: "manual-only" } | {
+      path: string;
+      symbols: InstrumentedModule["symbols"];
+      skipped: InstrumentedModule["skipped"];
+    })[],
     luaModules: [] as string[],
     runtime: caps,
     requestedExtensions: scenario.scope.extensions,
@@ -63,7 +69,7 @@ export async function prepareDiagnostic(
     },
     manualRegistry: {
       hash: await hashFile(registry),
-      operations: JSON.parse(await Deno.readTextFile(registry)),
+      operations: array(parseJson(await Deno.readTextFile(registry))),
     },
   };
   const bridgeUrl = pathToFileURL(setup.bridgePath).href;

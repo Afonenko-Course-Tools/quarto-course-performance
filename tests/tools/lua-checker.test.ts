@@ -65,9 +65,11 @@ Deno.test("Lua bootstrap отклоняет относительный и сущ
 });
 
 function diagnosticFiles(output: string): string[] {
-  const parsed: unknown = JSON.parse(
-    output.slice(output.indexOf("{"), output.lastIndexOf("}") + 1),
-  );
+  const parsed: unknown = JSON.parse(output);
+  if (Array.isArray(parsed)) {
+    assert.deepEqual(parsed, []);
+    return [];
+  }
   assert(parsed !== null && typeof parsed === "object" && !Array.isArray(parsed));
   return Object.keys(parsed);
 }
@@ -137,6 +139,61 @@ Deno.test("Lua checker разрешает выбранный typed require че�
     assert.equal(result.success, false);
     assert(diagnosticFiles(result.text).some((path) => path.endsWith("/own/main.lua")));
     assert.match(result.text, /param-type-mismatch/);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("Lua bridge сохраняет узкий walk ABI с тремя одинаковыми копиями", async () => {
+  const root = await Deno.makeTempDir();
+  const bridge = await Deno.readTextFile(new URL("../../bridge/bridge.lua", import.meta.url));
+  try {
+    for (const owner of ["one", "two", "three"]) {
+      await Deno.mkdir(`${root}/own/${owner}`, { recursive: true });
+      await Deno.writeTextFile(`${root}/own/${owner}/bridge.lua`, bridge);
+    }
+    const caller = `---@param value number
+---@return number
+local function callback(value) return value+1 end
+local one=require('own.one.bridge').create_metrics('one')
+local two=require('own.two.bridge').create_metrics('two')
+local three=require('own.three.bridge').create_metrics('three')
+local first=one.wrap_walk({id='one',kind='ast_walk',scope='fragment'},callback)
+local second=two.wrap_walk({id='two',kind='ast_walk',scope='block'},callback)
+local third=three.wrap_walk({id='three',kind='ast_walk',scope='inline'},callback)
+assert(first(1)==2 and second(2)==3 and third(3)==4)
+`;
+    await Deno.writeTextFile(root + "/own/main.lua", caller);
+    const valid = await invoke(["--root", root, "--scope", "own"]);
+    assert(valid.success, valid.error + valid.text);
+    assert.deepEqual(diagnosticFiles(valid.text), []);
+    await Deno.writeTextFile(
+      root + "/own/main.lua",
+      caller.replace("id='one',kind='ast_walk'", "id='one',kind='function'"),
+    );
+    const invalid = await invoke(["--root", root, "--scope", "own"]);
+    assert.equal(invalid.success, false);
+    const files = diagnosticFiles(invalid.text);
+    assert.equal(files.length, 1);
+    assert(files[0]?.endsWith("/own/main.lua"));
+    const diagnostics: unknown = JSON.parse(invalid.text);
+    assert(diagnostics !== null && typeof diagnostics === "object" && !Array.isArray(diagnostics));
+    for (const entries of Object.values(diagnostics)) {
+      assert(Array.isArray(entries));
+      assert.equal(entries.length, 1);
+      for (const entry of entries) {
+        const diagnostic: unknown = entry;
+        assert(diagnostic !== null && typeof diagnostic === "object" && "code" in diagnostic);
+        assert.equal(diagnostic.code, "assign-type-mismatch");
+        assert("range" in diagnostic && "message" in diagnostic);
+        assert.deepEqual(diagnostic.range, {
+          start: { line: 6, character: 36 },
+          end: { line: 6, character: 40 },
+        });
+        assert(typeof diagnostic.message === "string");
+        assert.match(diagnostic.message, /Literal `"function"` cannot match string `"ast_walk"`/);
+      }
+    }
   } finally {
     await Deno.remove(root, { recursive: true });
   }

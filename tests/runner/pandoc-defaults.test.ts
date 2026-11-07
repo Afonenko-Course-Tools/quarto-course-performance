@@ -1,3 +1,4 @@
+import { string } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 import { prepareLaunchers } from "../../src/launchers/setup.ts";
@@ -95,7 +96,7 @@ Deno.test("ordered Pandoc defaults remain native off and diagnostics refuse unre
       dataDir,
     });
     const explicit = join(root, "explicit"), fromDefaults = join(root, "defaults data");
-    for (const [path, value] of [[explicit, "explicit"], [fromDefaults, "defaults"]]) {
+    for (const [path, value] of [[explicit, "explicit"], [fromDefaults, "defaults"]] as const) {
       await Deno.mkdir(path);
       await Deno.writeTextFile(
         join(path, "init.lua"),
@@ -248,8 +249,8 @@ Deno.test("Pandoc option values beginning with defaults or data-dir syntax remai
       assert.deepEqual(out.stderr, native.stderr);
       if (extra[0] === "-o" || extra[0] === "--output") {
         assert.deepEqual(
-          await Deno.readFile(join(monitoredDir, extra[1])),
-          await Deno.readFile(join(nativeDir, extra[1])),
+          await Deno.readFile(join(monitoredDir, string(extra[1]))),
+          await Deno.readFile(join(nativeDir, string(extra[1]))),
         );
       }
     }

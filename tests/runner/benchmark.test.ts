@@ -34,7 +34,9 @@ Deno.test("benchmark excludes warmups, alternates AB/BA and creates independent 
       scope: { modules: [], extensions: [], strict: true },
       resources: { wall: true, cpu: false, peakRss: false },
     };
-    const series = await benchmarkPair(s, prepared[0], prepared[1], {
+    const [control, candidate] = prepared;
+    assert(control && candidate);
+    const series = await benchmarkPair(s, control, candidate, {
       pairs: 3,
       seed: 42,
       executeOptions: { outputRoot: join(root, "runs"), cleanPaths: [".out"] },

@@ -1,3 +1,4 @@
+import { parseObject, string } from "./json.ts";
 import { parseCommand } from "./cli/arguments.ts";
 import type { NativeRenderRequest } from "./report/types.ts";
 
@@ -20,8 +21,8 @@ export async function main(argv: string[]): Promise<number> {
     return 0;
   }
   if (command.kind === "version") {
-    const config = JSON.parse(await Deno.readTextFile(new URL("../deno.json", import.meta.url)));
-    console.log(config.version);
+    const config = parseObject(await Deno.readTextFile(new URL("../deno.json", import.meta.url)));
+    console.log(string(config.version, "version"));
     return 0;
   }
   if (command.kind === "experiment") {
@@ -47,10 +48,7 @@ export async function main(argv: string[]): Promise<number> {
     return (await child.status).code;
   }
   // Интерфейс backend вводится задачей 4; загрузка остаётся ленивой.
-  const rendererPath = "./runner/render.ts";
-  const renderer: { renderCommand(request: NativeRenderRequest): Promise<number> } = await import(
-    rendererPath
-  );
+  const renderer = await import("./runner/render.ts");
   return await renderer.renderCommand(request);
 }
 

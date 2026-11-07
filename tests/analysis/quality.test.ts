@@ -1,3 +1,4 @@
+import { array, object, parseObject, string } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 import { normalizeRun } from "../../src/analysis/normalize.ts";
@@ -331,8 +332,10 @@ Deno.test("operation owner attribution distinguishes recorded context from legac
     }, { ...span("end", 2), operation_id: "course-core.phase" }]);
     try {
       const run = await normalizeRun(root), total = operationTotals(run)[0];
+      assert(total);
       assert.equal(total.extension_id, recorded ? "explicit-owner" : "course-core");
       assert.equal(total.extension_attribution, recorded ? "recorded" : "derived");
+      assert(run.events[0]);
       assert.equal(run.events[0].attributes?.extension_id, recorded ? "explicit-owner" : undefined);
     } finally {
       await Deno.remove(root, { recursive: true });
@@ -419,7 +422,7 @@ Deno.test("coverage separates installed instrumentation observations and integri
     );
     const run = await normalizeRun(root);
     assert(run.dataValid);
-    const c = JSON.parse(await Deno.readTextFile(join(root, "coverage.json")));
+    const c = parseObject(await Deno.readTextFile(join(root, "coverage.json")));
     assert.deepEqual(c.installed, { ts: true, lua: true });
     assert.deepEqual(c.instrumented, { ts: false, lua: false });
     assert.deepEqual(c.observed, { ts: false, lua: false });
@@ -459,7 +462,9 @@ Deno.test("observed executor start activates an unanticipated Lua boundary and s
     );
     const run = await normalizeRun(root);
     assert.equal(run.dataValid, false);
-    const e = JSON.parse(await Deno.readTextFile(join(root, "expectations.json"))).processes[0];
+    const e = object(
+      array(parseObject(await Deno.readTextFile(join(root, "expectations.json"))).processes)[0],
+    );
     assert.equal(e.executed, true);
     assert.equal(e.activated, true);
     assert.equal(e.summary_path, "events/p/");
@@ -534,7 +539,7 @@ Deno.test("raw parent cycle quality prevents apparent ancestry but keeps interva
     const normalized = await normalizeRun(root);
     assert.equal(normalized.dataValid, false);
     assert.equal(normalized.quality.errors.length, 1);
-    assert.match(normalized.quality.errors[0], /Цикл parent spans/);
+    assert.match(string(normalized.quality.errors[0]), /Цикл parent spans/);
     const exported = traces(normalized).wall.traceEvents;
     assert.equal(exported.filter((e) => e.ph === "X").length, 3);
     assert.equal(new Set(exported.filter((e) => e.ph === "X").map((e) => e.tid)).size, 3);

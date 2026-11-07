@@ -1,21 +1,19 @@
 -- Самодостаточный фасад ABI 1; канонический шаблон Performance.
----@class CoursePerfOperationSpec
----@field id string
----@field kind 'phase'|'function'|'ast_walk'|'io'|'command'
----@field symbol_id? string
----@field document_id? string
----@field attributes? table<string, string|number|boolean>
----@field origin? 'manual'|'auto'|'runtime'
+---@class CoursePerfOperationSpec: { id: string, kind: 'phase'|'function'|'ast_walk'|'io'|'command', symbol_id?: string, document_id?: string, attributes?: table<string, string|number|boolean>, origin?: 'manual'|'auto'|'runtime' }
 
----@class CoursePerfWalkSpec: CoursePerfOperationSpec
----@field kind 'ast_walk'
----@field scope 'full-document'|'fragment'|'block'|'inline'|'unknown'
+---@class CoursePerfWalkSpec: { id: string, kind: 'ast_walk', scope: 'full-document'|'fragment'|'block'|'inline'|'unknown', symbol_id?: string, document_id?: string, attributes?: table<string, string|number|boolean>, origin?: 'manual'|'auto'|'runtime' }
 
 ---@generic T: function
 ---@param _ CoursePerfOperationSpec
 ---@param fn T
 ---@return T
 local function identity_wrap(_, fn) return fn end
+
+---@generic T: function
+---@param _ CoursePerfWalkSpec
+---@param fn T
+---@return T
+local function identity_walk(_, fn) return fn end
 
 ---@param base table<string, string>
 ---@return table<string, string>
@@ -24,17 +22,13 @@ local function identity_env(base) return base end
 ---@class CoursePerfMetrics
 local identity = {
   wrap_sync = identity_wrap,
-  wrap_walk = identity_wrap,
+  wrap_walk = identity_walk,
   child_env = identity_env,
 }
 
----@class CoursePerfAgent
----@field abiVersion integer
----@field metrics CoursePerfMetrics
+---@class CoursePerfAgent: { abiVersion: integer, metrics: CoursePerfMetrics }
 
----@class CoursePerfRegistry
----@field __course_performance_agent_v1? CoursePerfAgent
----@field __course_performance_failures_v1? string[]
+---@class CoursePerfRegistry: { __course_performance_agent_v1?: CoursePerfAgent, __course_performance_failures_v1?: string[] }
 
 ---@param extension_id string
 ---@param abi_version? integer

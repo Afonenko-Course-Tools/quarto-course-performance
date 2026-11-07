@@ -1,6 +1,7 @@
+import { number, parseObject } from "../json.ts";
 import { appDenoArgs, assetPath } from "../assets.ts";
 import { dirname, join, resolve } from "node:path";
-import type { BuildOutcome } from "../report/types.ts";
+import { type BuildOutcome, validateSignal } from "../report/types.ts";
 import { recordCancellation } from "./resource-child.ts";
 
 /** Ошибка измерения после остановки дерева; outcome — только для реально запущенного native. */
@@ -76,8 +77,8 @@ async function liveGroup(group: number, cleanupError?: (error: unknown) => void)
   return groupExists(group);
 }
 export async function readOwnedGroup(path: string): Promise<number> {
-  const value = JSON.parse(await Deno.readTextFile(path));
-  if (!Number.isSafeInteger(value.group) || value.group <= 1) {
+  const value = parseObject(await Deno.readTextFile(path));
+  if (typeof value.group !== "number" || !Number.isSafeInteger(value.group) || value.group <= 1) {
     throw new Error("Некорректный PGID в readiness receipt");
   }
   return value.group;
@@ -385,8 +386,8 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
       if (group && pending) send(pending);
       if (group && !signalledAt) {
         try {
-          const notice = JSON.parse(await Deno.readTextFile(receipt + ".signal"));
-          if (!["SIGINT", "SIGTERM"].includes(notice.signal)) {
+          const notice = parseObject(await Deno.readTextFile(receipt + ".signal"));
+          if (notice.signal !== "SIGINT" && notice.signal !== "SIGTERM") {
             throw new Error("Некорректный signal receipt");
           }
           // Этот сигнал PTY уже доставил; повторной пересылки нет.
@@ -449,18 +450,19 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
     await completed;
     await drainedStreams;
     drained = true;
-    let nativeStatus = status!;
+    let nativeStatus: { code: number; signal: Deno.Signal | null } = status!;
     let nativeReceipt = false;
     for (const path of [receipt, ...(time ? [receipt + ".native"] : [])]) {
       try {
-        nativeStatus = JSON.parse(await Deno.readTextFile(path));
+        const receipt = parseObject(await Deno.readTextFile(path));
+        nativeStatus = { code: number(receipt.code), signal: validateSignal(receipt.signal) };
         if (path.endsWith(".native") || !time) nativeReceipt = true;
       } catch (e) {
         if (!(e instanceof Deno.errors.NotFound)) failed(e);
       }
     }
     if (escalated && !nativeReceipt) {
-      nativeStatus = { code: 137, signal: "SIGKILL", success: false };
+      nativeStatus = { code: 137, signal: "SIGKILL" };
     }
     let cpuUserSeconds: number | null = null,
       cpuSystemSeconds: number | null = null,
@@ -470,7 +472,9 @@ export async function runOwnedProcess(options: OwnedProcessOptions): Promise<Bui
         const values = (await Deno.readTextFile(resources)).trim().split("\n").at(-1)!.split(" ")
           .map(Number);
         if (values.length === 3 && values.every(Number.isFinite)) {
-          [cpuUserSeconds, cpuSystemSeconds, peakRssKiB] = values;
+          cpuUserSeconds = number(values[0]);
+          cpuSystemSeconds = number(values[1]);
+          peakRssKiB = number(values[2]);
         }
       } catch (e) {
         if (!(e instanceof Deno.errors.NotFound)) failed(e);

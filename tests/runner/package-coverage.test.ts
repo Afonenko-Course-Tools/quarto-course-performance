@@ -1,3 +1,5 @@
+import { validatePackageCoverage } from "../../src/runner/package-coverage.ts";
+import { parseObject } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 import { normalizeRun } from "../../src/analysis/normalize.ts";
@@ -9,7 +11,9 @@ Deno.test("package coverage inventories the selected nested project, marking and
   const root = await Deno.makeTempDir();
   try {
     const project = join(root, "nested");
-    for (const [scope, id] of [[root, "parent"], [project, "marked"], [project, "unmarked"]]) {
+    for (
+      const [scope, id] of [[root, "parent"], [project, "marked"], [project, "unmarked"]] as const
+    ) {
       const pkg = join(scope, "_extensions/org", id);
       await Deno.mkdir(pkg, { recursive: true });
       await Deno.writeTextFile(join(pkg, "_extension.yml"), `title: ${id}\n`);
@@ -31,26 +35,27 @@ return {}
       { projectRoot: project, kind: "project" },
       join(root, "diagnostic"),
     );
-    const coverage = prepared.coverage as unknown as Record<string, any>;
+    const coverage = prepared.coverage;
     assert(coverage.packageCoverage, "Missing physical package inventory");
     const packages = coverage.packageCoverage.packages;
-    assert.deepEqual(packages.map((p: any) => p.extensionId).sort(), ["marked", "unmarked"]);
-    assert.equal(packages.find((p: any) => p.extensionId === "marked").instrumentation, "detected");
+    assert(packages);
+    assert.deepEqual(packages.map((p) => p.extensionId).sort(), ["marked", "unmarked"]);
+    assert.equal(packages.find((p) => p.extensionId === "marked")?.instrumentation, "detected");
     assert.equal(
-      packages.find((p: any) => p.extensionId === "unmarked").instrumentation,
+      packages.find((p) => p.extensionId === "unmarked")?.instrumentation,
       "not-detected",
     );
     assert.equal(coverage.packageCoverage.observationStatus, "pending");
     await Deno.remove(join(root, "diagnostic"), { recursive: true });
     assert.equal(await treeHash(root), before, "Inventory must not change functional inputs");
-    const modulePath = "../../src/runner/package-coverage.ts";
-    const module = await import(modulePath);
+    const module = await import("../../src/runner/package-coverage.ts");
     const inventory = await module.collectPackageCoverage(project, [
       "marked",
       "unmarked",
       "absent",
     ]);
-    assert.deepEqual(inventory.requested.map((p: any) => [p.extensionId, p.installed]), [
+    assert(inventory.requested);
+    assert.deepEqual(inventory.requested.map((p) => [p.extensionId, p.installed]), [
       ["marked", true],
       ["unmarked", true],
       ["absent", false],
@@ -98,10 +103,13 @@ return {}
       }) + "\n",
     );
     assert.equal((await normalizeRun(run)).dataValid, true);
-    const current = JSON.parse(await Deno.readTextFile(join(run, "coverage.json"))).packageCoverage;
+    const current = validatePackageCoverage(
+      parseObject(await Deno.readTextFile(join(run, "coverage.json"))).packageCoverage,
+    );
+    assert(current);
     assert.equal(current.observationStatus, "valid");
     assert.deepEqual(
-      current.observations.map((o: any) => [o.extensionId, o.attribution, o.events]),
+      current.observations.map((o) => [o.extensionId, o.attribution, o.events]),
       [["marked", "recorded", 1]],
     );
     assert.deepEqual(current.packages, inventory.packages);
@@ -119,9 +127,9 @@ Deno.test("normalizing old coverage preserves unknown package installation inste
     );
     await Deno.writeTextFile(join(root, "coverage.json"), JSON.stringify({ complete: false }));
     await normalizeRun(root);
-    const coverage = JSON.parse(await Deno.readTextFile(join(root, "coverage.json")));
-    assert.equal(coverage.packageCoverage?.inventoryStatus, "unknown");
-    assert.equal(coverage.packageCoverage.packages, null);
+    const coverage = parseObject(await Deno.readTextFile(join(root, "coverage.json")));
+    assert.equal(validatePackageCoverage(coverage.packageCoverage)?.inventoryStatus, "unknown");
+    assert.equal(validatePackageCoverage(coverage.packageCoverage)?.packages, null);
   } finally {
     await Deno.remove(root, { recursive: true });
   }
@@ -159,6 +167,8 @@ const template = \`__createMetrics("examples")\`;
       ["marked", "detected"],
       ["uncertain", "unknown"],
     ]);
+    assert(coverage.packages![1]);
+    assert(coverage.packages![1].instrumentationEvidence[0]);
     assert.equal(coverage.packages![1].instrumentationEvidence[0].kind, "canonical-abi1-binding");
     const copy = join(root, "nested/_extensions/org/marked");
     await Deno.mkdir(copy, { recursive: true });
@@ -192,4 +202,31 @@ const template = \`__createMetrics("examples")\`;
   } finally {
     await Deno.remove(root, { recursive: true });
   }
+});
+
+Deno.test("package coverage сохраняет дополнительные metadata inventory", () => {
+  const input = {
+    scopeRoot: "/fixture",
+    scope: "selected-project-tree",
+    inventoryStatus: "recorded",
+    extra: { owner: "inventory" },
+    packages: [{
+      extensionId: "owner",
+      path: "_extensions/owner",
+      installed: true,
+      instrumentation: "detected",
+      extra: { owner: "package" },
+      instrumentationEvidence: [{
+        path: "filter.lua",
+        sha256: "a".repeat(64),
+        kind: "canonical-abi1-binding",
+        extra: { owner: "evidence" },
+      }],
+    }],
+    requested: [{ extensionId: "owner", installed: true, extra: { owner: "requested" } }],
+    issues: [],
+    observationStatus: "pending",
+    observations: [],
+  };
+  assert.deepEqual(validatePackageCoverage(input), input);
 });

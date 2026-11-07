@@ -1,3 +1,4 @@
+import { array, boolean, object, oneOf, string, strings } from "../json.ts";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { assetPath } from "../assets.ts";
 import { files, hashFile } from "../sources/snapshot.ts";
@@ -24,6 +25,64 @@ export interface PackageCoverage {
     executorId: string;
     events: number;
   }[];
+}
+
+/** Сохранённый инвентарь проходит ту же границу, что и сырые события. */
+export function validatePackageCoverage(value: unknown): PackageCoverage | undefined {
+  if (value === undefined) return undefined;
+  const coverage = object(value, "packageCoverage");
+  return {
+    ...coverage,
+    scopeRoot: coverage.scopeRoot === null ? null : string(coverage.scopeRoot),
+    scope: oneOf(coverage.scope, ["selected-project-tree"]),
+    inventoryStatus: oneOf(coverage.inventoryStatus, ["recorded", "partial", "unknown"]),
+    packages: coverage.packages === null ? null : array(coverage.packages).map((value) => {
+      const pkg = object(value);
+      if (pkg.installed !== true) throw new Error("Некорректный installed package");
+      return {
+        ...pkg,
+        extensionId: string(pkg.extensionId),
+        path: string(pkg.path),
+        installed: true as const,
+        instrumentation: oneOf(pkg.instrumentation, ["detected", "not-detected", "unknown"]),
+        instrumentationEvidence: array(pkg.instrumentationEvidence).map((value) => {
+          const evidence = object(value);
+          return {
+            ...evidence,
+            path: string(evidence.path),
+            sha256: string(evidence.sha256),
+            kind: string(evidence.kind),
+          };
+        }),
+      };
+    }),
+    requested: coverage.requested === null ? null : array(coverage.requested).map((value) => {
+      const requested = object(value);
+      return {
+        ...requested,
+        extensionId: string(requested.extensionId),
+        installed: requested.installed === null ? null : boolean(requested.installed),
+      };
+    }),
+    issues: strings(coverage.issues),
+    observationStatus: oneOf(coverage.observationStatus, ["pending", "valid", "partial"]),
+    observations: array(coverage.observations).map((value) => {
+      const observation = object(value);
+      if (
+        typeof observation.events !== "number" || !Number.isSafeInteger(observation.events) ||
+        observation.events < 0
+      ) {
+        throw new Error("Некорректное число package events");
+      }
+      return {
+        extensionId: string(observation.extensionId),
+        attribution: oneOf(observation.attribution, ["recorded", "derived"]),
+        processId: string(observation.processId),
+        executorId: string(observation.executorId),
+        events: observation.events,
+      };
+    }),
+  };
 }
 
 // Только лексические свидетельства, без Compiler API или исполнения исходников.
@@ -101,20 +160,23 @@ export async function collectPackageCoverage(
             if (!await facade(literal(words[end + 1]))) continue;
             for (let j = i + 1; j < end; j++) {
               if (words[j] === "createMetrics") {
-                aliases.add(words[j + 1] === "as" ? words[j + 2] : words[j]);
+                const alias = words[j + 1] === "as" ? words[j + 2] : words[j];
+                if (alias !== undefined) aliases.add(alias);
               }
             }
           }
         }
         for (let i = 0; i < words.length - 2; i++) {
+          const word = words[i];
+          if (word === undefined) continue;
           if (
-            !/(?:createMetrics|create_metrics)$/.test(words[i]) || words[i + 1] !== "(" ||
+            !/(?:createMetrics|create_metrics)$/.test(word) || words[i + 1] !== "(" ||
             words[i - 1] === "function"
           ) continue;
           const id = literal(words[i + 2]);
           if (!id) continue;
           const bound = language === "ts"
-            ? aliases.has(words[i])
+            ? aliases.has(word)
             : words[i - 1] === "." && words[i - 2] === ")" && words[i - 4] === "(" &&
               words[i - 5] === "require" && await facade(literal(words[i - 3]));
           const confirmed = bound && id === pkg.extensionId;

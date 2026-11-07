@@ -1,3 +1,4 @@
+import { numberMap, parseObject } from "../json.ts";
 import { isAbsolute, join } from "node:path";
 import type { CounterAggregate, RunRecord, RunSummary } from "./types.ts";
 import {
@@ -47,7 +48,7 @@ export async function jsonFiles(directory: string, suffix: string, retainFileNam
   try {
     for await (const file of Deno.readDir(directory)) {
       if (file.isFile && file.name.endsWith(suffix)) {
-        const record = JSON.parse(await Deno.readTextFile(join(directory, file.name)));
+        const record = parseObject(await Deno.readTextFile(join(directory, file.name)));
         result.push(retainFileName ? { ...record, file_name: file.name } : record);
       }
     }
@@ -100,7 +101,7 @@ export function summarizeRunRecord(record: RunRecord, normalized?: NormalizedRun
       ...deltas.values(),
       ...(normalized
         ? Object.values(normalized.executors).flatMap((e) =>
-          Object.entries((e.counters ?? {}) as Record<string, number>).map(([name, value]) => ({
+          Object.entries(numberMap(e.counters ?? {})).map(([name, value]) => ({
             processId: String(e.process_id),
             executorId: String(e.executor_id),
             name,

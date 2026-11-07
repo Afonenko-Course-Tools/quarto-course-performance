@@ -11,27 +11,28 @@ depends=('deno' 'quarto' 'time' 'util-linux')
 optdepends=('hyperfine: сравнительные измерения' 'git: получение исходников эксперимента' 'unzip: распаковка расширенных входных данных')
 _source_commit='@SOURCE_COMMIT@'
 source=("${pkgname}-${pkgver}.tar.gz::${url}/releases/download/v${pkgver}/${pkgname}-${pkgver}.tar.gz"
-        'typescript-5.9.3.tgz::https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz'
-        'luaparse-0.3.1.tgz::https://registry.npmjs.org/luaparse/-/luaparse-0.3.1.tgz')
-noextract=('typescript-5.9.3.tgz' 'luaparse-0.3.1.tgz')
+        'typescript-5.9.3.tgz::https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz')
+noextract=('typescript-5.9.3.tgz')
 sha256sums=('@SOURCE_SHA256@'
-            '10e108c9cf7d5f2879053dff18515fb405abf2ccef63eaaf017d9c571687a1d3'
-            'facb9742bf9ddecb2a2fa2935d486a05e359db51f5fd6147f4f23d433e3c854b')
+            '10e108c9cf7d5f2879053dff18515fb405abf2ccef63eaaf017d9c571687a1d3')
 
 prepare() {
-  cd "$srcdir/${pkgname}-${_source_commit}"
-  mkdir -p node_modules/{typescript,luaparse}
+  : "${srcdir:?makepkg должен задать srcdir}"
+  cd "$srcdir/${pkgname}-${_source_commit}" || return
+  mkdir -p node_modules/typescript
   bsdtar -xf "$srcdir/typescript-5.9.3.tgz" --strip-components 1 -C node_modules/typescript
-  bsdtar -xf "$srcdir/luaparse-0.3.1.tgz" --strip-components 1 -C node_modules/luaparse
 }
 
 check() {
-  cd "$srcdir/${pkgname}-${_source_commit}"
+  : "${srcdir:?makepkg должен задать srcdir}"
+  cd "$srcdir/${pkgname}-${_source_commit}" || return
   deno run --config deno.json --lock deno.lock --frozen --node-modules-dir=manual --cached-only -A src/cli.ts --version
 }
 
 package() {
-  cd "$srcdir/${pkgname}-${_source_commit}"
+  : "${srcdir:?makepkg должен задать srcdir}"
+  cd "$srcdir/${pkgname}-${_source_commit}" || return
+  : "${pkgdir:?makepkg должен задать pkgdir}"
   local app="$pkgdir/usr/lib/$pkgname"
   install -dm755 "$app/docs" "$pkgdir/usr/share/doc/$pkgname"
   cp -r src bridge node_modules "$app/"

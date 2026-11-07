@@ -1,3 +1,4 @@
+import { object, parseObject, string } from "../json.ts";
 import { join, resolve } from "node:path";
 import { liveSourceManifest, type SourceManifest, type Variant } from "../config/types.ts";
 import { git } from "./resolve.ts";
@@ -10,9 +11,33 @@ export interface FreezeInputs {
   variants: Record<Variant, Record<string, string>>;
   runtimeRegistry?: { path: string; version: string };
 }
+export function validateFreezeInputs(value: unknown): FreezeInputs {
+  const input = object(value, "freeze inputs");
+  const variants = object(input.variants, "variants");
+  const mapping = (key: Variant): Record<string, string> =>
+    Object.fromEntries(
+      Object.entries(object(variants[key], key)).map((
+        [repository, path],
+      ) => [repository, string(path)]),
+    );
+  return {
+    baseline: string(input.baseline, "baseline"),
+    variants: {
+      upstream: mapping("upstream"),
+      "clean-control": mapping("clean-control"),
+      candidate: mapping("candidate"),
+    },
+    ...(input.runtimeRegistry === undefined ? {} : {
+      runtimeRegistry: {
+        path: string(object(input.runtimeRegistry).path),
+        version: string(object(input.runtimeRegistry).version),
+      },
+    }),
+  };
+}
 /** Не перезаписывает ранее закреплённый эксперимент. Пути — доверенные локальные checkouts. */
 export async function freezeVariants(inputs: FreezeInputs, workspace: string, quarto = "quarto") {
-  const baseline = liveSourceManifest(JSON.parse(await Deno.readTextFile(inputs.baseline)));
+  const baseline = liveSourceManifest(parseObject(await Deno.readTextFile(inputs.baseline)));
   const caps = await probeQuarto(quarto), runtime: SourceManifest["runtime"] = { ...caps.runtime };
   if (inputs.runtimeRegistry) {
     const path = resolve(inputs.runtimeRegistry.path);
@@ -28,7 +53,7 @@ export async function freezeVariants(inputs: FreezeInputs, workspace: string, qu
     const sources = [];
     for (const source of baseline.sources) {
       if (!mapping[source.repository]) throw new Error(`Отсутствует ${source.repository}`);
-      const checkoutPath = await Deno.realPath(mapping[source.repository]);
+      const checkoutPath = await Deno.realPath(string(mapping[source.repository]));
       const sha = await git(["-C", checkoutPath, "rev-parse", "HEAD"]);
       if (variant === "upstream" && sha !== source.sha) {
         throw new Error("Upstream SHA расходится с baseline");

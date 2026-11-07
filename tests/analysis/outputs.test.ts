@@ -91,7 +91,7 @@ Deno.test("duplicate attribute order stays significant because HTML uses the fir
         '<div id="exr-a" target="a" target="b">x</div>',
         '<div id="exr-a" target="b" target="a">x</div>',
       ],
-    ]
+    ] as const
   ) assert.notEqual(normalizeOutput("a.html", a), normalizeOutput("a.html", b));
 });
 
@@ -101,7 +101,7 @@ Deno.test("historical Core exercise metadata order is canonicalized", () => {
       '<div id="exr-a" class="theorem exercise" data-course-difficulty="2" target="manual" data-course-time="10" data-statement-visibility="open">',
       '<div id="exr-a" class="theorem exercise" data-course-time="10" data-statement-visibility="open" target="manual" data-course-difficulty="2">',
     ],
-  ];
+  ] as const;
   for (const [a, b] of pairs) {
     assert.equal(normalizeOutput("a.html", a), normalizeOutput("a.html", b));
     assert.notEqual(

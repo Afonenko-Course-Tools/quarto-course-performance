@@ -1,5 +1,6 @@
+import { number, parseObject, string } from "../../../src/json.ts";
 import { runOwnedProcess } from "../../../src/runner/process.ts";
-const root = Deno.args[0];
+const root = string(Deno.args[0]);
 const fault = Deno.args[1] === "failure";
 const doubleEmpty = Deno.args[1] === "double-empty";
 let staleEntries: Deno.DirEntry[] | undefined, repeated = false;
@@ -53,10 +54,10 @@ Deno.readDir = ((path: string | URL) => {
       Deno.writeTextFileSync(root + "/release", "");
       await ownedDone;
       const ready = [...Deno.readDirSync(root)].find((e) => e.name.endsWith(".ready"))!;
-      const { group } = JSON.parse(Deno.readTextFileSync(root + "/" + ready.name));
+      const { group } = parseObject(Deno.readTextFileSync(root + "/" + ready.name));
       let kernelExists = true;
       try {
-        Deno.kill(-group, 0);
+        Deno.kill(-number(group), 0);
       } catch {
         kernelExists = false;
       }

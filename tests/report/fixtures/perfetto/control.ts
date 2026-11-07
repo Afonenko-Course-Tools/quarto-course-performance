@@ -1,3 +1,4 @@
+import { strict as assert } from "node:assert";
 import type { Event } from "../../../../src/protocol/types.ts";
 import type { NormalizedRun } from "../../../../src/analysis/normalize.ts";
 
@@ -7,7 +8,7 @@ export function pair(
   start: number,
   end: number,
   context: Partial<Event> = {},
-): Event[] {
+): [Event, Event] {
   const base: Event = {
     schema_version: 1,
     experiment_id: "control",
@@ -65,6 +66,8 @@ export function controlRun(): NormalizedRun {
       e.event === "end" ? { ...e, status: "error" as const } : e
     ),
   ].filter(Boolean));
-  result.executors["00000000-0000-4000-8000-000000000001/uncalibrated"].calibration = undefined;
+  const uncalibrated = result.executors["00000000-0000-4000-8000-000000000001/uncalibrated"];
+  assert(uncalibrated);
+  uncalibrated.calibration = undefined;
   return result;
 }

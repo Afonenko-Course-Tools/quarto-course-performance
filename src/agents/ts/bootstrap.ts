@@ -1,8 +1,11 @@
 import { installTsAgent } from "./agent.ts";
-import type { Mode } from "../../config/types.ts";
-const mode = Deno.env.get("COURSE_PERF_MODE") as Mode | undefined;
+import { oneOf } from "../../json.ts";
+const requested = Deno.env.get("COURSE_PERF_MODE");
+const mode = requested
+  ? oneOf(requested, ["off", "summary", "cpu", "trace"], "COURSE_PERF_MODE")
+  : undefined;
 if (mode && mode !== "off") {
-  const registry = globalThis as unknown as Record<symbol, unknown>;
+  const registry = globalThis as Record<symbol, unknown>;
   if (!registry[Symbol.for("course.performance.agent.v1")]) {
     const agent = installTsAgent({
       experimentId: Deno.env.get("COURSE_PERF_EXPERIMENT_ID")!,
@@ -16,10 +19,10 @@ if (mode && mode !== "off") {
     addEventListener("error", () => agent.flush());
     addEventListener("unhandledrejection", () => agent.flush());
     const exit = Deno.exit;
-    Deno.exit = ((code?: number): never => {
+    Deno.exit = (code?: number): never => {
       agent.flush();
       return exit(code);
-    }) as typeof Deno.exit;
+    };
     for (const signal of ["SIGTERM", "SIGINT"] as const) {
       const handler = () => {
         agent.flush();

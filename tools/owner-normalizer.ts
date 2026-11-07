@@ -1,10 +1,11 @@
+import { object, parseObject, string } from "../src/json.ts";
 // Используется именно Git blob закреплённой версии владельца, а не текущий dirty checkout.
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { importSourceManifest } from "../src/config/types.ts";
 import { hashFile } from "../src/sources/snapshot.ts";
 export async function loadOwnerNormalizer(manifestPath: string) {
-  const manifest = importSourceManifest(JSON.parse(await Deno.readTextFile(manifestPath)), true);
+  const manifest = importSourceManifest(parseObject(await Deno.readTextFile(manifestPath)), true);
   const source = manifest.sources.find((s) => s.repository.endsWith("/quarto-reference-catalog"));
   if (!source) throw new Error("В manifest отсутствует QRC");
   const path = "_extensions/reference-catalog/infrastructure/metadata.ts";
@@ -20,12 +21,16 @@ export async function loadOwnerNormalizer(manifestPath: string) {
   try {
     const file = join(dir, "metadata.ts");
     await Deno.writeFile(file, blob.stdout);
-    const { canonicalizeMetadata } = await import(pathToFileURL(file).href);
+    const imported: unknown = await import(pathToFileURL(file).href);
+    const canonicalizeMetadata = object(imported).canonicalizeMetadata;
     if (typeof canonicalizeMetadata !== "function") {
       throw new Error("Невалидный QRC normalizer API");
     }
     return {
-      normalizeHtml: canonicalizeMetadata as (html: string, sourceRoot?: string) => string,
+      normalizeHtml: (html: string, sourceRoot?: string): string => {
+        const normalized: unknown = canonicalizeMetadata(html, sourceRoot);
+        return string(normalized, "QRC canonicalizeMetadata result");
+      },
       receipt: {
         manifest: resolve(manifestPath),
         repository: source.repository,

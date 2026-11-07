@@ -1,3 +1,5 @@
+import { validateDiagnosticExpectations } from "../../src/report/types.ts";
+import { array, number, object, parseJson, parseObject, string } from "../../src/json.ts";
 import { dataDir, pandoc } from "../runtime.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
@@ -29,12 +31,12 @@ Deno.test("Deno launcher uses real binary, preserves main and args, and flushes 
       stderr: "piped",
     }).output();
     assert.equal(out.code, 23, new TextDecoder().decode(out.stderr));
-    assert.deepEqual(JSON.parse(new TextDecoder().decode(out.stdout)), ["arg space"]);
+    assert.deepEqual(parseJson(new TextDecoder().decode(out.stdout)), ["arg space"]);
     const dirs = [];
     for await (const dir of Deno.readDir(join(root, "events"))) dirs.push(dir.name);
     assert.equal(dirs.length, 1);
-    const summary = JSON.parse(
-      await Deno.readTextFile(join(root, "events", dirs[0], "ts.summary.json")),
+    const summary = parseObject(
+      await Deno.readTextFile(join(root, "events", string(dirs[0]), "ts.summary.json")),
     );
     assert.equal(summary.run_id, "r");
     assert(summary.data_valid);
@@ -57,17 +59,22 @@ Deno.test("Lua data-dir bootstrap preserves original initialization and installs
     for (const name of ["a", "b"]) {
       await Deno.writeTextFile(
         join(root, name + ".lua"),
-        "assert(ORIGINAL_INIT_VALUE==7);assert(__course_performance_agent_v1);return {}\n",
+        "assert(ORIGINAL_INIT_VALUE==7);local agent=assert(__course_performance_agent_v1);dofile(assert(os.getenv('COURSE_PERF_INIT_LUA')));assert(__course_performance_agent_v1==agent);return {}\n",
       );
     }
+    const shared = join(root, "shared.lua");
+    await Deno.writeTextFile(
+      shared,
+      `dofile(${JSON.stringify(join(root, "a.lua"))});dofile(${
+        JSON.stringify(join(root, "b.lua"))
+      });return {}\n`,
+    );
     const out = await new Deno.Command(setup.env.QUARTO_PANDOC, {
       args: [
         "--data-dir",
         data,
         "--lua-filter",
-        join(root, "a.lua"),
-        "--lua-filter",
-        join(root, "b.lua"),
+        shared,
         "-t",
         "plain",
       ],
@@ -125,9 +132,9 @@ Deno.test("CPU profiles have independent process outputs and preserve program su
     for await (const dir of Deno.readDir(join(root, "profiles"))) dirs.push(dir.name);
     assert.equal(dirs.length, 2);
     for (const id of dirs) {
-      const p = JSON.parse(await Deno.readTextFile(join(root, "profiles", id, "cpu.cpuprofile")));
-      assert(p.nodes.length > 0);
-      assert(p.endTime >= p.startTime);
+      const p = parseObject(await Deno.readTextFile(join(root, "profiles", id, "cpu.cpuprofile")));
+      assert(array(p.nodes).length > 0);
+      assert(number(p.endTime) >= number(p.startTime));
     }
   } finally {
     await Deno.remove(root, { recursive: true });
@@ -188,12 +195,12 @@ Deno.test("SIGTERM flushes incomplete TS work and preserves the signal; SIGKILL 
       if (signal === "SIGTERM") {
         let summary;
         for await (const process of Deno.readDir(join(output, "events"))) {
-          summary = JSON.parse(
+          summary = parseJson(
             await Deno.readTextFile(join(output, "events", process.name, "ts.summary.json")),
           );
         }
-        assert(summary.incomplete_spans > 0);
-        assert.equal(summary.data_valid, false);
+        assert(number(object(summary).incomplete_spans) > 0);
+        assert.equal(object(summary).data_valid, false);
       }
     }
   } finally {
@@ -562,7 +569,9 @@ Deno.test("launcher receipts precede child code and distinguish executable CPU w
     const entry = join(root, "entry.ts");
     await Deno.writeTextFile(
       entry,
-      `const root=Deno.env.get('COURSE_PERF_OUTPUT_DIR')!,id=Deno.env.get('COURSE_PERF_PROCESS_ID')!;const receipt=JSON.parse(await Deno.readTextFile(root+'/processes/'+id+'.json'));if(!receipt.expectation.summary_path||!receipt.expectation.profile_path||receipt.expectation.executed)throw new Error('missing initial expectation');console.log('executed');`,
+      `import {parseObject,object,string} from ${
+        JSON.stringify(new URL("../../src/json.ts", import.meta.url).href)
+      };const root=string(Deno.env.get('COURSE_PERF_OUTPUT_DIR')),id=string(Deno.env.get('COURSE_PERF_PROCESS_ID'));const receipt=parseObject(await Deno.readTextFile(root+'/processes/'+id+'.json'));const expectation=object(receipt.expectation);if(!expectation.summary_path||!expectation.profile_path||expectation.executed)throw new Error('missing initial expectation');console.log('executed');`,
     );
     const preload = join(root, "helper.ts");
     await Deno.writeTextFile(preload, 'throw new Error("help must not execute preload");\n');
@@ -624,14 +633,22 @@ Deno.test("launcher receipts precede child code and distinguish executable CPU w
         }
         const run = await normalizeRun(output);
         assert(run.dataValid, JSON.stringify(run.quality));
-        const expectations = JSON.parse(await Deno.readTextFile(join(output, "expectations.json")));
+        const expectations = validateDiagnosticExpectations(
+          parseObject(await Deno.readTextFile(join(output, "expectations.json"))),
+        );
         assert.equal(expectations.schema_version, 2);
         assert.equal(expectations.processes.length, 1);
+        assert(expectations.processes[0]);
         assert.equal(expectations.processes[0].activated, active);
+
         assert.equal(expectations.processes[0].executed, active);
+
         assert.equal(Boolean(expectations.processes[0].summary_path), active);
+
         assert.equal(Boolean(expectations.processes[0].profile_path), active && kind === "deno");
         if (active) {
+          assert(expectations.processes[0]);
+          assert(expectations.processes[0].summary_path);
           await Deno.remove(join(output, expectations.processes[0].summary_path));
           assert.equal((await normalizeRun(output)).dataValid, false);
         }
@@ -677,9 +694,12 @@ Deno.test("final receipt I/O failure preserves native exit and leaves initial fa
     }).output();
     assert.equal(result.code, 7, new TextDecoder().decode(result.stderr));
     const [file] = [...Deno.readDirSync(join(output, "saved-processes"))];
-    const initial = JSON.parse(await Deno.readTextFile(join(output, "saved-processes", file.name)));
+    assert(file);
+    const initial = parseObject(
+      await Deno.readTextFile(join(output, "saved-processes", file.name)),
+    );
     assert.equal(initial.exit_code, null);
-    assert(initial.expectation.summary_path);
+    assert(object(initial.expectation).summary_path);
     assert.equal((await normalizeRun(output)).dataValid, false);
   } finally {
     await Deno.remove(root, { recursive: true });

@@ -1,3 +1,4 @@
+import { array, object, parseJson, parseObject, string } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { dirname, join } from "node:path";
 import { normalizeRun } from "../../src/analysis/normalize.ts";
@@ -149,7 +150,7 @@ Deno.test("explicit historical CLI report and verify derive v2 artifacts without
         assert.equal(out.code, 0, new TextDecoder().decode(out.stderr));
         assert.deepEqual(await inventory(source), before);
         const record = validateRunRecord(
-          JSON.parse(await Deno.readTextFile(join(output, "runs/r/run.json"))),
+          parseJson(await Deno.readTextFile(join(output, "runs/r/run.json"))),
         );
         assert.equal(record.collectionDirectory, run);
         assert.equal(record.outputDirectory, join(output, "runs/r"));
@@ -157,29 +158,34 @@ Deno.test("explicit historical CLI report and verify derive v2 artifacts without
         assert.equal(record.git, null);
         assert.deepEqual(record.request.nativeArgv, ["file with spaces.qmd"]);
         const summary = validateRunSummary(
-          JSON.parse(await Deno.readTextFile(join(output, "runs/r/summary.json"))),
+          parseJson(await Deno.readTextFile(join(output, "runs/r/summary.json"))),
         );
+        assert(summary.operations[0]);
         assert.equal(summary.operations[0].inclusiveMicroseconds, 100);
         assert.equal(
-          JSON.parse(await Deno.readTextFile(join(output, "summary.json"))).schema_version,
+          parseObject(await Deno.readTextFile(join(output, "summary.json"))).schema_version,
           2,
         );
-        const provenance = JSON.parse(
+        const provenance = parseObject(
           await Deno.readTextFile(join(output, "import-provenance.json")),
         );
         assert.equal(provenance.sourceDirectory, source);
         assert.equal(
-          provenance.manifest.sha256,
+          object(provenance.manifest).sha256,
           await hashFile(join(source, "candidate.manifest.json")),
         );
-        assert.equal(provenance.runs[0].sha256, await hashFile(join(run, "run.json")));
+        assert(array(provenance.runs)[0]);
+        assert.equal(
+          object(array(provenance.runs)[0]).sha256,
+          await hashFile(join(run, "run.json")),
+        );
         assert.equal(
           await hashFile(join(output, "runs/r/events/p/ts.jsonl")),
           await hashFile(join(run, "events/p/ts.jsonl")),
         );
         for (const report of [join(output, "report.md"), join(output, "runs/r/report.md")]) {
           for (const match of (await Deno.readTextFile(report)).matchAll(/\]\(([^)]+)\)/g)) {
-            await Deno.stat(join(dirname(report), decodeURI(match[1])));
+            await Deno.stat(join(dirname(report), decodeURI(string(match[1]))));
           }
         }
       }
@@ -205,7 +211,7 @@ Deno.test("historical API guards reject overlapping aliases, occupied output and
       await assert.rejects(() => importHistoricalExperiment(source, output), /output|Output/);
       assert.deepEqual(await inventory(root), before);
     }
-    const original = JSON.parse(await Deno.readTextFile(join(source, "runs/r/run.json")));
+    const original = parseObject(await Deno.readTextFile(join(source, "runs/r/run.json")));
     for (
       const invalid of [
         { ...original, schema_version: 99 },
@@ -255,12 +261,12 @@ Deno.test("historical API and CLI preserve partial valid pairs and native failur
       assert.equal(result.dataValid, false);
       assert.deepEqual(await inventory(source), before);
       const record = validateRunRecord(
-        JSON.parse(await Deno.readTextFile(join(output, "runs/r/run.json"))),
+        parseJson(await Deno.readTextFile(join(output, "runs/r/run.json"))),
       );
       assert.equal(record.outcome.code, code);
       assert.equal(record.importProvenance!.sourceStatus.buildExitCode, code);
       const summary = validateRunSummary(
-        JSON.parse(await Deno.readTextFile(join(output, "runs/r/summary.json"))),
+        parseJson(await Deno.readTextFile(join(output, "runs/r/summary.json"))),
       );
       assert.deepEqual(
         summary.operations.map((o) => [o.operationId, o.inclusiveMicroseconds, o.quality]),
@@ -352,7 +358,7 @@ Deno.test("historical adapter never relabels arbitrary executable render command
   try {
     const source = join(root, "source");
     const run = await fixture(source);
-    const metadata = JSON.parse(await Deno.readTextFile(join(run, "run.json")));
+    const metadata = parseObject(await Deno.readTextFile(join(run, "run.json")));
     await json(join(run, "run.json"), { ...metadata, argv: ["python3", "render", "page.qmd"] });
     const before = await inventory(root);
     await assert.rejects(
@@ -374,8 +380,9 @@ Deno.test("historical aggregate does not retain a complete coverage claim after 
     const before = await inventory(source);
     const output = join(root, "output");
     await importHistoricalExperiment(source, output);
+    assert(array(parseJson(await Deno.readTextFile(join(output, "coverage.json"))))[0]);
     assert.equal(
-      JSON.parse(await Deno.readTextFile(join(output, "coverage.json")))[0].complete,
+      object(array(parseJson(await Deno.readTextFile(join(output, "coverage.json"))))[0]).complete,
       false,
     );
     assert.deepEqual(await inventory(source), before);
@@ -446,10 +453,10 @@ for (const entry of ["API", "report", "verify"]) {
         }
         assert.deepEqual(await inventory(source), before);
         const record = validateRunRecord(
-          JSON.parse(await Deno.readTextFile(join(output, "runs/r/run.json"))),
+          parseJson(await Deno.readTextFile(join(output, "runs/r/run.json"))),
         );
         const summary = validateRunSummary(
-          JSON.parse(await Deno.readTextFile(join(output, "runs/r/summary.json"))),
+          parseJson(await Deno.readTextFile(join(output, "runs/r/summary.json"))),
         );
         assert.equal(record.outcome.code, code);
         assert.equal(record.outcome.wallSeconds, 1.25);
@@ -462,10 +469,10 @@ for (const entry of ["API", "report", "verify"]) {
           assert.equal(derived.quality.errors.length, valid ? 0 : 1);
           if (name === "withdrawn" || name === "native failure") {
             assert.match(
-              derived.quality.errors[0],
+              string(derived.quality.errors[0]),
               /Измерение отозвано: known measurement withdrawn/,
             );
-          } else if (!valid) assert.match(derived.quality.errors[0], /Invalidation:/);
+          } else if (!valid) assert.match(string(derived.quality.errors[0]), /Invalidation:/);
         }
         assert.deepEqual(summary.operations, []);
         assert.deepEqual(summary.counters, []);
@@ -478,3 +485,37 @@ for (const entry of ["API", "report", "verify"]) {
     }
   });
 }
+
+Deno.test("historical CLI игнорирует missing и legacy config при report и verify", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const source = join(root, "source"), legacy = join(root, "legacy.json");
+    await fixture(source, 1);
+    await json(legacy, { schema_version: 1 });
+    const before = await inventory(source);
+    for (
+      const [label, config] of [["missing", join(root, "missing.json")], [
+        "legacy",
+        legacy,
+      ]] as const
+    ) {
+      for (const command of ["report", "verify"]) {
+        const output = join(root, label + "-" + command);
+        const result = await cli(
+          source,
+          command,
+          "--import-historical",
+          "--output",
+          output,
+          "--config",
+          config,
+        );
+        assert.equal(result.code, 0, new TextDecoder().decode(result.stderr));
+        await Deno.stat(join(output, "report.md"));
+        assert.deepEqual(await inventory(source), before);
+      }
+    }
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

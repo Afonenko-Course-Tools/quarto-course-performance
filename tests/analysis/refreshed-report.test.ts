@@ -1,3 +1,4 @@
+import { array, object, parseJson, parseObject } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 import { writeExperimentReport } from "../../src/analysis/report.ts";
@@ -7,7 +8,7 @@ import { record } from "../report/fixture.ts";
 Deno.test("lazy re-normalization refreshes builds, coverage, summary and both report tables", async () => {
   const root = await Deno.makeTempDir();
   const dir = join(root, "runs/r");
-  const load = async (path: string) => JSON.parse(await Deno.readTextFile(join(root, path)));
+  const load = async (path: string) => parseJson(await Deno.readTextFile(join(root, path)));
   try {
     await Deno.mkdir(dir, { recursive: true });
     await Deno.mkdir(join(dir, "events"));
@@ -43,14 +44,18 @@ Deno.test("lazy re-normalization refreshes builds, coverage, summary and both re
       root,
     );
     assert.equal(result.dataValid, false);
-    assert.equal((await load("runs/r/run.json")).dataValid, false);
-    assert.equal((await load("runs/r/run.json")).outcome.code, 7);
-    assert.equal((await load("builds.json"))[0].dataValid, false);
-    assert.equal((await load("summary.json")).runs[0].data_valid, false);
-    assert.equal((await load("runs/r/summary.json")).dataValid, false);
-    assert.equal((await load("coverage.json"))[0].integrity, "invalid");
-    assert.equal((await load("coverage.json"))[0].complete, false);
-    assert.equal((await load("runs/r/coverage.json")).integrity, "invalid");
+    assert.equal(object(await load("runs/r/run.json")).dataValid, false);
+    assert.equal(object(object(await load("runs/r/run.json")).outcome).code, 7);
+    assert(array(await load("builds.json"))[0]);
+    assert.equal(object(array(await load("builds.json"))[0]).dataValid, false);
+    assert(array(object(await load("summary.json")).runs)[0]);
+    assert.equal(object(array(object(await load("summary.json")).runs)[0]).data_valid, false);
+    assert.equal(object(await load("runs/r/summary.json")).dataValid, false);
+    assert(array(await load("coverage.json"))[0]);
+    assert.equal(object(array(await load("coverage.json"))[0]).integrity, "invalid");
+
+    assert.equal(object(array(await load("coverage.json"))[0]).complete, false);
+    assert.equal(object(await load("runs/r/coverage.json")).integrity, "invalid");
     const lines = (await Deno.readTextFile(join(root, "report.md"))).split("\n").filter((line) =>
       line.includes("[VALID]")
     );
@@ -102,6 +107,7 @@ Deno.test("completed experiment keeps normalized coverage instead of the prepara
     }).output();
     assert(native.success);
     const bin = new TextDecoder().decode(native.stdout).trim().split("\n")[0];
+    assert(bin);
     const share = join(root, "share");
     await Deno.mkdir(join(share, "pandoc/datadir"), { recursive: true });
     await Deno.writeTextFile(join(share, "pandoc/datadir/init.lua"), "-- fixture\n");
@@ -169,13 +175,14 @@ Deno.test("completed experiment keeps normalized coverage instead of the prepara
     );
     const dirs = [...Deno.readDirSync(join(workspace, "runs"))];
     assert.equal(dirs.length, 1);
-    const coverage = JSON.parse(
+    assert(dirs[0]);
+    const coverage = parseObject(
       await Deno.readTextFile(join(workspace, "runs", dirs[0].name, "coverage.json")),
     );
     assert.equal(coverage.integrity, "valid");
     assert.deepEqual(coverage.instrumented, { ts: false, lua: false });
-    assert.equal(coverage.packageCoverage.observationStatus, "valid");
-    assert.equal(coverage.observations.absent, "unknown");
+    assert.equal(object(coverage.packageCoverage).observationStatus, "valid");
+    assert.equal(object(coverage.observations).absent, "unknown");
   } finally {
     await Deno.remove(root, { recursive: true });
   }

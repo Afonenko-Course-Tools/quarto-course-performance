@@ -21,7 +21,7 @@ Deno.test("installed tree: spaces, foreign config, empty cache, offline render a
     }
     const archives = Deno.env.get("PERF_NPM_ARCHIVES");
     if (archives) {
-      for (const [name, version] of [["typescript", "5.9.3"], ["luaparse", "0.3.1"]]) {
+      for (const [name, version] of [["typescript", "5.9.3"]] as const) {
         const target = join(root, "node_modules", name);
         await Deno.mkdir(target, { recursive: true });
         const extracted = await new Deno.Command("tar", {

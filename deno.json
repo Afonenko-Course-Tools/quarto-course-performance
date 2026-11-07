@@ -3,12 +3,22 @@
   "tasks": {
     "perf": "deno run --config deno.json --lock deno.lock --frozen --node-modules-dir=manual --cached-only -A src/cli.ts",
     "test": "deno test -A tests",
-    "check": "deno check src/cli.ts tools/repeat-java.ts tools/recheck-repeat.ts tools/validate-java.ts tools/owner-normalizer.ts tools/check-perfetto.ts tools/check-java-general-use.ts && deno fmt --check src bridge tools tests",
+    "check": "deno task check:types && deno lint --rules-tags= --rules-include=no-explicit-any,ban-ts-comment src bridge tools tests && deno fmt --check src bridge tools tests && deno task check:lua && deno task check:python && deno task check:shell",
     "check:perfetto": "deno run -A tools/check-perfetto.ts",
-    "check:java": "deno run -A tools/check-java-general-use.ts"
+    "check:java": "deno run -A tools/check-java-general-use.ts",
+    "check:types": "deno check src/ bridge/ tools/ tests/",
+    "check:lua": "deno run --no-config --no-lock -A tools/check-lua.ts --library \"$PWD/typecheck\"",
+    "check:python": "pyright --project pyrightconfig.json",
+    "check:shell": "shellcheck packaging/arch/quarto-course-perf tools/setup-lua-ci.sh && shellcheck --external-sources --source-path=SCRIPTDIR/.. tools/check-packaging.sh && bash tools/check-packaging.sh && bash -n tools/check-packaging.sh && bash -n tools/setup-lua-ci.sh && bash -n packaging/arch/PKGBUILD && sh -n packaging/arch/quarto-course-perf"
   },
   "compilerOptions": {
-    "strict": true
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "useUnknownInCatchVariables": true
   },
   "fmt": {
     "lineWidth": 100

@@ -1,7 +1,34 @@
+import { string } from "../src/json.ts";
 import { strict as assert } from "node:assert";
 import { isAbsolute, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { treeHash } from "../src/sources/snapshot.ts";
+
+/** Та же программа проверяется отдельно от installed offline runtime. */
+export function installedProbe(root: string, course: string): string {
+  const module = (path: string) => JSON.stringify(pathToFileURL(join(root, path)).href);
+  return `
+import {prepareDiagnostic} from ${module("src/runner/diagnostic.ts")};
+import {executeScenario} from ${module("src/runner/execute.ts")};
+import {normalizeRun} from ${module("src/analysis/normalize.ts")};
+import {strict as assert} from "node:assert";
+import {parseJson,array,object,string} from ${module("src/json.ts")};
+import type {PreparedVariant,Scenario} from ${module("src/config/types.ts")};
+const root = ${JSON.stringify(course)};
+await Deno.writeTextFile(root+'/entry.ts', 'export function installedTrace(value: number) { return value + 1; }\\nconsole.log(installedTrace(41));');
+const prepared:PreparedVariant={variant:'candidate',root,manifest:{schema_version:2,experimentId:'installed',projectSource:'fixture/course',replacements:[],sources:[],packages:[],runtime:{}}};
+const scenario:Scenario={id:'installed-trace',cwd:'.',executable:Deno.execPath(),args:['run','--no-config','--no-lock','--cached-only','-A',root+'/entry.ts'],cachePolicy:'repeat-render',mode:'trace',scope:{modules:['entry.ts'],extensions:[],strict:true},resources:{wall:true,cpu:true,peakRss:true}};
+const diagnostic=await prepareDiagnostic(scenario,prepared,root+'/diagnostic',Deno.env.get('QUARTO')??'quarto');
+scenario.executable=string(diagnostic.env.QUARTO_DENO);
+const result=await executeScenario(scenario,prepared,'trace',{outputRoot:root+'/trace-output',diagnosticEnv:diagnostic.env,preparation:diagnostic.preparation});
+assert.equal(result.buildExitCode,0);assert(result.dataValid,JSON.stringify(result));
+assert(result.preparation.some(p=>p.kind==='ts-transform'));
+const transformed=await Deno.readTextFile(root+'/entry.ts'); assert.match(transformed,/installedTrace/);
+const symbols=array(parseJson(await Deno.readTextFile(root+'/entry.ts.symbols.json'))).map(value=>string(object(value).id));assert.equal(symbols.length,1);
+const normalized=await normalizeRun(result.outputDirectory);assert(normalized.events.some(e=>e.event==='begin' && e.operation_id===symbols[0]));
+console.log('installed TS trace PASS',result.outputDirectory);
+`;
+}
 
 /** Проверка распакованного приложения без установки в системные каталоги. */
 export async function checkInstalled(root: string): Promise<void> {
@@ -58,29 +85,7 @@ export async function checkInstalled(root: string): Promise<void> {
     await run(join(root, "src/cli.ts"), ["render", "--perf-mode", "summary", "index.qmd"]);
     assert.match(await Deno.readTextFile(join(course, "index.html")), /Hello installed tree/);
     const probe = join(temporary, "trace.ts");
-    const module = (path: string) => JSON.stringify(pathToFileURL(join(root, path)).href);
-    await Deno.writeTextFile(
-      probe,
-      `
-import {prepareDiagnostic} from ${module("src/runner/diagnostic.ts")};
-import {executeScenario} from ${module("src/runner/execute.ts")};
-import {normalizeRun} from ${module("src/analysis/normalize.ts")};
-import {strict as assert} from "node:assert";
-const root = ${JSON.stringify(course)};
-await Deno.writeTextFile(root+'/entry.ts', 'export function installedTrace(value: number) { return value + 1; }\\nconsole.log(installedTrace(41));');
-const prepared={variant:'candidate',root,manifest:{schema_version:2,experimentId:'installed',projectSource:'fixture/course',replacements:[],sources:[],packages:[],runtime:{}}};
-const scenario={id:'installed-trace',cwd:'.',executable:Deno.execPath(),args:['run','--no-config','--no-lock','--cached-only','-A',root+'/entry.ts'],cachePolicy:'repeat-render',mode:'trace',scope:{modules:['entry.ts'],extensions:[],strict:true},resources:{wall:true,cpu:true,peakRss:true}};
-const diagnostic=await prepareDiagnostic(scenario,prepared,root+'/diagnostic',Deno.env.get('QUARTO')??'quarto');
-scenario.executable=diagnostic.env.QUARTO_DENO;
-const result=await executeScenario(scenario,prepared,'trace',{outputRoot:root+'/trace-output',diagnosticEnv:diagnostic.env,preparation:diagnostic.preparation});
-assert.equal(result.buildExitCode,0);assert(result.dataValid,JSON.stringify(result));
-assert(result.preparation.some(p=>p.kind==='ts-transform'));
-const transformed=await Deno.readTextFile(root+'/entry.ts'); assert.match(transformed,/installedTrace/);
-const symbols=JSON.parse(await Deno.readTextFile(root+'/entry.ts.symbols.json'));assert.equal(symbols.length,1);
-const normalized=await normalizeRun(result.outputDirectory);assert(normalized.events.some(e=>e.event==='begin' && e.operation_id===symbols[0].id));
-console.log('installed TS trace PASS',result.outputDirectory);
-`,
-    );
+    await Deno.writeTextFile(probe, installedProbe(root, course));
     await run(probe, []);
     assert.equal(await treeHash(root), before, "Установленное дерево изменилось");
     console.log(
@@ -101,5 +106,5 @@ if (import.meta.main) {
   if (Deno.args.length !== 2 || Deno.args[0] !== "--root") {
     throw new Error("check-installed.ts --root /absolute/path");
   }
-  await checkInstalled(Deno.args[1]);
+  await checkInstalled(string(Deno.args[1]));
 }

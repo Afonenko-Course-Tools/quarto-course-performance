@@ -2,8 +2,7 @@ import { strict as assert } from "node:assert";
 import { join } from "node:path";
 
 Deno.test("Java output gate rejects changed HTML, ZIP and unexpected dynamic paths", async () => {
-  const modulePath = "../../tools/check-java-general-use.ts";
-  const module = await import(modulePath).catch(() => undefined);
+  const module = await import("../../tools/check-java-general-use.ts").catch(() => undefined);
   assert(module, "Java general-use gate отсутствует");
   const root = await Deno.makeTempDir();
   try {
@@ -19,9 +18,10 @@ Deno.test("Java output gate rejects changed HTML, ZIP and unexpected dynamic pat
     assert.equal(initial.equivalent, true);
     assert(initial.leftFiles && initial.rightFiles, "Successful output hashes must be retained");
     assert.equal(initial.leftFiles["index.html"], initial.rightFiles["index.html"]);
+    assert(initial.leftFiles["starter.zip"]);
     assert.match(initial.leftFiles["starter.zip"], /^[0-9a-f]{64}$/);
     await Deno.writeTextFile(join(root, "b/index.html"), "<p>different content</p>");
-    assert.deepEqual((await compare()).differences.map((d: { path: string }) => d.path), [
+    assert.deepEqual((await compare()).differences.map((d) => d.path), [
       "index.html",
     ]);
     await Deno.copyFile(join(root, "a/index.html"), join(root, "b/index.html"));
