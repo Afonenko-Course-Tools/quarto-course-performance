@@ -76,3 +76,18 @@ Deno.test("module manual binding does not hide a shadowed nested function; unsup
     /coverage/i,
   );
 });
+
+Deno.test("system Compiler API rejects malformed source before instrumentation without resolving imports", () => {
+  for (const source of ["export function f( {", 'export const text = "unterminated;']) {
+    for (const strict of [false, true]) {
+      assert.throws(
+        () => instrumentModule(source, "malformed.ts", { strict, bridgeUrl: bridge }),
+        { message: "Ошибка разбора TypeScript" },
+      );
+    }
+  }
+  const source = 'import { missing } from "./unavailable.ts"; export function f(){return missing;}';
+  const result = instrumentModule(source, "unresolved.ts", { strict: true, bridgeUrl: bridge });
+  assert.equal(result.symbols.length, 1);
+  assert(result.source.includes('from "./unavailable.ts"'));
+});

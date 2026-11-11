@@ -1,10 +1,11 @@
+import { fileURLToPath } from "node:url";
 import { validateRunRecord } from "../../src/report/types.ts";
 import { object, parseObject } from "../../src/json.ts";
 import { quarto as nativeQuarto } from "../runtime.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 
-const cli = new URL("../../src/cli.ts", import.meta.url).pathname;
+const cli = fileURLToPath(new URL("../../src/cli.ts", import.meta.url));
 const decode = (bytes: Uint8Array) => new TextDecoder().decode(bytes);
 
 async function isolated(

@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { validateEvent } from "../../src/protocol/validate.ts";
 import { number, object, parseJson, parseObject } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
@@ -299,7 +300,7 @@ Deno.test("bootstrap sync-flushes fatal throw, rejected await and timer errors w
   const root = await Deno.makeTempDir();
   try {
     const bridge = new URL("../../bridge/bridge.ts", import.meta.url).href,
-      bootstrap = new URL("../../src/agents/ts/bootstrap.ts", import.meta.url).pathname;
+      bootstrap = fileURLToPath(new URL("../../src/agents/ts/bootstrap.ts", import.meta.url));
     const prefix = `import {createMetrics} from ${
       JSON.stringify(bridge)
     };const m=createMetrics('test');m.wrapSync({id:'complete',kind:'phase'},()=>42)();void m.wrapAsync({id:'pending',kind:'phase'},()=>new Promise(()=>{}))();\n`;

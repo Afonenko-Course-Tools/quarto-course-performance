@@ -1,6 +1,8 @@
+import { fileURLToPath } from "node:url";
 import { join } from "node:path";
-const project = new URL("../", import.meta.url).pathname;
+const project = fileURLToPath(new URL("../", import.meta.url));
 export function bridgeLanguages(extension: string): readonly string[] {
+  if (extension === "course-theme") return [];
   if (extension === "course-print" || extension === "course-moodle") return ["ts"];
   if (extension === "course-cloud") return ["lua"];
   return ["ts", "lua"];

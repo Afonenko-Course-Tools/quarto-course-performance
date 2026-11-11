@@ -67,7 +67,11 @@ export function createMetrics(extensionId: string, abiVersion: 1 = 1): Metrics {
     };
   }
   const failures = Symbol.for("course.performance.failures.v1");
-  ((registry[failures] ??= []) as string[]).push(
+  const recordedFailures = registry[failures] ??= [];
+  if (!Array.isArray(recordedFailures)) {
+    throw new TypeError("Некорректный реестр ошибок Performance ABI 1");
+  }
+  recordedFailures.push(
     `${extensionId}: агент ABI ${abiVersion} отсутствует или несовместим`,
   );
   return identity;

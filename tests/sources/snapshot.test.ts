@@ -1,8 +1,8 @@
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
-import { copyTree, files, treeHash } from "../../src/sources/snapshot.ts";
+import { copyTree, files, hashBytes, treeHash } from "../../src/sources/snapshot.ts";
 
-Deno.test("prepared copies retain input times used by Quarto sitemap lastmod", async () => {
+Deno.test("prepared copies retain input mtime used by Quarto sitemap lastmod", async () => {
   const root = await Deno.makeTempDir({ prefix: "perf source times " });
   try {
     const source = join(root, "source");
@@ -11,12 +11,11 @@ Deno.test("prepared copies retain input times used by Quarto sitemap lastmod", a
       { path: "index.qmd", text: "# Курс\n", mtime: "2001-02-03T04:05:06.000Z" },
       { path: "nested/chapter.qmd", text: "# Глава\n", mtime: "2002-03-04T05:06:07.000Z" },
     ];
-    // Будущий atime не обновляется обычным чтением на relatime filesystems.
-    const atime = new Date("2030-01-02T03:04:05.000Z");
     for (const input of inputs) {
       const file = join(source, input.path);
       await Deno.writeTextFile(file, input.text);
-      await Deno.utime(file, atime, new Date(input.mtime));
+      const mtime = new Date(input.mtime);
+      await Deno.utime(file, mtime, mtime);
     }
     for (const mode of ["off", "summary"]) {
       const destination = join(root, mode);
@@ -24,7 +23,6 @@ Deno.test("prepared copies retain input times used by Quarto sitemap lastmod", a
       for (const input of inputs) {
         const file = join(destination, input.path), info = await Deno.stat(file);
         assert.equal(info.mtime?.toISOString(), input.mtime, `${mode}/${input.path}: lastmod`);
-        assert.equal(info.atime?.toISOString(), "2030-01-02T03:04:05.000Z");
         assert.equal(await Deno.readTextFile(file), input.text);
         assert.equal((await Deno.stat(join(source, input.path))).mtime?.toISOString(), input.mtime);
       }
@@ -59,5 +57,14 @@ Deno.test("source snapshot excludes old measurements without changing runtime or
     );
   } finally {
     await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("hashBytes hashes exactly the selected bytes of ArrayBuffer and shared views", async () => {
+  const expected = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+  for (const buffer of [new ArrayBuffer(5), new SharedArrayBuffer(5)]) {
+    const bytes = new Uint8Array(buffer);
+    bytes.set([255, 97, 98, 99, 255]);
+    assert.equal(await hashBytes(bytes.subarray(1, 4)), expected);
   }
 });

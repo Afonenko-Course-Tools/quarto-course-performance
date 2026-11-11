@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { object, parseObject, string } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
@@ -10,7 +11,7 @@ for (const stage of ["ownership", "live"]) {
           args: [
             "run",
             "-A",
-            new URL("./fixtures/proc-disappeared.ts", import.meta.url).pathname,
+            fileURLToPath(new URL("./fixtures/proc-disappeared.ts", import.meta.url)),
             root,
             stage,
             kind,

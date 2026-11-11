@@ -1,7 +1,7 @@
 import { isAbsolute, join, relative } from "node:path";
 export async function hashBytes(data: Uint8Array): Promise<string> {
   return Array.from(
-    new Uint8Array(await crypto.subtle.digest("SHA-256", data as BufferSource)),
+    new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(data))),
     (x) => x.toString(16).padStart(2, "0"),
   ).join("");
 }

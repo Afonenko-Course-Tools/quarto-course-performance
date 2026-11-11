@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import type { Event } from "../../src/protocol/types.ts";
 import { validateEvent } from "../../src/protocol/validate.ts";
 import { validateRunSummary } from "../../src/report/types.ts";
@@ -18,7 +19,7 @@ Deno.test("filter adapter excludes skipped nil/empty filters and does not preten
     const receipt = await prepareFilterAdapter(source, copy);
     assert.notEqual(receipt.sourceHash, receipt.preparedHash);
     const script = join(root, "test.lua"),
-      agent = new URL("../../src/agents/lua/agent.lua", import.meta.url).pathname;
+      agent = fileURLToPath(new URL("../../src/agents/lua/agent.lua", import.meta.url));
     await Deno.writeTextFile(
       script,
       `local a=dofile(${
@@ -48,7 +49,7 @@ Deno.test("simple summary works without private Quarto filter adapter and cpu wr
   const { renderCommand } = await import("../../src/runner/render.ts");
   const root = await Deno.makeTempDir();
   try {
-    const bridge = new URL("../../bridge/bridge.lua", import.meta.url).pathname;
+    const bridge = fileURLToPath(new URL("../../bridge/bridge.lua", import.meta.url));
     await Deno.writeTextFile(
       join(root, "doc.qmd"),
       "---\nformat: gfm\nfilters: [owner.lua]\n---\n\nNative preserved paragraph.\n",
@@ -204,7 +205,7 @@ Deno.test("public render preparation preserves selected binaries share and funct
       "CUSTOM_INIT=true\n",
     );
     const filter = join(root, "observed.lua");
-    const bridge = new URL("../../bridge/bridge.lua", import.meta.url).pathname;
+    const bridge = fileURLToPath(new URL("../../bridge/bridge.lua", import.meta.url));
     await Deno.writeTextFile(
       filter,
       `assert(CUSTOM_INIT);local m=dofile(${

@@ -1,4 +1,4 @@
-import { numberMap, parseObject } from "../json.ts";
+import { numberMap, oneOf, parseObject } from "../json.ts";
 import { isAbsolute, join } from "node:path";
 import type { CounterAggregate, RunRecord, RunSummary } from "./types.ts";
 import {
@@ -89,7 +89,7 @@ export function summarizeRunRecord(record: RunRecord, normalized?: NormalizedRun
         operationId: o.operation,
         extensionId: o.extension_id,
         extensionAttribution: o.extension_attribution,
-        clockDomain: o.clock as "monotonic_process" | "process_cpu",
+        clockDomain: oneOf(o.clock, ["monotonic_process", "process_cpu"], "clockDomain"),
         completed: o.completed,
         errors: o.errors,
         inclusiveMicroseconds: o.inclusive_us,

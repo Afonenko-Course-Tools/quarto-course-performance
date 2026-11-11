@@ -62,18 +62,6 @@
   },
   {
     "extension": "course-core",
-    "path": "body-export/answer.ts",
-    "operation": "course-core.body-export.answer.validateAnswer",
-    "kind": "phase"
-  },
-  {
-    "extension": "course-core",
-    "path": "body-export/answer.ts",
-    "operation": "course-core.body-export.answer.projectChoice",
-    "kind": "phase"
-  },
-  {
-    "extension": "course-core",
     "path": "body-export/collect.ts",
     "operation": "course-core.body-export.collect.collectExport",
     "kind": "phase"

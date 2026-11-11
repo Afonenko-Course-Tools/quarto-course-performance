@@ -27,7 +27,7 @@ export async function prepareLaunchers(
   await Deno.mkdir(root, { recursive: true });
   const deno = await Deno.realPath(options.deno), pandoc = await Deno.realPath(options.pandoc);
   const backend = join(root, "backend");
-  const directories = ["src", "bridge", "node_modules"];
+  const directories = ["src", "bridge"];
   const files = ["deno.json", "deno.lock", "docs/operation-registry.json"];
   const backendHash = async (base: string) =>
     await hashBytes(new TextEncoder().encode(JSON.stringify([

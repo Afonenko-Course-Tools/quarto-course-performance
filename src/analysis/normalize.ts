@@ -49,8 +49,15 @@ export function validatedIntervals(run: NormalizedRun): ValidatedInterval[] {
       !begin || !end || begin.event !== "begin" || end.event !== "end" || end.status === "aborted"
     ) continue;
     if (
-      ["experiment_id", "run_id", "process_id", "executor_id", "operation_id", "clock_domain"].some(
-        (key) => begin[key as keyof Event] !== end[key as keyof Event],
+      ([
+        "experiment_id",
+        "run_id",
+        "process_id",
+        "executor_id",
+        "operation_id",
+        "clock_domain",
+      ] as const).some(
+        (key) => begin[key] !== end[key],
       ) || begin.run_id !== run.runId || begin.clock_domain === "none" ||
       end.sequence <= begin.sequence
     ) continue;

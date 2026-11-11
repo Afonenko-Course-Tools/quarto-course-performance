@@ -3,7 +3,8 @@ import { parseObject, string } from "../../src/json.ts";
 import { denoCache, quarto as nativeQuarto } from "../runtime.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
-const cli = new URL("../../src/cli.ts", import.meta.url).pathname;
+import { fileURLToPath } from "node:url";
+const cli = fileURLToPath(new URL("../../src/cli.ts", import.meta.url));
 const decoder = new TextDecoder();
 async function fixture(root: string, body: string) {
   const executable = join(root, "quarto-fixture");
@@ -286,15 +287,24 @@ Deno.test("custom output history is excluded without hiding source files beside 
       "-qm",
       "initial",
     ]);
-    for (let i = 0; i < 3; i++) {
-      if (i === 2) await Deno.writeTextFile(join(root, "reports/source.qmd"), "changed source");
+    const invalid = join(root, "reports", crypto.randomUUID());
+    for (let i = 0; i < 4; i++) {
+      if (i === 2) {
+        await Deno.mkdir(invalid);
+        await Deno.writeTextFile(join(invalid, "run.json"), "[]");
+      }
+      if (i === 3) {
+        await Deno.remove(invalid, { recursive: true });
+        await Deno.writeTextFile(join(root, "reports/source.qmd"), "changed source");
+      }
       const out = await run(root, quarto, ["--perf-output", "reports"]);
       assert.equal(out.code, 0, decoder.decode(out.stderr));
       const dir = decoder.decode(out.stderr).match(/Отчёт Performance: (.+)/)?.[1];
       assert(dir);
       const r = validateRunRecord(parseObject(await Deno.readTextFile(join(dir, "run.json"))));
       assert(r.git);
-      assert.equal(r.git.dirty, i === 2);
+      assert.equal(r.git.dirty, i >= 2);
+      assert.equal(r.dataValid, true);
     }
   } finally {
     await Deno.remove(root, { recursive: true });

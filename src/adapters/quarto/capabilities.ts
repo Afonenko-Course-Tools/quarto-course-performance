@@ -1,3 +1,4 @@
+import { isObject, parseJson } from "../../json.ts";
 import type { SourceManifest } from "../../config/types.ts";
 import { delimiter, join, resolve } from "node:path";
 import { hashFile } from "../../sources/snapshot.ts";
@@ -21,6 +22,76 @@ export async function executablePath(
     }
   }
   throw new Error(`Исполняемый файл ${command} не найден в effective PATH`);
+}
+
+export type CpuProbe =
+  | { status: "available" }
+  | { status: "unsupported" | "error"; reason: string };
+
+/** Help скрывает часть поддержанных флагов: проверяется настоящий V8 artifact. */
+export async function probeDenoCpu(
+  executable: string,
+  env: Record<string, string>,
+  timeoutMilliseconds = 2000,
+): Promise<CpuProbe> {
+  const directory = await Deno.makeTempDir({ prefix: "course-perf-cpu-probe-" });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const source = join(directory, "probe.js");
+    await Deno.writeTextFile(source, "for(let i=0;i<100000;i++) Math.sqrt(i);\n");
+    const child = new Deno.Command(executable, {
+      args: [
+        "run",
+        "--no-config",
+        "--no-lock",
+        "--cpu-prof-dir",
+        directory,
+        "--cpu-prof-name",
+        "probe.cpuprofile",
+        source,
+      ],
+      env,
+      clearEnv: true,
+      stdin: "null",
+      stdout: "piped",
+      stderr: "piped",
+    }).spawn();
+    let timedOut = false;
+    timer = setTimeout(() => {
+      timedOut = true;
+      try {
+        child.kill("SIGKILL");
+      } catch (error) {
+        if (!(error instanceof Deno.errors.NotFound)) throw error;
+      }
+    }, timeoutMilliseconds);
+    const output = await child.output();
+    if (timedOut) return { status: "error", reason: "CPU probe превысил время ожидания" };
+    if (!output.success) {
+      const reason = new TextDecoder().decode(output.stderr).trim() ||
+        `CPU probe: exit ${output.code}`;
+      return {
+        status: /(?:unexpected|unrecognized|unknown|unsupported).*cpu-prof/is.test(reason)
+          ? "unsupported"
+          : "error",
+        reason,
+      };
+    }
+    const profile = parseJson(await Deno.readTextFile(join(directory, "probe.cpuprofile")));
+    if (
+      !isObject(profile) || !Array.isArray(profile.nodes) || profile.nodes.length === 0 ||
+      !Array.isArray(profile.samples) || !Number.isFinite(profile.startTime) ||
+      !Number.isFinite(profile.endTime)
+    ) {
+      return { status: "error", reason: "CPU probe не создал корректный V8 profile" };
+    }
+    return { status: "available" };
+  } catch (error) {
+    return { status: "error", reason: error instanceof Error ? error.message : String(error) };
+  } finally {
+    clearTimeout(timer);
+    await Deno.remove(directory, { recursive: true });
+  }
 }
 
 export async function probeQuarto(
@@ -81,9 +152,11 @@ export async function probeQuarto(
       hash: await hashFile(pandoc),
     },
   };
+  const denoCpuProbe = await probeDenoCpu(deno, env);
   return {
     runtimeHash: await hashFile(join(bin, "quarto.js")),
-    denoCpu: help.includes("--cpu-prof-dir"),
+    denoCpu: denoCpuProbe.status === "available",
+    denoCpuProbe,
     denoPreload: help.includes("--preload"),
     luaHook: (await run(pandoc, ["--version"])).includes("Lua 5.4"),
     luaSampling: false,

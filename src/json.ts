@@ -2,11 +2,14 @@
 export function parseJson(source: string): unknown {
   return JSON.parse(source);
 }
+export function isObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
 export function object(value: unknown, field = "JSON"): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
+  if (!isObject(value)) {
     throw new Error(`Необходим объект: ${field}`);
   }
-  return value as Record<string, unknown>;
+  return value;
 }
 export function array(value: unknown, field = "JSON"): unknown[] {
   if (!Array.isArray(value)) throw new Error(`Необходим массив: ${field}`);

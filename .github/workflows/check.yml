@@ -19,17 +19,34 @@ jobs:
       - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed
         with:
           deno-version: v2.7.14
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Зависимости typed ESLint и module graph
+        run: npm ci --ignore-scripts
       - name: Установка Hyperfine 2.0.0
         run: |
           curl -fL https://github.com/sharkdp/hyperfine/releases/download/v2.0.0/hyperfine_2.0.0_amd64.deb -o /tmp/hyperfine.deb
           echo "880ba127c51c7b9debde2d830fe27dedbfc92cf2885edd44f7dfbe2152f72afe  /tmp/hyperfine.deb" | sha256sum --check
           sudo dpkg -i /tmp/hyperfine.deb
-      - name: Закреплённые npm-архивы для разработки
+      - name: Системный TypeScript и Compiler API
         run: |
-          curl --fail --location --output /tmp/typescript-5.9.3.tgz https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz
-          echo "10e108c9cf7d5f2879053dff18515fb405abf2ccef63eaaf017d9c571687a1d3  /tmp/typescript-5.9.3.tgz" | sha256sum --check
-          mkdir -p node_modules/typescript
-          tar -xzf /tmp/typescript-5.9.3.tgz --strip-components=1 -C node_modules/typescript
+          sudo apt-get update
+          sudo apt-get install -y node-typescript
+          tsc --version
+          python3 - <<'PYTHON'
+          import json
+          import pathlib
+          import shutil
+          config = pathlib.Path("deno.json")
+          settings = json.loads(config.read_text())
+          compiler = pathlib.Path(shutil.which("tsc")).resolve().parent.parent / "lib" / "typescript.d.ts"
+          if not compiler.is_file():
+              raise SystemExit(f"Системный Compiler API не найден: {compiler}")
+          settings["imports"]["typescript"] = compiler.as_uri()
+          config.write_text(json.dumps(settings, ensure_ascii=False, indent=2) + "\n")
+          PYTHON
       - name: Статическая проверка Python и shell
         run: |
           npm install --prefix "$RUNNER_TEMP/performance-python-types" --no-save --ignore-scripts pyright@1.1.414

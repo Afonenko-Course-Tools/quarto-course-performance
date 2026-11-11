@@ -1,4 +1,11 @@
-import ts from "npm:typescript@5.9.3";
+import type * as TS from "typescript";
+import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
+
+// Типы и runtime используют системную поставку; путь можно переназначить для другой ОС.
+const compilerPath = Deno.env.get("COURSE_PERF_TYPESCRIPT") ||
+  fileURLToPath(import.meta.resolve("typescript")).replace(/\.d\.ts$/, ".js");
+const ts: typeof TS = createRequire(import.meta.url)(compilerPath);
 export interface SymbolReceipt {
   id: string;
   path: string;
@@ -20,11 +27,17 @@ export function instrumentModule(
     symbols: SymbolReceipt[] = [],
     skipped: { position: number; reason: string }[] = [],
     insertions: { pos: number; text: string }[] = [];
-  if (
-    (file as ts.SourceFile & { parseDiagnostics: readonly ts.Diagnostic[] }).parseDiagnostics.length
-  ) throw new Error("Ошибка разбора TypeScript");
+  const options: TS.CompilerOptions = { noLib: true, noResolve: true, types: [] };
+  const host: TS.CompilerHost = {
+    ...ts.createCompilerHost(options),
+    getSourceFile: () => file,
+  };
+  const program = ts.createProgram([path], options, host);
+  if (program.getSyntacticDiagnostics(file).length) {
+    throw new Error("Ошибка разбора TypeScript");
+  }
   const manuallyWrapped = new Set<string>();
-  function findManual(node: ts.Node) {
+  function findManual(node: TS.Node) {
     if (
       ts.isBinaryExpression(node) && ts.isIdentifier(node.left) &&
       ts.isCallExpression(node.right) && ts.isPropertyAccessExpression(node.right.expression) &&
@@ -54,7 +67,7 @@ export function instrumentModule(
     ts.forEachChild(node, findManual);
   }
   findManual(file);
-  function walk(node: ts.Node) {
+  function walk(node: TS.Node) {
     if (
       ts.isConstructorDeclaration(node) || ts.isGetAccessorDeclaration(node) ||
       ts.isSetAccessorDeclaration(node)

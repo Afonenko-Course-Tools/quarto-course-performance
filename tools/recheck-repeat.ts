@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { array, object, parseObject, string } from "../src/json.ts";
 // Повторное сравнение уже выполненных рендеров; исходный результат и outputs сохраняются.
 import { join, resolve } from "node:path";
@@ -47,7 +48,7 @@ const result = {
     originalResult: originalPath,
     originalResultSha256: await hashFile(originalPath),
     normalizerSha256: await hashFile(
-      new URL("../src/analysis/outputs.ts", import.meta.url).pathname,
+      fileURLToPath(new URL("../src/analysis/outputs.ts", import.meta.url)),
     ),
     policy:
       "QRC owner metadata.ts + historical Core exercise attribute order; values, content and ZIP entries strict",

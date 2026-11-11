@@ -15,7 +15,6 @@ export function appDenoArgs(root = assetPath(".")): string[] {
     "--lock",
     resolve(root, "deno.lock"),
     "--frozen",
-    "--node-modules-dir=manual",
     "--cached-only",
     "-A",
   ];

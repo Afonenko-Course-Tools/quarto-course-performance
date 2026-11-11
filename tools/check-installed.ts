@@ -58,7 +58,6 @@ export async function checkInstalled(root: string): Promise<void> {
       "--lock",
       join(root, "deno.lock"),
       "--frozen",
-      "--node-modules-dir=manual",
       "--cached-only",
       "-A",
     ];

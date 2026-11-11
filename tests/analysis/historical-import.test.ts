@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { array, object, parseJson, parseObject, string } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { dirname, join } from "node:path";
@@ -113,7 +114,7 @@ async function cli(root: string, command: string, ...args: string[]) {
     args: [
       "run",
       "-A",
-      new URL("../../src/cli.ts", import.meta.url).pathname,
+      fileURLToPath(new URL("../../src/cli.ts", import.meta.url)),
       "experiment",
       command,
       "--workspace",

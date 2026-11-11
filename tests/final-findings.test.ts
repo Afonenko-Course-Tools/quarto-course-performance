@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { array, parseJson, parseObject } from "../src/json.ts";
 import { quarto as nativeQuarto } from "./runtime.ts";
 import { strict as assert } from "node:assert";
@@ -49,7 +50,7 @@ exit \${FIX_EXIT:-0}
           args: [
             "run",
             "-A",
-            new URL("../src/cli.ts", import.meta.url).pathname,
+            fileURLToPath(new URL("../src/cli.ts", import.meta.url)),
             "render",
             "--perf-mode",
             mode,
@@ -67,7 +68,7 @@ exit \${FIX_EXIT:-0}
         args: [
           "run",
           "-A",
-          new URL("../src/cli.ts", import.meta.url).pathname,
+          fileURLToPath(new URL("../src/cli.ts", import.meta.url)),
           "render",
           "--perf-mode",
           mode,
@@ -189,7 +190,7 @@ Deno.test("W-F4 new off experiment runs immediately write v2 records summaries r
         args: [
           "run",
           "-A",
-          new URL("../src/cli.ts", import.meta.url).pathname,
+          fileURLToPath(new URL("../src/cli.ts", import.meta.url)),
           "experiment",
           command,
           "--workspace",
@@ -286,7 +287,7 @@ Deno.test("W-F3 CLI report and verify refuse historical workspaces without chang
         args: [
           "run",
           "-A",
-          new URL("../src/cli.ts", import.meta.url).pathname,
+          fileURLToPath(new URL("../src/cli.ts", import.meta.url)),
           "experiment",
           command,
           "--workspace",

@@ -1,4 +1,4 @@
-import { parseObject } from "../json.ts";
+import { isObject, parseJson } from "../json.ts";
 import { join, relative, resolve } from "node:path";
 import type {
   BuildOutcome,
@@ -46,9 +46,10 @@ async function gitProvenance(cwd: string, outputParent?: string): Promise<GitPro
           const directory = join(parent, entry.name), rel = relative(gitRoot, directory);
           if (rel === ".." || rel.startsWith("../")) continue;
           try {
-            const previous = parseObject(await Deno.readTextFile(join(directory, "run.json")));
+            const previous = parseJson(await Deno.readTextFile(join(directory, "run.json")));
             if (
-              previous.schema_version === 2 && previous.runId === entry.name &&
+              isObject(previous) && previous.schema_version === 2 &&
+              previous.runId === entry.name &&
               previous.outputDirectory === directory
             ) exclusions.push(`:(exclude,top,literal)${rel}`);
           } catch (e) {

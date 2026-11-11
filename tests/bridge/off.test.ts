@@ -111,3 +111,31 @@ Deno.test("ABI 1 с неполным metrics сохраняет сборку и 
     Deno.env.delete("COURSE_PERF_MODE");
   }
 });
+
+Deno.test("ABI failure registry retains existing entries and rejects a malformed container without replacing it", () => {
+  Deno.env.set("COURSE_PERF_MODE", "summary");
+  const registry = globalThis as Record<symbol, unknown>;
+  const agentKey = Symbol.for("course.performance.agent.v1");
+  const failuresKey = Symbol.for("course.performance.failures.v1");
+  const entries = ["previous failure"];
+  const malformed = { previous: "failure" };
+  registry[agentKey] = { abiVersion: 2 };
+  try {
+    registry[failuresKey] = entries;
+    const fn = () => 42;
+    assert.equal(createMetrics("next").wrapSync({ id: "phase", kind: "phase" }, fn), fn);
+    assert.equal(registry[failuresKey], entries);
+    assert.deepEqual(entries, [
+      "previous failure",
+      "next: агент ABI 1 отсутствует или несовместим",
+    ]);
+    registry[failuresKey] = malformed;
+    assert.throws(() => createMetrics("invalid"), TypeError);
+    assert.equal(registry[failuresKey], malformed);
+    assert.deepEqual(malformed, { previous: "failure" });
+  } finally {
+    delete registry[agentKey];
+    delete registry[failuresKey];
+    Deno.env.delete("COURSE_PERF_MODE");
+  }
+});
