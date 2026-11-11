@@ -6,30 +6,32 @@
 
 ## Системный TypeScript в рабочей копии
 
-Текущая рабочая версия использует системный Compiler API без закреплённой
-npm-версии. На Arch пакет `typescript` предоставляет
-`/usr/lib/node_modules/typescript/lib/typescript.js` и соседний `typescript.d.ts`.
-`deno task check:types` проверяет типы, а `deno test -A tests/instrumentation/ts.test.ts`
-проверяет настоящее AST-преобразование и сохранение поведения функций.
+Опубликованный Performance 2.1.1 использует системный Compiler API без закрепления точной версии
+компилятора. На Arch пакет `typescript` предоставляет
+`/usr/lib/node_modules/typescript/lib/typescript.js` и соседний `typescript.d.ts`. Runtime-проверка
+`deno test --no-check --cached-only -A tests/instrumentation/ts.test.ts` выполняет настоящее
+AST-преобразование и проверяет поведение функций без dev-типов. Полная статическая проверка checkout
+остаётся отдельной: после `npm ci` запустите `deno task check`; этот же gate выполняется в source
+CI. Зависимости разработки не включаются в runtime-пакет.
 
-Для другой установки укажите абсолютный путь к `typescript.js` переменной
-`COURSE_PERF_TYPESCRIPT`; она наследуется дочерними процессами и установленной
-командой. Для статической проверки той же установки настройте import mapping
-`typescript` на её `typescript.d.ts` (в `deno.json` либо через `--import-map`).
-Настройку установленного приложения задаёт рецепт его платформы. Если модуль
-недоступен, TS trace завершается ошибкой загрузки, без автоматического npm install.
-Справка, версия и обычный render не требуют Compiler API.
+Для другой установки укажите абсолютный путь к `typescript.js` переменной `COURSE_PERF_TYPESCRIPT`;
+она наследуется дочерними процессами и установленной командой. Для статической проверки той же
+установки настройте import mapping `typescript` на её `typescript.d.ts` (в `deno.json` либо через
+`--import-map`). Настройку установленного приложения задаёт рецепт его платформы. Если модуль
+недоступен, TS trace завершается ошибкой загрузки, без автоматического npm install. Справка, версия
+и обычный render не требуют Compiler API.
 
-Вложенный [рецепт следующей Arch-поставки](packaging/arch/PKGBUILD) использует
-системную зависимость `typescript`. Опубликованный отдельный репозиторий
-упаковки, описанный ниже, пока содержит прежнюю поставку 2.0.0 с npm-архивами;
-переход установленного пакета требует отдельного выпуска и обновления рецепта.
+Готовый рецепт в
+[репозитории упаковки](https://github.com/Afonenko-Course-Tools/quarto-course-perf-arch) использует
+опубликованный
+[Performance 2.1.1](https://github.com/Afonenko-Course-Tools/quarto-course-performance/releases/tag/v2.1.1)
+и системную зависимость `typescript`. [Шаблон](packaging/arch/PKGBUILD) принадлежит исходникам
+Performance; установленный пакет не содержит собственного `node_modules`.
 
-Подготовка сохраняет выбранные пути и штатную идентичность Git без собственных digest
-runtime, исходников и пакетов. `preparedScripts` описывает созданные скрипты;
-эти пути не доказывают свежесть или полное покрытие. Старые архивы читаются только
-через явный исторический импорт. См. [форматы](docs/general-use-formats.md) и
-[интеграцию PR8](docs/releases/2026-11-11-pr8-closure.md).
+Подготовка сохраняет выбранные пути и штатную идентичность Git без собственных digest runtime,
+исходников и пакетов. `preparedScripts` описывает созданные скрипты; эти пути не доказывают свежесть
+или полное покрытие. Старые архивы читаются только через явный исторический импорт. См.
+[форматы](docs/general-use-formats.md) и [интеграцию PR8](docs/releases/2026-11-11-pr8-closure.md).
 
 ## Установка и первый запуск
 
@@ -45,13 +47,15 @@ cd quarto-course-perf-arch
 makepkg -si
 ```
 
-Пакет использует отдельный Deno, установленный Quarto, GNU time и `setsid` из `util-linux`.
-`makepkg` подготавливает npm-зависимости; генерировать рецепт или готовить их вручную не нужно. Для
-обновления в том же клоне выполните `git pull --ff-only` и повторите `makepkg -si`. Подробности — в
+Пакет использует отдельный Deno, установленный Quarto, GNU time, `setsid` из `util-linux` и
+системный TypeScript. `makepkg` получает один исходный архив и проверяет SHA-256; ручная подготовка
+npm не нужна. Для обновления в том же клоне выполните `git pull --ff-only` и повторите
+`makepkg -si`. Установка на рабочую машину — отдельный пользовательский шаг с правами pacman;
+приёмка выполнена в изолированной Arch. Подробности — в
 [текущей Arch-инструкции](docs/arch-package.md).
 
-Установленный файл `/usr/share/doc/quarto-course-perf/arch-package.md` из выпуска приложения 2.0.0
-сохраняет историческую инструкцию и может описывать прежний маршрут. Актуальная установка и
+Исторический файл `/usr/share/doc/quarto-course-perf/arch-package.md` из старой установки 2.0.0
+сохраняет инструкцию своего выпуска и может описывать прежний маршрут. Актуальная установка и
 обновление описаны в README репозитория `quarto-course-perf-arch`; материалы
 [выпуска 2.0.0](https://github.com/Afonenko-Course-Tools/quarto-course-performance/releases/tag/v2.0.0)
 не заменяются.
@@ -82,16 +86,16 @@ Performance: wall=12.345s; CPU user=9.8; CPU system=1.2; peak RSS=245760 KiB; st
 | `off` — по умолчанию | Внешние wall/CPU/RSS и результат сборки                  | `quarto-course-perf render`                                                                                                     |
 | `summary`            | Дополнительно доступные ручные операции и счётчики       | `quarto-course-perf render --perf-mode summary`                                                                                 |
 | `cpu`                | Дополнительно V8 CPU-профили процессов Deno              | `quarto-course-perf render --perf-mode cpu`                                                                                     |
-| `trace`              | Подробная трассировка выбранного scope в отдельной копии | [Изолированный эксперимент](https://github.com/Afonenko-Course-Tools/quarto-course-performance/blob/v2.0.0/docs/experiments.md) |
+| `trace`              | Подробная трассировка выбранного scope в отдельной копии | [Изолированный эксперимент](https://github.com/Afonenko-Course-Tools/quarto-course-performance/blob/v2.1.1/docs/experiments.md) |
 
 Параметры `--perf-mode` и `--perf-output` ставятся перед первым аргументом Quarto. Простая команда
 сохраняет пользовательские исходники и пакеты; обычные результаты рендера создаёт Quarto. Наличие
 расширения или записи в реестре не доказывает выполнения всех его операций. `coverage.json`
-сохраняет явно запрошенные ID и действительные наблюдения событий. Физическая установка и
-полнота инструментирования пакета по этим данным не определяются. Подключение языкового агента
-само по себе не означает покрытия пакета.
+сохраняет явно запрошенные ID и действительные наблюдения событий. Физическая установка и полнота
+инструментирования пакета по этим данным не определяются. Подключение языкового агента само по себе
+не означает покрытия пакета.
 
-Веб-справочник версии 2.0.0:
+Исторический веб-справочник версии 2.0.0:
 [диагностика и ограничения](https://github.com/Afonenko-Course-Tools/quarto-course-performance/blob/v2.0.0/docs/diagnostics.md)
 ·
 [Perfetto и Speedscope](https://github.com/Afonenko-Course-Tools/quarto-course-performance/blob/v2.0.0/docs/visualization.md)
