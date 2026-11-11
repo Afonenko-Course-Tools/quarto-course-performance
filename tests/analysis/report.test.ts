@@ -1,10 +1,10 @@
-import { array, object, parseJson, parseObject, string } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
-import { operationTotals, writeExperimentReport } from "../../src/analysis/report.ts";
+import { join, resolve } from "node:path";
 import type { NormalizedRun } from "../../src/analysis/normalize.ts";
+import { operationTotals, writeExperimentReport } from "../../src/analysis/report.ts";
+import { array, object, parseJson, parseObject, string } from "../../src/json.ts";
 import type { Event } from "../../src/protocol/types.ts";
 import { record } from "../report/fixture.ts";
-import { join, resolve } from "node:path";
 import { pair, run as fixtureRun } from "../report/fixtures/perfetto/control.ts";
 Deno.test("report separates clock totals, does not claim self time, and retains failed build evidence", async () => {
   const root = await Deno.makeTempDir();

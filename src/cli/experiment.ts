@@ -1,15 +1,5 @@
-import { validatePackageCoverage } from "../runner/package-coverage.ts";
-import { validateRunRecord } from "../report/types.ts";
-import { oneOf, parseObject, string as oneOfPath } from "../json.ts";
 import { join, resolve } from "node:path";
-import { validateConfig } from "../config/validate.ts";
-import { resolveSources } from "../sources/resolve.ts";
-import { freezeVariants, validateFreezeInputs } from "../sources/freeze.ts";
-import { prepareVariant } from "../sources/prepare.ts";
 import { executablePath, probeQuarto } from "../adapters/quarto/capabilities.ts";
-import { executeScenario } from "../runner/execute.ts";
-import { benchmarkPair } from "../runner/benchmark.ts";
-import { hashFile } from "../sources/snapshot.ts";
 import { compareBenchmarks } from "../analysis/compare.ts";
 import { type NormalizedRun, normalizeRun } from "../analysis/normalize.ts";
 import {
@@ -17,7 +7,21 @@ import {
   importHistoricalExperiment,
   writeExperimentReport,
 } from "../analysis/report.ts";
-import { importSourceManifest, liveSourceManifest, type Variant } from "../config/types.ts";
+import {
+  importSourceManifest,
+  liveSourceManifest,
+  type Scenario,
+  type Variant,
+} from "../config/types.ts";
+import { validateConfig } from "../config/validate.ts";
+import { oneOf, parseObject, string as oneOfPath } from "../json.ts";
+import { validateRunRecord } from "../report/types.ts";
+import { benchmarkPair } from "../runner/benchmark.ts";
+import { executeScenario, withScenarioSignals } from "../runner/execute.ts";
+import { validatePackageCoverage } from "../runner/package-coverage.ts";
+import { freezeVariants, validateFreezeInputs } from "../sources/freeze.ts";
+import { prepareVariant } from "../sources/prepare.ts";
+import { resolveSources } from "../sources/resolve.ts";
 function parseFlags(args: readonly string[]): Record<string, string> {
   const flags: Record<string, string> = {};
   for (let n = 0; n < args.length; n++) {
@@ -139,7 +143,7 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
       QUARTO_RUN_NO_NETWORK: "true",
       QUARTO: quarto,
     };
-  if (command === "run" || command === "benchmark") {
+  async function runOrBenchmark(abortSignal: AbortSignal): Promise<number> {
     if (!config) throw new Error("Необходим --config v2");
     const runtimeRegistry = (await manifestFor("candidate")).runtime.runtimeRegistry?.path;
     const scenario = config.scenarios.find((s) => s.id === flags["--scenario"]);
@@ -150,7 +154,8 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
         variant,
         await Deno.makeTempDir({ dir: workspace, prefix: "prepared-" }),
       );
-    if (command === "benchmark") {
+    async function benchmark(scenario: Scenario): Promise<number> {
+      if (!config) throw new Error("Необходим --config v2");
       const left = flags["--left"] ?? "clean-control", right = flags["--right"] ?? "candidate";
       if (
         !["upstream", "clean-control", "candidate"].includes(left) ||
@@ -170,7 +175,6 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
       const hyperfineReceipt = {
         path: hyperfinePath,
         version: new TextDecoder().decode(hyperfine.stdout).trim(),
-        hash: await hashFile(hyperfinePath),
       };
       const a = await prepare(oneOf(left, ["upstream", "clean-control", "candidate"])),
         b = await prepare(oneOf(right, ["upstream", "clean-control", "candidate"])),
@@ -182,6 +186,7 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
           pairs,
           seed,
           executeOptions: {
+            abortSignal,
             outputRoot: runRoot,
             env,
             ...(config.cleanPaths === undefined ? {} : { cleanPaths: config.cleanPaths }),
@@ -213,6 +218,7 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
       console.log(JSON.stringify(result));
       return comparison.status === "PASS" ? 0 : 5;
     }
+    if (command === "benchmark") return await benchmark(scenario);
     const mode = oneOf(flags["--mode"] ?? scenario.mode, ["off", "summary", "cpu", "trace"]),
       variant = oneOf(flags["--variant"] ?? "candidate", [
         "upstream",
@@ -233,11 +239,12 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
         quarto,
       );
     const result = await executeScenario(actual, prepared, mode, {
+      abortSignal,
       outputRoot: runRoot,
       env,
       ...(config.cleanPaths === undefined ? {} : { cleanPaths: config.cleanPaths }),
       ...(diagnostic === undefined ? {} : {
-        preparation: diagnostic.preparation,
+        preparedScripts: diagnostic.preparedScripts,
         diagnosticEnv: diagnostic.env,
         coverage: diagnostic.coverage,
       }),
@@ -269,7 +276,10 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
     console.log(JSON.stringify(result));
     return result.buildExitCode ? 3 : result.dataValid ? 0 : 4;
   }
-  if (command === "report" || command === "verify") {
+  if (command === "run" || command === "benchmark") {
+    return await withScenarioSignals(runOrBenchmark);
+  }
+  async function reportOrVerify(): Promise<number> {
     if (flags["--import-historical"]) {
       const report = await importHistoricalExperiment(
         workspace,
@@ -330,5 +340,6 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
     }
     return report.dataValid ? 0 : 4;
   }
+  if (command === "report" || command === "verify") return await reportOrVerify();
   throw new Error("Команды: sources, freeze, run, benchmark, report, verify, capabilities");
 }

@@ -1,7 +1,7 @@
-import { string } from "../json.ts";
 import { relative } from "node:path";
 import type { OutputPolicy } from "../config/types.ts";
-import { files, hashFile } from "../sources/snapshot.ts";
+import { string } from "../json.ts";
+import { files } from "../sources/files.ts";
 
 // Исторические атрибуты упражнений Core: значения и остальные bytes сохраняются.
 // Нормализация QRC предоставляется владельцем через explicit normalizeHtml adapter.
@@ -102,7 +102,7 @@ export async function compareOutputs(
           x.stdout.some((v, i) => v !== y.stdout[i])
         ) differences.push(`${name}/${entry}: ZIP bytes различаются`);
       }
-    } else if (await hashFile(a.get(name)!) !== await hashFile(b.get(name)!)) {
+    } else if (!equalBytes(await Deno.readFile(a.get(name)!), await Deno.readFile(b.get(name)!))) {
       if (
         roots.outputPolicy !== "java-pilot-core-qrc-v1" || !name.endsWith(".html") ||
         normalizeOutput(
@@ -123,4 +123,8 @@ export async function compareOutputs(
     }
   }
   return { equivalent: !differences.length, differences };
+}
+
+function equalBytes(a: Uint8Array, b: Uint8Array): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
 }

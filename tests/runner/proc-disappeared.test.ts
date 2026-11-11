@@ -1,7 +1,7 @@
-import { fileURLToPath } from "node:url";
-import { object, parseObject, string } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { object, parseObject, string } from "../../src/json.ts";
 for (const stage of ["ownership", "live"]) {
   for (const kind of ["esrch", "permission", "io"]) {
     Deno.test(`proc ${stage}: ${kind} preserves only vanished-PID tolerance`, async () => {

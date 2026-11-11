@@ -1,6 +1,6 @@
-import { array, number, object, parseJson, parseObject } from "../json.ts";
 import { join } from "node:path";
 import type { ReportSourceManifest } from "../config/types.ts";
+import { array, number, object, parseJson, parseObject } from "../json.ts";
 import type { NormalizedRun } from "./normalize.ts";
 
 import { jsonFiles, operationTotals, writeRunArtifacts } from "../report/run.ts";
@@ -270,7 +270,7 @@ async function writeExperimentArtifacts(
     "",
     ...manifest.sources.map((s) => `- ${s.repository}: \`${s.remoteRef}\`, \`${s.sha}\`.`),
     "",
-    "Хеши runtime и receipts всех установленных копий: [manifest.json](manifest.json), manifests отдельных runs. Raw Hyperfine JSON, stdout/stderr, argv/cwd/cache policy сохранены рядом с run.json.",
+    "Выбранные runtime и пути установленных копий: [manifest.json](manifest.json), manifests отдельных runs. Raw Hyperfine JSON, stdout/stderr, argv/cwd/cache policy сохранены рядом с run.json.",
     "",
     "Lua sampling backend: unavailable. Lua CPU начинается локально в каждом executor; на wall шкалу не переносится. CPU samples Deno не являются точными счётчиками вызовов. TS symbol mapping указывает исходные диапазоны; универсальное восстановление transpiled строк CPU profile не гарантируется. Lua функции на одинаковых строках различаются runtime identity и ordinal первого наблюдения; ordinal между runs не обещает стабильность.",
   ];

@@ -25,13 +25,19 @@ npm-версии. На Arch пакет `typescript` предоставляет
 упаковки, описанный ниже, пока содержит прежнюю поставку 2.0.0 с npm-архивами;
 переход установленного пакета требует отдельного выпуска и обновления рецепта.
 
+Подготовка сохраняет выбранные пути и штатную идентичность Git без собственных digest
+runtime, исходников и пакетов. `preparedScripts` описывает созданные скрипты;
+эти пути не доказывают свежесть или полное покрытие. Старые архивы читаются только
+через явный исторический импорт. См. [форматы](docs/general-use-formats.md) и
+[интеграцию PR8](docs/releases/2026-11-11-pr8-closure.md).
+
 ## Установка и первый запуск
 
 В Arch Linux используйте готовый рецепт из
-[quarto-course-perf-arch](https://github.com/Afonenko-Course-Tools/quarto-course-perf-arch).
-Сначала установите `base-devel`, `git` и настоящий пакет Quarto, предоставляющий `quarto` в базе
-pacman: одного исполняемого файла в `PATH` недостаточно, а `makepkg` не устанавливает зависимости из
-AUR. Затем обычным пользователем выполните:
+[quarto-course-perf-arch](https://github.com/Afonenko-Course-Tools/quarto-course-perf-arch). Сначала
+установите `base-devel`, `git` и настоящий пакет Quarto, предоставляющий `quarto` в базе pacman:
+одного исполняемого файла в `PATH` недостаточно, а `makepkg` не устанавливает зависимости из AUR.
+Затем обычным пользователем выполните:
 
 ```sh
 git clone https://github.com/Afonenko-Course-Tools/quarto-course-perf-arch.git
@@ -40,9 +46,9 @@ makepkg -si
 ```
 
 Пакет использует отдельный Deno, установленный Quarto, GNU time и `setsid` из `util-linux`.
-`makepkg` подготавливает npm-зависимости; генерировать рецепт или готовить их вручную не нужно.
-Для обновления в том же клоне выполните `git pull --ff-only` и повторите `makepkg -si`.
-Подробности — в [текущей Arch-инструкции](docs/arch-package.md).
+`makepkg` подготавливает npm-зависимости; генерировать рецепт или готовить их вручную не нужно. Для
+обновления в том же клоне выполните `git pull --ff-only` и повторите `makepkg -si`. Подробности — в
+[текущей Arch-инструкции](docs/arch-package.md).
 
 Установленный файл `/usr/share/doc/quarto-course-perf/arch-package.md` из выпуска приложения 2.0.0
 сохраняет историческую инструкцию и может описывать прежний маршрут. Актуальная установка и
@@ -80,10 +86,10 @@ Performance: wall=12.345s; CPU user=9.8; CPU system=1.2; peak RSS=245760 KiB; st
 
 Параметры `--perf-mode` и `--perf-output` ставятся перед первым аргументом Quarto. Простая команда
 сохраняет пользовательские исходники и пакеты; обычные результаты рендера создаёт Quarto. Наличие
-расширения или записи в реестре не доказывает выполнения всех его операций. В диагностических
-режимах `coverage.json` отдельно хранит физические копии пакетов выбранной области, статические
-свидетельства разметки и логические наблюдения. Неизвестные сведения остаются неизвестными;
-подключение языкового агента само по себе не означает покрытия пакета.
+расширения или записи в реестре не доказывает выполнения всех его операций. `coverage.json`
+сохраняет явно запрошенные ID и действительные наблюдения событий. Физическая установка и
+полнота инструментирования пакета по этим данным не определяются. Подключение языкового агента
+само по себе не означает покрытия пакета.
 
 Веб-справочник версии 2.0.0:
 [диагностика и ограничения](https://github.com/Afonenko-Course-Tools/quarto-course-performance/blob/v2.0.0/docs/diagnostics.md)
@@ -96,12 +102,12 @@ Performance: wall=12.345s; CPU user=9.8; CPU system=1.2; peak RSS=245760 KiB; st
 ·
 [Машинные форматы](https://github.com/Afonenko-Course-Tools/quarto-course-performance/blob/v2.0.0/docs/general-use-formats.md).
 
-Для разработчика:
-[подготовка зависимостей, проверки, выпуск и владельцы](docs/development.md).
-Исправление JSON в Core 8.2.8, приёмка Cybersecurity и новая полная матрица — в [отчёте обновления](docs/releases/2026-10-25-core-8.2.8-cybersecurity.md).
+Для разработчика: [подготовка зависимостей, проверки, выпуск и владельцы](docs/development.md).
+Исправление JSON в Core 8.2.8, приёмка Cybersecurity и новая полная матрица — в
+[отчёте обновления](docs/releases/2026-10-25-core-8.2.8-cybersecurity.md).
 
-Arch-поставка и история попытки с Core 8.2.6 сохранены в [предыдущем отчёте](docs/releases/2026-10-24-arch-cybersecurity.md).
-Первоначальные
+Arch-поставка и история попытки с Core 8.2.6 сохранены в
+[предыдущем отчёте](docs/releases/2026-10-24-arch-cybersecurity.md). Первоначальные
 [план](https://github.com/Afonenko-Course-Tools/quarto-course-performance/blob/v2.0.0/docs/plan/README.md)
 и
 [отчёт Java-пилота](https://github.com/Afonenko-Course-Tools/quarto-course-performance/blob/v2.0.0/docs/java-pilot-report.md)

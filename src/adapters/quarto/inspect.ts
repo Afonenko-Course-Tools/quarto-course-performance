@@ -1,5 +1,5 @@
-import { object, parseObject, strings } from "../../json.ts";
 import { resolve } from "node:path";
+import { object, parseObject, strings } from "../../json.ts";
 import type { NativeRenderRequest } from "../../report/types.ts";
 
 export interface ProjectTarget {

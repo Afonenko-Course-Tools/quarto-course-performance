@@ -1,9 +1,9 @@
-import { fileURLToPath } from "node:url";
-import { validateRunRecord } from "../../src/report/types.ts";
-import { object, parseObject } from "../../src/json.ts";
-import { quarto as nativeQuarto } from "../runtime.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { object, parseObject } from "../../src/json.ts";
+import { validateRunRecord } from "../../src/report/types.ts";
+import { quarto as nativeQuarto } from "../runtime.ts";
 
 const cli = fileURLToPath(new URL("../../src/cli.ts", import.meta.url));
 const decode = (bytes: Uint8Array) => new TextDecoder().decode(bytes);
@@ -39,7 +39,7 @@ Deno.test("help and version need no Quarto, project, config, network or npm cach
   for (const args of [[], ["--help"], ["help"], ["--version"]]) {
     await isolated(args, async (root, out) => {
       assert(out.success, decode(out.stderr));
-      assert.match(decode(out.stdout), args[0] === "--version" ? /2\.0\.0/ : /quarto-course-perf/);
+      assert.match(decode(out.stdout), args[0] === "--version" ? /2\.1\.0/ : /quarto-course-perf/);
       assert.equal(decode(out.stderr), "");
       assert.deepEqual(await Array.fromAsync(Deno.readDir(root)), []);
     }, { PATH: "/nonexistent", QUARTO: "/nonexistent/quarto" });

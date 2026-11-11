@@ -1,5 +1,5 @@
-import { parseObject, string } from "./json.ts";
 import { parseCommand } from "./cli/arguments.ts";
+import { toolVersion } from "./assets.ts";
 import type { NativeRenderRequest } from "./report/types.ts";
 
 const help = `quarto-course-perf — измерение рендера Quarto
@@ -21,8 +21,7 @@ export async function main(argv: string[]): Promise<number> {
     return 0;
   }
   if (command.kind === "version") {
-    const config = parseObject(await Deno.readTextFile(new URL("../deno.json", import.meta.url)));
-    console.log(string(config.version, "version"));
+    console.log(await toolVersion());
     return 0;
   }
   if (command.kind === "experiment") {

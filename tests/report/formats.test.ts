@@ -1,8 +1,8 @@
 import { strict as assert } from "node:assert";
 import { validateEvent } from "../../src/protocol/validate.ts";
 
-import { validateRunRecord, validateRunSummary } from "../../src/report/types.ts";
 import type { RunRecord, RunSummary } from "../../src/report/types.ts";
+import { validateRunRecord, validateRunSummary } from "../../src/report/types.ts";
 
 const quality = { droppedEvents: 0, incompleteSpans: 0, coverageComplete: false, errors: [] };
 const run = {
@@ -22,7 +22,7 @@ const run = {
     cpuSystemSeconds: null,
     peakRssKiB: null,
   },
-  preparation: [],
+  preparedScripts: [],
   dataValid: true,
   quality,
   versions: { tool: "2.0.0", quarto: "1.11.5", deno: null, pandoc: null },
@@ -120,13 +120,13 @@ Deno.test("summary counters retain executor scope, source and delta versus total
   ) assert.throws(() => validateRunSummary({ ...summary, counters: [{ ...delta, ...change }] }));
 });
 
-Deno.test("run metadata validates provenance and preparation without changing native arguments", () => {
+Deno.test("run metadata validates provenance and preparedScripts without changing native arguments", () => {
   const parsed = validateRunRecord({
     ...run,
     request: { ...run.request, nativeArgv: ["", "--", "$literal"], outputParent: "/measurements" },
     outcome: { ...run.outcome, signal: "SIGTERM", cpuUserSeconds: 0, peakRssKiB: 2048 },
     git: { root: "/course", head: "a".repeat(40), dirty: true },
-    preparation: [{ kind: "bootstrap", path: "init.lua", sourceHash: "a", preparedHash: "b" }],
+    preparedScripts: [{ kind: "bootstrap", path: "init.lua" }],
   });
   assert.deepEqual(parsed.request.nativeArgv, ["", "--", "$literal"]);
   assert.equal(parsed.outcome.signal, "SIGTERM");
@@ -138,8 +138,15 @@ Deno.test("run metadata validates provenance and preparation without changing na
       { dataValid: undefined },
       { request: { ...run.request, nativeArgv: [3] } },
       { outcome: { ...run.outcome, signal: "unknown" } },
-      { preparation: [{ kind: "unknown", path: "init.lua", sourceHash: "a", preparedHash: "b" }] },
-      { preparation: [{ kind: "bootstrap", path: "init.lua", sourceHash: "a" }] },
+      {
+        preparedScripts: [{
+          kind: "unknown",
+          path: "init.lua",
+          sourceHash: "a",
+          preparedHash: "b",
+        }],
+      },
+      { preparedScripts: [{ kind: "bootstrap", path: "init.lua", sourceHash: "a" }] },
       { quality: { ...quality, droppedEvents: -1 } },
       { quality: { ...quality, incompleteSpans: 0.5 } },
       { quality: { ...quality, coverageComplete: undefined } },

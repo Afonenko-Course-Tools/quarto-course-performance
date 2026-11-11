@@ -1,9 +1,8 @@
-import { isAbsolute, join } from "node:path";
 import { strict as assert } from "node:assert";
+import { isAbsolute, join } from "node:path";
 import { type ChromeTrace, traces } from "../src/report/perfetto.ts";
+import { controlRun, pair, run } from "../tests/report/fixtures/perfetto/control.ts";
 import { regressionRuns } from "../tests/report/fixtures/perfetto/regressions.ts";
-import { pair, run } from "../tests/report/fixtures/perfetto/control.ts";
-import { controlRun } from "../tests/report/fixtures/perfetto/control.ts";
 
 const sql = `SELECT
  (SELECT COUNT(*) FROM slice) AS slices,

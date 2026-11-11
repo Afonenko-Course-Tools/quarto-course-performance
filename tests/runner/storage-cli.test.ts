@@ -1,9 +1,9 @@
-import { validateRunRecord } from "../../src/report/types.ts";
-import { parseObject, string } from "../../src/json.ts";
-import { denoCache, quarto as nativeQuarto } from "../runtime.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseObject, string } from "../../src/json.ts";
+import { validateRunRecord } from "../../src/report/types.ts";
+import { denoCache, quarto as nativeQuarto } from "../runtime.ts";
 const cli = fileURLToPath(new URL("../../src/cli.ts", import.meta.url));
 const decoder = new TextDecoder();
 async function fixture(root: string, body: string) {

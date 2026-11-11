@@ -1,5 +1,5 @@
-import { appDenoArgs, assetPath } from "../assets.ts";
 import { dirname, join, resolve } from "node:path";
+import { appDenoArgs, assetPath } from "../assets.ts";
 import type { BuildOutcome } from "../report/types.ts";
 import { createProcessLifecycle } from "./process-lifecycle.ts";
 import { prepareProcessOutput } from "./process-output.ts";

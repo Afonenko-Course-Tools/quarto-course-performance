@@ -1,8 +1,8 @@
-import { array, number, object, parseJson, parseObject } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
-import { cleanEnvironment, executeScenario } from "../../src/runner/execute.ts";
-import type { PreparedVariant, Scenario } from "../../src/config/types.ts";
 import { join } from "node:path";
+import type { PreparedVariant, Scenario } from "../../src/config/types.ts";
+import { array, number, object, parseJson, parseObject } from "../../src/json.ts";
+import { cleanEnvironment, executeScenario } from "../../src/runner/execute.ts";
 Deno.test("off clears inherited diagnostics but retains functional course profile", () => {
   const env = cleanEnvironment({
     COURSE_PERF_MODE: "trace",
@@ -53,7 +53,7 @@ Deno.test("runner keeps argv, cwd, outputs and build exit code and off creates n
     });
     assert.equal(result.buildExitCode, 23);
     assert.equal(result.dataValid, true);
-    assert.equal(result.preparation.length, 0);
+    assert.equal(result.preparedScripts.length, 0);
     assert.deepEqual(
       parseJson(await Deno.readTextFile(join(result.outputDirectory, "stdout.log"))),
       [["arg with spaces"], root, "student", null],
@@ -63,6 +63,8 @@ Deno.test("runner keeps argv, cwd, outputs and build exit code and off creates n
       "error-stream\n",
     );
     assert(result.wallSeconds > 0);
+    const metadata = parseObject(await Deno.readTextFile(join(result.outputDirectory, "run.json")));
+    assert.equal(object(metadata.versions).tool, "2.1.0");
     await assert.rejects(
       () => Deno.stat(join(result.outputDirectory, "events")),
       Deno.errors.NotFound,
@@ -170,6 +172,166 @@ Deno.test("resource measurement retains the tool signal separately from a numeri
     });
     assert.equal(numeric.signal, null);
     assert.equal(numeric.buildExitCode, 143);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("scenario cancellation uses the accepted owned process and retains native termination", async () => {
+  const root = await Deno.makeTempDir({ prefix: "scenario abort " });
+  const controller = new AbortController();
+  try {
+    const entry = join(root, "entry.ts"), ready = join(root, "native-ready");
+    await Deno.writeTextFile(
+      entry,
+      `await Deno.writeTextFile(${
+        JSON.stringify(ready)
+      },String(Deno.pid));setInterval(()=>{},1000);await new Promise(()=>{});`,
+    );
+    const scenario: Scenario = {
+      id: "abort",
+      cwd: ".",
+      executable: Deno.execPath(),
+      args: ["run", "-A", entry],
+      cachePolicy: "repeat-render",
+      mode: "off",
+      scope: { modules: [], extensions: [], strict: true },
+      resources: { wall: true, cpu: true, peakRss: true },
+    };
+    const prepared: PreparedVariant = {
+      variant: "candidate",
+      root,
+      manifest: {
+        schema_version: 2,
+        projectSource: "org/Fixture",
+        replacements: [],
+        experimentId: "e",
+        sources: [],
+        packages: [],
+        runtime: {},
+      },
+    };
+    const running = executeScenario(scenario, prepared, "off", {
+      outputRoot: join(root, "runs"),
+      abortSignal: controller.signal,
+    });
+    const deadline = performance.now() + 5000;
+    while (true) {
+      try {
+        await Deno.stat(ready);
+        break;
+      } catch (error) {
+        if (!(error instanceof Deno.errors.NotFound)) throw error;
+        if (performance.now() > deadline) throw new Error("Native did not start");
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+    }
+    controller.abort("SIGTERM");
+    const result = await running;
+    assert.equal(result.signal, "SIGTERM");
+    assert.equal(result.buildExitCode, 143);
+    const record = parseObject(await Deno.readTextFile(join(result.outputDirectory, "run.json")));
+    assert.equal(object(record.outcome).signal, "SIGTERM");
+    assert.equal(object(record.outcome).code, 143);
+  } finally {
+    controller.abort("SIGTERM");
+    await Deno.remove(root, { recursive: true });
+  }
+});
+Deno.test("scenario bootstrap failure never publishes a fabricated native outcome", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const scenario: Scenario = {
+      id: "missing",
+      cwd: ".",
+      executable: join(root, "missing-native"),
+      args: [],
+      cachePolicy: "repeat-render",
+      mode: "off",
+      scope: { modules: [], extensions: [], strict: true },
+      resources: { wall: true, cpu: false, peakRss: false },
+    };
+    const prepared: PreparedVariant = {
+      variant: "candidate",
+      root,
+      manifest: {
+        schema_version: 2,
+        projectSource: "org/Fixture",
+        replacements: [],
+        experimentId: "e",
+        sources: [],
+        packages: [],
+        runtime: {},
+      },
+    };
+    await assert.rejects(() =>
+      executeScenario(scenario, prepared, "off", { outputRoot: join(root, "runs") })
+    );
+    for await (const run of Deno.readDir(join(root, "runs"))) {
+      await assert.rejects(
+        () => Deno.stat(join(root, "runs", run.name, "run.json")),
+        Deno.errors.NotFound,
+      );
+    }
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("failed Hyperfine envelope cannot promote an exported zero to native success", async () => {
+  const root = await Deno.makeTempDir({ prefix: "hyperfine envelope " });
+  try {
+    const bin = join(root, "bin");
+    await Deno.mkdir(bin);
+    await Deno.writeTextFile(
+      join(bin, "hyperfine"),
+      `#!/usr/bin/python3
+import json,sys
+p=sys.argv[sys.argv.index('--export-json')+1]
+with open(p,'w') as f: json.dump({'schema_version':2,'results':[{'measurements':[{'time_wall_clock':{'unit':'second','value':0.1},'exit_code':0}]}]},f)
+print('failed after export',file=sys.stderr)
+sys.exit(7)
+`,
+    );
+    await Deno.chmod(join(bin, "hyperfine"), 0o755);
+    const scenario: Scenario = {
+      id: "hyperfine-failure",
+      cwd: ".",
+      executable: "/usr/bin/true",
+      args: [],
+      cachePolicy: "repeat-render",
+      mode: "off",
+      scope: { modules: [], extensions: [], strict: true },
+      resources: { wall: true, cpu: true, peakRss: true },
+    };
+    const prepared: PreparedVariant = {
+      variant: "candidate",
+      root,
+      manifest: {
+        schema_version: 2,
+        projectSource: "org/Fixture",
+        replacements: [],
+        experimentId: "e",
+        sources: [],
+        packages: [],
+        runtime: {},
+      },
+    };
+    await assert.rejects(
+      () =>
+        executeScenario(scenario, prepared, "off", {
+          outputRoot: join(root, "runs"),
+          useHyperfine: true,
+          env: { PATH: bin + ":" + Deno.env.get("PATH") },
+        }),
+      /Hyperfine не завершил измерение: code=7/,
+    );
+    for await (const run of Deno.readDir(join(root, "runs"))) {
+      const output = join(root, "runs", run.name);
+      await Deno.stat(join(output, "hyperfine.json"));
+      assert.match(await Deno.readTextFile(join(output, "stderr.log")), /failed after export/);
+      await assert.rejects(() => Deno.stat(join(output, "run.json")), Deno.errors.NotFound);
+    }
   } finally {
     await Deno.remove(root, { recursive: true });
   }

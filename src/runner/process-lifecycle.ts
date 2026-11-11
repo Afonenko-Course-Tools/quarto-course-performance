@@ -1,6 +1,6 @@
 import { parseObject } from "../json.ts";
-import type { OwnedProcessOptions } from "./process.ts";
 import { groupExists, liveGroup, ownedGroups, readOwnedGroup } from "./process-tree.ts";
+import type { OwnedProcessOptions } from "./process.ts";
 import { recordCancellation } from "./resource-child.ts";
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

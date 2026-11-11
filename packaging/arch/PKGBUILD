@@ -1,6 +1,6 @@
 # Подготовить конкретный рецепт: tools/prepare-arch-source.ts.
 pkgname=quarto-course-perf
-pkgver=2.0.0
+pkgver=2.1.0
 pkgrel=1
 pkgdesc='Измерение рендера Quarto и изолированные эксперименты курса'
 arch=('any')

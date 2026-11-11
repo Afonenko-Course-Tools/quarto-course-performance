@@ -1,7 +1,7 @@
-import { fileURLToPath } from "node:url";
-import { parseObject, string } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { parseObject, string } from "../../src/json.ts";
 for (const kind of ["permission", "io", "enumeration"]) {
   for (const stage of ["registration", "live", "complete"]) {
     Deno.test(`supervisor drains owned tree before returning persistent ${kind} error (${stage})`, async () => {

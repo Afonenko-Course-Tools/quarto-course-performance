@@ -1,7 +1,7 @@
-import { fileURLToPath } from "node:url";
-import { array, object, parseJson, string } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { array, object, parseJson, string } from "../../src/json.ts";
 import { bridgeLanguages, syncBridge } from "../../tools/sync-bridge.ts";
 
 Deno.test("owner sync uses only installed implementation languages and checks their bytes", async () => {

@@ -1,6 +1,6 @@
-import { parseObject, string } from "../src/json.ts";
 import { join } from "node:path";
 import { executablePath } from "../src/adapters/quarto/capabilities.ts";
+import { parseObject, string } from "../src/json.ts";
 export const quarto = await executablePath(Deno.env.get("QUARTO") ?? "quarto", Deno.env.toObject());
 const cacheInfo = await new Deno.Command(Deno.execPath(), {
   args: ["info", "--json"],

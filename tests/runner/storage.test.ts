@@ -1,11 +1,10 @@
-import { validateRunSummary } from "../../src/report/types.ts";
-import { validateRunRecord } from "../../src/report/types.ts";
-import { parseObject } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join, relative } from "node:path";
+import { parseObject } from "../../src/json.ts";
+import type { NativeRenderRequest } from "../../src/report/types.ts";
+import { validateRunRecord, validateRunSummary } from "../../src/report/types.ts";
 import { finalizeRun, prepareRunStorage } from "../../src/runner/storage.ts";
 import { record } from "../report/fixture.ts";
-import type { NativeRenderRequest } from "../../src/report/types.ts";
 
 Deno.test("storage stages externally and restores only current run after Quarto removes scratch", async () => {
   const root = await Deno.makeTempDir();
@@ -344,16 +343,14 @@ Deno.test("finalize retains diagnostic aggregates after relocation without rewri
     stage = paths.stagingDirectory;
     await Deno.mkdir(join(stage, "events"));
     const raw = '{"raw_path":"' + stage + '"}\n';
-    const receipt = '{"path":"' + stage + '/bootstrap","sourceHash":"original"}\n';
+    const receipt = '{"path":"' + stage + '/bootstrap"}\n';
     await Deno.writeTextFile(join(stage, "events/raw.jsonl"), raw);
     await Deno.writeTextFile(join(stage, "receipt.json"), receipt);
     const r = record(stage, paths.runId);
     r.request.mode = "summary";
-    r.preparation = [{
+    r.preparedScripts = [{
       kind: "bootstrap",
       path: stage + "/bootstrap",
-      sourceHash: "source",
-      preparedHash: "prepared",
     }];
     const normalized = {
       runId: paths.runId,
@@ -385,8 +382,9 @@ Deno.test("finalize retains diagnostic aggregates after relocation without rewri
     assert.equal(await Deno.readTextFile(join(output, "events/raw.jsonl")), raw);
     assert.equal(await Deno.readTextFile(join(output, "receipt.json")), receipt);
     assert.deepEqual(
-      validateRunRecord(parseObject(await Deno.readTextFile(join(output, "run.json")))).preparation,
-      r.preparation,
+      validateRunRecord(parseObject(await Deno.readTextFile(join(output, "run.json"))))
+        .preparedScripts,
+      r.preparedScripts,
     );
   } finally {
     await Deno.remove(root, { recursive: true });

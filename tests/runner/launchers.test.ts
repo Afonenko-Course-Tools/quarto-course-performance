@@ -1,9 +1,9 @@
-import { validateDiagnosticExpectations } from "../../src/report/types.ts";
-import { array, number, object, parseJson, parseObject, string } from "../../src/json.ts";
-import { dataDir, pandoc } from "../runtime.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
+import { array, number, object, parseJson, parseObject, string } from "../../src/json.ts";
 import { prepareLaunchers } from "../../src/launchers/setup.ts";
+import { validateDiagnosticExpectations } from "../../src/report/types.ts";
+import { dataDir, pandoc } from "../runtime.ts";
 Deno.test("Deno launcher uses real binary, preserves main and args, and flushes on Deno.exit", async () => {
   const root = await Deno.makeTempDir({ prefix: "perf launch " });
   try {
@@ -338,7 +338,7 @@ Deno.test("Pandoc bootstrap preserves non-UTF8 Lua string bytes in the user init
 });
 
 Deno.test("Pandoc init loader preserves terminal return sibling files and exactly one original initialization", async () => {
-  const { treeHash } = await import("../../src/sources/snapshot.ts");
+  const { readTreeBytes } = await import("../support/files.ts");
   const root = await Deno.makeTempDir();
   try {
     const data = join(root, "original-data");
@@ -348,7 +348,7 @@ Deno.test("Pandoc init loader preserves terminal return sibling files and exactl
       join(data, "init.lua"),
       "CUSTOM_INIT=true;INIT_COUNT=(INIT_COUNT or 0)+1;assert(dofile(PANDOC_STATE.user_data_dir..'/sibling.lua')==17);return 'preserved',nil,17\n",
     );
-    const before = await treeHash(data);
+    const before = await readTreeBytes(data);
     const setup = await prepareLaunchers({
       workspace: join(root, "launchers"),
       deno: Deno.execPath(),
@@ -386,14 +386,14 @@ Deno.test("Pandoc init loader preserves terminal return sibling files and exactl
       stderr: "piped",
     }).output();
     assert(returned.success, new TextDecoder().decode(returned.stderr));
-    assert.equal(await treeHash(data), before);
+    assert.equal(await readTreeBytes(data), before);
   } finally {
     await Deno.remove(root, { recursive: true });
   }
 });
 
 Deno.test("Pandoc data-dir materializes selected external file and directory links without changing originals", async () => {
-  const { treeHash, hashBytes } = await import("../../src/sources/snapshot.ts");
+  const { readTreeBytes } = await import("../support/files.ts");
   const root = await Deno.makeTempDir();
   try {
     const data = join(root, "data"), external = join(root, "external");
@@ -406,17 +406,13 @@ Deno.test("Pandoc data-dir materializes selected external file and directory lin
     await Deno.writeTextFile(join(external, "siblings/module.lua"), "return 17\n");
     await Deno.symlink(join(external, "init.lua"), join(data, "init.lua"));
     await Deno.symlink(join(external, "siblings"), join(data, "siblings"));
-    const originalHash = async () =>
-      await hashBytes(
-        new TextEncoder().encode(
-          JSON.stringify([
-            await Deno.readLink(join(data, "init.lua")),
-            await Deno.readLink(join(data, "siblings")),
-            await treeHash(external),
-          ]),
-        ),
-      );
-    const before = await originalHash();
+    const originalData = async () =>
+      JSON.stringify([
+        await Deno.readLink(join(data, "init.lua")),
+        await Deno.readLink(join(data, "siblings")),
+        await readTreeBytes(external),
+      ]);
+    const before = await originalData();
     const filter = join(root, "filter.lua"), input = join(root, "input.md");
     await Deno.writeTextFile(filter, "assert(CUSTOM_INIT);assert(INIT_COUNT==1);return {}\n");
     await Deno.writeTextFile(input, "Native linked data.\n");
@@ -461,7 +457,7 @@ Deno.test("Pandoc data-dir materializes selected external file and directory lin
         assert.deepEqual(out.stdout, native.stdout);
       }
     }
-    assert.equal(await originalHash(), before);
+    assert.equal(await originalData(), before);
     assert((await Deno.lstat(join(data, "init.lua"))).isSymlink);
     assert((await Deno.lstat(join(data, "siblings"))).isSymlink);
     assert(!(await Deno.lstat(join(setup.env.COURSE_PERF_DATA_DIR, "siblings"))).isSymlink);
@@ -470,7 +466,7 @@ Deno.test("Pandoc data-dir materializes selected external file and directory lin
   }
 });
 
-Deno.test("Pandoc data-dir preparation rejects directory cycles and special files explicitly", async () => {
+Deno.test("Pandoc data-dir preparedScripts rejects directory cycles and special files explicitly", async () => {
   const { preparePandocData } = await import("../../src/launchers/setup.ts");
   const root = await Deno.makeTempDir();
   try {

@@ -1,12 +1,12 @@
 import { isAbsolute, join, relative, resolve } from "node:path";
-import type { PackageReceipt, Replacement } from "../config/types.ts";
-import { contained, copyTree, files, treeHash } from "./snapshot.ts";
+import type { InstalledPackage, Replacement } from "../config/types.ts";
+import { contained, copyTree, files } from "./files.ts";
 export async function installPackages(
   root: string,
   owners: { repository: string; sha: string; checkoutPath: string }[],
   replacements: Replacement[],
-): Promise<PackageReceipt[]> {
-  const receipts: PackageReceipt[] = [], actions: { source: string; dest: string }[] = [];
+): Promise<InstalledPackage[]> {
+  const receipts: InstalledPackage[] = [], actions: { source: string; dest: string }[] = [];
   // Все пути и содержимое проверяются до первого удаления установленного пакета.
   async function auditPath(base: string, path: string) {
     const rel = relative(resolve(base), resolve(path));
@@ -35,7 +35,7 @@ export async function installPackages(
     const source = join(owner.checkoutPath, "_extensions", mapping.extensionId);
     await auditPath(owner.checkoutPath, source);
     await Deno.stat(join(source, "_extension.yml"));
-    await files(source, { sourceSnapshot: true });
+    await files(source, { workingCopy: true });
     const destinations: string[] = [];
     for (const destination of mapping.destinations) {
       if (
@@ -62,13 +62,12 @@ export async function installPackages(
       ownerSha: owner.sha,
       extensionId: mapping.extensionId,
       sourcePath: source,
-      packageHash: await treeHash(source, { sourceSnapshot: true }),
       destinationPaths: destinations,
     });
   }
   for (const action of actions) {
     await Deno.remove(action.dest, { recursive: true });
-    await copyTree(action.source, action.dest, { sourceSnapshot: true });
+    await copyTree(action.source, action.dest, { workingCopy: true });
   }
   return receipts;
 }

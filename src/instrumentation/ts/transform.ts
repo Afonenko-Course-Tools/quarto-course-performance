@@ -1,11 +1,50 @@
-import type * as TS from "typescript";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import type * as TS from "typescript";
 
 // Типы и runtime используют системную поставку; путь можно переназначить для другой ОС.
 const compilerPath = Deno.env.get("COURSE_PERF_TYPESCRIPT") ||
   fileURLToPath(import.meta.resolve("typescript")).replace(/\.d\.ts$/, ".js");
-const ts: typeof TS = createRequire(import.meta.url)(compilerPath);
+const compiler: unknown = createRequire(import.meta.url)(compilerPath);
+function assertCompiler(value: unknown): asserts value is typeof TS {
+  if (!value || typeof value !== "object") {
+    throw new Error("Системный TypeScript Compiler API не является модулем");
+  }
+  const required = [
+    "createSourceFile",
+    "createCompilerHost",
+    "createProgram",
+    "forEachChild",
+    "isBinaryExpression",
+    "isIdentifier",
+    "isCallExpression",
+    "isPropertyAccessExpression",
+    "isExpressionStatement",
+    "isFunctionDeclaration",
+    "isArrowFunction",
+    "isFunctionExpression",
+    "isConstructorDeclaration",
+    "isGetAccessorDeclaration",
+    "isSetAccessorDeclaration",
+    "isMethodDeclaration",
+  ];
+  for (const name of required) {
+    if (!(name in value) || typeof Reflect.get(value, name) !== "function") {
+      throw new Error(
+        `Системный TypeScript Compiler API не предоставляет ${name}: ${compilerPath}`,
+      );
+    }
+  }
+  for (const name of ["ScriptTarget", "ScriptKind", "SyntaxKind"]) {
+    if (!(name in value) || typeof Reflect.get(value, name) !== "object") {
+      throw new Error(
+        `Системный TypeScript Compiler API не предоставляет ${name}: ${compilerPath}`,
+      );
+    }
+  }
+}
+assertCompiler(compiler);
+const ts = compiler;
 export interface SymbolReceipt {
   id: string;
   path: string;

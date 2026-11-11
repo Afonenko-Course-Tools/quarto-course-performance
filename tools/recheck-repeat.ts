@@ -1,10 +1,8 @@
-import { fileURLToPath } from "node:url";
 import { array, object, parseObject, string } from "../src/json.ts";
 // Повторное сравнение уже выполненных рендеров; исходный результат и outputs сохраняются.
 import { join, resolve } from "node:path";
-import { loadOwnerNormalizer } from "./owner-normalizer.ts";
 import { compareOutputs } from "../src/analysis/outputs.ts";
-import { hashFile } from "../src/sources/snapshot.ts";
+import { loadOwnerNormalizer } from "./owner-normalizer.ts";
 const workspace = resolve(string(Deno.args[0]));
 const normalizer = await loadOwnerNormalizer(
   Deno.args[2] ?? join(workspace, "candidate.manifest.json"),
@@ -46,10 +44,6 @@ const result = {
   recheck: {
     ownerNormalizer: normalizer.receipt,
     originalResult: originalPath,
-    originalResultSha256: await hashFile(originalPath),
-    normalizerSha256: await hashFile(
-      fileURLToPath(new URL("../src/analysis/outputs.ts", import.meta.url)),
-    ),
     policy:
       "QRC owner metadata.ts + historical Core exercise attribute order; values, content and ZIP entries strict",
   },

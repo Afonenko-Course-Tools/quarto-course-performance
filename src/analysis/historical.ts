@@ -1,15 +1,13 @@
-import { number, object, parseObject, string } from "../json.ts";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { importSourceManifest, type ReportSourceManifest } from "../config/types.ts";
-import { hashFile } from "../sources/snapshot.ts";
-import { type NormalizedRun, normalizeRun } from "./normalize.ts";
-import { type RunRecord, validateRunRecord } from "../report/types.ts";
+import { number, object, parseObject, string, strings } from "../json.ts";
 import { writeRunArtifacts } from "../report/run.ts";
+import { type RunRecord, validateRunRecord } from "../report/types.ts";
+import { type NormalizedRun, normalizeRun } from "./normalize.ts";
 
 const adapterVersion = "experiment-history-v1";
-interface Receipt {
+interface ImportedMetadata {
   path: string;
-  sha256: string;
   schemaVersion: number | null;
 }
 async function metadata(path: string) {
@@ -22,9 +20,8 @@ async function metadata(path: string) {
   ) {
     throw new Error(`Неизвестная schema исторических metadata: ${path}`);
   }
-  const receipt: Receipt = {
+  const receipt: ImportedMetadata = {
     path: await Deno.realPath(path),
-    sha256: await hashFile(path),
     schemaVersion: value.schema_version ?? null,
   };
   return { value, receipt };
@@ -93,6 +90,12 @@ async function copy(source: string, target: string) {
   await Deno.mkdir(dirname(target), { recursive: true });
   await Deno.copyFile(source, target);
 }
+function historicalOutcome(value: Record<string, unknown>): unknown {
+  if (value.completion === undefined) return value.outcome;
+  const completion = object(value.completion, "historical completion");
+  if (completion.kind !== "complete") throw new Error("Неполный запуск не сравнивается");
+  return completion.native;
+}
 function legacyRecord(
   value: Record<string, unknown>,
   manifest: ReportSourceManifest,
@@ -100,9 +103,15 @@ function legacyRecord(
   output: string,
   run: NormalizedRun,
 ): RunRecord {
+  const {
+    preparation: _oldPreparation,
+    preparedScripts: _oldScripts,
+    completion: _oldCompletion,
+    ...facts
+  } = value;
   if (value.schema_version === 2) {
     return {
-      ...validateRunRecord(value),
+      ...validateRunRecord({ ...facts, outcome: historicalOutcome(value), preparedScripts: [] }),
       collectionDirectory: source,
       outputDirectory: output,
       artifacts: {},
@@ -112,7 +121,7 @@ function legacyRecord(
   }
   // argv is the original producer's executable + full command; other commands
   // cannot be represented as a NativeRenderRequest without guessing semantics.
-  const argv = value.argv;
+  const argv = Array.isArray(value.argv) ? strings(value.argv) : [];
   if (
     !Array.isArray(argv) || argv.some((a) => typeof a !== "string") || !argv[0] ||
     argv[1] !== "render" ||
@@ -122,10 +131,9 @@ function legacyRecord(
     throw new Error(`Исторический run требует сохранённый argv команды render: ${source}`);
   }
   if (
-    typeof value.cwd !== "string" || !isAbsolute(value.cwd) || value.signal === undefined ||
-    !Array.isArray(value.preparation)
+    typeof value.cwd !== "string" || !isAbsolute(value.cwd) || value.signal === undefined
   ) {
-    throw new Error(`Исторический run не содержит обязательные cwd/signal/preparation: ${source}`);
+    throw new Error(`Исторический run не содержит обязательные cwd/signal: ${source}`);
   }
   const resources = value.resources === undefined ? undefined : object(value.resources);
   return validateRunRecord({
@@ -140,7 +148,7 @@ function legacyRecord(
       cpuSystemSeconds: resources?.cpu_system_seconds ?? null,
       peakRssKiB: resources?.peak_rss_kib ?? null,
     },
-    preparation: value.preparation,
+    preparedScripts: [],
     dataValid: run.dataValid,
     quality: run.quality,
     versions: {
@@ -191,11 +199,11 @@ export async function prepareHistoricalImport(
     output: string;
     record: RunRecord;
     run: NormalizedRun;
-    receipt: Receipt;
+    receipt: ImportedMetadata;
   }[] = [];
   const runRoot = join(source, "runs");
   if ((await Deno.lstat(runRoot)).isSymlink) throw new Error("Недопустимая ссылка runs");
-  for await (const entry of Deno.readDir(runRoot)) {
+  async function planRun(entry: Deno.DirEntry): Promise<void> {
     if (!entry.isDirectory || entry.isSymlink) {
       throw new Error(`Недопустимый материал runs: ${entry.name}`);
     }
@@ -268,7 +276,7 @@ export async function prepareHistoricalImport(
       ...(runManifest ? { runManifest: runManifest.receipt } : {}),
       sourceStatus: {
         buildExitCode: value.schema_version === 2
-          ? number(object(value.outcome).code)
+          ? number(object(historicalOutcome(value)).code)
           : number(value.buildExitCode),
         dataValid: typeof value.dataValid === "boolean" ? value.dataValid : null,
         signalAvailability: value.signalAvailability === undefined
@@ -278,6 +286,7 @@ export async function prepareHistoricalImport(
     };
     plans.push({ source: dir, output: target, files, record, run, receipt: original.receipt });
   }
+  for await (const entry of Deno.readDir(runRoot)) await planRun(entry);
   if (!plans.length) throw new Error("Исторический workspace не содержит запусков");
   const benchmarkFiles = await optionalFiles(join(source, "benchmarks"));
   // Parse consumed benchmark JSON before creating the destination.

@@ -1,18 +1,17 @@
-import { array, object, parseJson, parseObject, string } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join, resolve } from "node:path";
+import { array, object, parseJson, parseObject, string } from "../../src/json.ts";
 import { summarizeRunRecord, writeRunArtifacts } from "../../src/report/run.ts";
 import {
-  type RunRecord,
   validateDiagnosticExpectations,
   validateRunRecord,
   validateRunSummary,
 } from "../../src/report/types.ts";
 
-import { regressionRuns } from "./fixtures/perfetto/regressions.ts";
-import { pair, run } from "./fixtures/perfetto/control.ts";
 import { traces } from "../../src/report/perfetto.ts";
 import { record } from "./fixture.ts";
+import { pair, run } from "./fixtures/perfetto/control.ts";
+import { regressionRuns } from "./fixtures/perfetto/regressions.ts";
 
 Deno.test("single off report is versioned, portable and does not invent diagnostic observations", async () => {
   const root = await Deno.makeTempDir();
@@ -25,11 +24,9 @@ Deno.test("single off report is versioned, portable and does not invent diagnost
     const raw = '{"raw":"/original/collection"}\n';
     await Deno.writeTextFile(join(dir, "events/raw.jsonl"), raw);
     const r = record(dir);
-    r.preparation = [{
+    r.preparedScripts = [{
       kind: "bootstrap",
       path: "/original/bootstrap",
-      sourceHash: "s",
-      preparedHash: "p",
     }];
     await writeRunArtifacts(dir, r);
     const moved = join(root, "moved");
@@ -39,8 +36,8 @@ Deno.test("single off report is versioned, portable and does not invent diagnost
     );
     assert.equal(metadata.collectionDirectory, dir);
     assert.equal(metadata.outputDirectory, "/final/test");
-    assert(metadata.preparation[0]);
-    assert.equal(metadata.preparation[0].path, "/original/bootstrap");
+    assert(metadata.preparedScripts[0]);
+    assert.equal(metadata.preparedScripts[0].path, "/original/bootstrap");
     const summary = validateRunSummary(
       parseJson(await Deno.readTextFile(join(moved, "summary.json"))),
     );
@@ -250,7 +247,7 @@ Deno.test("metadata enum boundaries retain field errors and preserve historical 
     const [value, field] of [
       [{ ...input, request: { ...input.request, mode: 1 } }, "request.mode"],
       [{ ...input, outcome: { ...input.outcome, stdioMode: {} } }, "outcome.stdioMode"],
-      [{ ...input, preparation: [{ kind: null }] }, "preparation.kind"],
+      [{ ...input, preparedScripts: [{ kind: null }] }, "preparedScripts.kind"],
       [{ ...input, request: [] }, "request"],
     ] as const
   ) {

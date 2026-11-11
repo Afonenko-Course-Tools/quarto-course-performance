@@ -1,5 +1,5 @@
-import { array, boolean, number, object, oneOf, string, strings } from "../json.ts";
 import { isAbsolute } from "node:path";
+import { array, boolean, number, object, oneOf, string, strings } from "../json.ts";
 import {
   type OutputPolicy,
   type Replacement,
@@ -18,7 +18,7 @@ export interface PerformanceConfig {
   cleanPaths?: string[];
   runtime?: { quarto?: string };
 }
-export function validateConfig(value: unknown): PerformanceConfig {
+function parseConfig(value: unknown): PerformanceConfig {
   if (!value || typeof value !== "object") throw new Error("Конфигурация должна быть объектом");
   const c = object(value, "config");
   if (c.schema_version !== 2) throw new Error("Необходима конфигурация v2");
@@ -102,12 +102,9 @@ export function validateConfig(value: unknown): PerformanceConfig {
     ...(cleanPaths === undefined ? {} : { cleanPaths: strings(cleanPaths) }),
     ...(checkedRuntime === undefined ? {} : { runtime: checkedRuntime }),
   };
-  if (
-    !Array.isArray(checked.sources) || !Array.isArray(checked.scenarios) ||
-    !checked.sources.length ||
-    !checked.scenarios.length
-  ) throw new Error("Отсутствуют sources/scenarios");
-  if (checked.schema_version !== 2) throw new Error("Необходима конфигурация v2");
+  return checked;
+}
+function validateSources(checked: PerformanceConfig) {
   const repos = new Set<string>();
   for (const s of checked.sources) {
     if (!/^[\w.-]+\/[\w.-]+$/.test(s.repository) || repos.has(s.repository)) {
@@ -119,18 +116,8 @@ export function validateConfig(value: unknown): PerformanceConfig {
       s.refPolicy === "explicit-remote-ref" && !s.ref?.startsWith("refs/")
     ) throw new Error("Explicit ref отсутствует или некорректен");
   }
-  validateSourceSelection(checked);
-  if (
-    checked.outputPolicy !== undefined &&
-    !["strict", "java-pilot-core-qrc-v1"].includes(checked.outputPolicy)
-  ) throw new Error("Недопустимая outputPolicy");
-  if (
-    checked.benchmark !== undefined &&
-    (!Number.isFinite(checked.benchmark.maxSlowdownRatio) ||
-      checked.benchmark.maxSlowdownRatio <= 0 ||
-      checked.benchmark.pairs !== undefined &&
-        (!Number.isInteger(checked.benchmark.pairs) || checked.benchmark.pairs < 1))
-  ) throw new Error("Необходим явный benchmark maxSlowdownRatio и положительное pairs");
+}
+function validateScenarios(checked: PerformanceConfig) {
   const ids = new Set<string>();
   for (const s of checked.scenarios) {
     if (!/^[\w-]+$/.test(s.id) || ids.has(s.id)) {
@@ -149,6 +136,29 @@ export function validateConfig(value: unknown): PerformanceConfig {
       typeof s.resources.cpu !== "boolean" || typeof s.resources.peakRss !== "boolean"
     ) throw new Error("Недопустимый scenario");
   }
+}
+export function validateConfig(value: unknown): PerformanceConfig {
+  const checked = parseConfig(value);
+  if (
+    !Array.isArray(checked.sources) || !Array.isArray(checked.scenarios) ||
+    !checked.sources.length ||
+    !checked.scenarios.length
+  ) throw new Error("Отсутствуют sources/scenarios");
+  if (checked.schema_version !== 2) throw new Error("Необходима конфигурация v2");
+  validateSourceSelection(checked);
+  if (
+    checked.outputPolicy !== undefined &&
+    !["strict", "java-pilot-core-qrc-v1"].includes(checked.outputPolicy)
+  ) throw new Error("Недопустимая outputPolicy");
+  if (
+    checked.benchmark !== undefined &&
+    (!Number.isFinite(checked.benchmark.maxSlowdownRatio) ||
+      checked.benchmark.maxSlowdownRatio <= 0 ||
+      checked.benchmark.pairs !== undefined &&
+        (!Number.isInteger(checked.benchmark.pairs) || checked.benchmark.pairs < 1))
+  ) throw new Error("Необходим явный benchmark maxSlowdownRatio и положительное pairs");
+  validateSources(checked);
+  validateScenarios(checked);
   return {
     ...checked,
     outputPolicy: checked.outputPolicy ?? "strict",

@@ -1,5 +1,5 @@
-import { fileURLToPath } from "node:url";
 import { strict as assert } from "node:assert";
+import { fileURLToPath } from "node:url";
 
 const checker = fileURLToPath(new URL("../../tools/check-lua.ts", import.meta.url));
 async function invoke(args: string[]) {

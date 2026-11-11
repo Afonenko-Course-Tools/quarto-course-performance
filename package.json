@@ -11,6 +11,7 @@
   },
   "scripts": {
     "check-quality": "node tools/check-quality.mjs",
-    "check:dependencies": "depcruise --config .dependency-cruiser.json --output-type err-long src bridge"
+    "check:dependencies": "depcruise --config .dependency-cruiser.json --output-type err-long src bridge",
+    "check-quality:controls": "node tools/check-quality-controls.mjs"
   }
 }

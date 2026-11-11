@@ -1,7 +1,7 @@
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
-import { copyTree, hashBytes, hashFile, treeHash } from "../sources/snapshot.ts";
-import type { PreparationReceipt } from "../config/types.ts";
 import { appDenoArgs, assetPath } from "../assets.ts";
+import type { PreparedScript } from "../config/types.ts";
+import { copyTree } from "../sources/files.ts";
 const project = assetPath(".");
 function shellQuote(value: string) {
   return "'" + value.replaceAll("'", "'\\''") + "'";
@@ -29,19 +29,11 @@ export async function prepareLaunchers(
   const backend = join(root, "backend");
   const directories = ["src", "bridge"];
   const files = ["deno.json", "deno.lock", "docs/operation-registry.json"];
-  const backendHash = async (base: string) =>
-    await hashBytes(new TextEncoder().encode(JSON.stringify([
-      ...await Promise.all(directories.map((name) => treeHash(join(base, name)))),
-      ...await Promise.all(files.map((name) => hashFile(join(base, name)))),
-    ])));
-  const before = await backendHash(project);
   for (const name of directories) {
     await copyTree(join(project, name), join(backend, name), { materializeFileLinks: true });
   }
   await Deno.mkdir(join(backend, "docs"), { recursive: true });
   for (const name of files) await Deno.copyFile(join(project, name), join(backend, name));
-  const after = await backendHash(backend);
-  if (before !== after) throw new Error("Backend изменился при подготовке");
   const dataDir = join(root, "pandoc-data");
   const receipt = await preparePandocData(
     options.dataDir,
@@ -72,11 +64,9 @@ export async function prepareLaunchers(
       COURSE_PERF_AGENT_TS: backend + "/src/agents/ts/bootstrap.ts",
     },
     bridgePath: join(backend, "bridge/bridge.ts"),
-    preparation: [receipt, {
+    preparedScripts: [receipt, {
       kind: "bootstrap" as const,
       path: backend,
-      sourceHash: before,
-      preparedHash: after,
     }],
   };
 }
@@ -87,7 +77,7 @@ export async function preparePandocData(
   destination: string,
   agentInit: string,
   builtinInit?: Uint8Array,
-): Promise<PreparationReceipt> {
+): Promise<PreparedScript> {
   await copyPandocData(source, destination);
   const init = join(destination, "init.lua");
   if (builtinInit) {
@@ -98,10 +88,9 @@ export async function preparePandocData(
       await Deno.writeFile(init, builtinInit, { createNew: true });
     }
   }
-  let sourceHash = await hashBytes(new Uint8Array());
   let hasOriginal = false;
   try {
-    sourceHash = await hashFile(init);
+    await Deno.lstat(init);
     hasOriginal = true;
   } catch (error) {
     if (!(error instanceof Deno.errors.NotFound)) throw error;
@@ -126,7 +115,7 @@ export async function preparePandocData(
     "-- Performance: публичный Pandoc init.\n" + loadOriginal +
       "dofile(" + JSON.stringify(agentInit) + ")\n" + returnOriginal,
   );
-  return { kind: "bootstrap", path: init, sourceHash, preparedHash: await hashFile(init) };
+  return { kind: "bootstrap", path: init };
 }
 
 /** Только явно выбранный runtime data-dir: ссылки материализуются без записи в source. */

@@ -1,7 +1,7 @@
+import { join } from "node:path";
 import { parseObject, string } from "../json.ts";
-import { join, resolve } from "node:path";
-import { preparePandocArgs } from "./pandoc-data.ts";
 import type { ProcessExpectation } from "../report/types.ts";
+import { preparePandocArgs } from "./pandoc-data.ts";
 const [kind, ...originalArgs] = Deno.args;
 if (kind !== "deno" && kind !== "pandoc") throw new Error("Неизвестный launcher");
 const env = Deno.env.toObject(), id = crypto.randomUUID();
@@ -110,10 +110,13 @@ if (mode && mode !== "off") {
   if (kind === "pandoc" && !pandocInformational) {
     const prepared = await preparePandocArgs(binary, args, env, id);
     args.splice(0, args.length, ...prepared.args);
-    if (prepared.preparation) {
-      const directory = join(string(env.COURSE_PERF_OUTPUT_DIR), "preparation");
+    if (prepared.preparedScripts) {
+      const directory = join(string(env.COURSE_PERF_OUTPUT_DIR), "preparedScripts");
       await Deno.mkdir(directory, { recursive: true });
-      await Deno.writeTextFile(join(directory, id + ".json"), JSON.stringify(prepared.preparation));
+      await Deno.writeTextFile(
+        join(directory, id + ".json"),
+        JSON.stringify(prepared.preparedScripts),
+      );
     }
   }
 }

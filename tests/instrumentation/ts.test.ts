@@ -1,7 +1,7 @@
-import { number, object } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
-import { instrumentModule } from "../../src/instrumentation/ts/transform.ts";
 import { join } from "node:path";
+import { instrumentModule } from "../../src/instrumentation/ts/transform.ts";
+import { number, object } from "../../src/json.ts";
 const bridge = new URL("../../bridge/bridge.ts", import.meta.url).href;
 function invoke(exported: unknown, receiver: unknown, args: unknown[]): unknown {
   assert(typeof exported === "function");

@@ -1,16 +1,16 @@
-import { fileURLToPath } from "node:url";
-import { array, parseJson, parseObject } from "../src/json.ts";
-import { quarto as nativeQuarto } from "./runtime.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
-import { prepareRunStorage } from "../src/runner/storage.ts";
-import { executeScenario } from "../src/runner/execute.ts";
+import { fileURLToPath } from "node:url";
+import { normalizeRun, validatedIntervals } from "../src/analysis/normalize.ts";
 import { writeExperimentReport } from "../src/analysis/report.ts";
+import type { PreparedVariant, Scenario } from "../src/config/types.ts";
+import { array, parseJson, parseObject } from "../src/json.ts";
 import { traces } from "../src/report/perfetto.ts";
 import { operationTotals } from "../src/report/run.ts";
-import { normalizeRun, validatedIntervals } from "../src/analysis/normalize.ts";
 import { validateRunRecord, validateRunSummary } from "../src/report/types.ts";
-import type { PreparedVariant, Scenario } from "../src/config/types.ts";
+import { executeScenario } from "../src/runner/execute.ts";
+import { prepareRunStorage } from "../src/runner/storage.ts";
+import { quarto as nativeQuarto } from "./runtime.ts";
 const manifest = {
   schema_version: 2 as const,
   projectSource: "org/Fixture",

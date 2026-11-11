@@ -1,7 +1,7 @@
-import { fileURLToPath } from "node:url";
-import { array, number, object, parseJson, parseObject, string } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { array, number, object, parseJson, parseObject, string } from "../../src/json.ts";
 import { runOwnedProcess } from "../../src/runner/process.ts";
 
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));

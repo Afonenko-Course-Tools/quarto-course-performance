@@ -1,6 +1,6 @@
-import { isObject, oneOf, strings as stringValues } from "../json.ts";
-import type { Mode, PreparationReceipt } from "../config/types.ts";
 import type { QualitySummary } from "../analysis/normalize.ts";
+import type { Mode, PreparedScript } from "../config/types.ts";
+import { isObject, oneOf, strings as stringValues } from "../json.ts";
 
 export type SimpleMode = "off" | "summary" | "cpu";
 export interface NativeRenderRequest {
@@ -31,9 +31,9 @@ export interface ImportProvenance {
   schema_version: 1;
   adapterVersion: string;
   sourceDirectory: string;
-  manifest: { path: string; sha256: string; schemaVersion: number | null };
-  run: { path: string; sha256: string; schemaVersion: number | null };
-  runManifest?: { path: string; sha256: string; schemaVersion: number | null };
+  manifest: { path: string; schemaVersion: number | null };
+  run: { path: string; schemaVersion: number | null };
+  runManifest?: { path: string; schemaVersion: number | null };
   sourceStatus: { buildExitCode: number; dataValid: boolean | null; signalAvailability: string };
 }
 export interface RunRecord {
@@ -42,7 +42,7 @@ export interface RunRecord {
   runId: string;
   request: RunRequest;
   outcome: BuildOutcome;
-  preparation: PreparationReceipt[];
+  preparedScripts: PreparedScript[];
   dataValid: boolean;
   quality: QualitySummary;
   versions: { tool: string; quarto: string; deno: string | null; pandoc: string | null };
@@ -160,7 +160,6 @@ function provenance(value: unknown): void {
   for (const name of ["manifest", "run", ...("runManifest" in p ? ["runManifest"] : [])]) {
     const receipt = object(p[name], `importProvenance.${name}`);
     string(receipt.path, "receipt.path");
-    string(receipt.sha256, "receipt.sha256");
     number(receipt.schemaVersion, "receipt.schemaVersion", true, true);
   }
   const status = object(p.sourceStatus, "importProvenance.sourceStatus");
@@ -232,16 +231,18 @@ function assertRunRecord(value: unknown): asserts value is RunRecord {
   number(outcome.cpuUserSeconds, "outcome.cpuUserSeconds", true);
   number(outcome.cpuSystemSeconds, "outcome.cpuSystemSeconds", true);
   number(outcome.peakRssKiB, "outcome.peakRssKiB", true);
-  if (!Array.isArray(r.preparation)) invalid("preparation");
-  for (const receipt of r.preparation) {
-    const p = object(receipt, "preparation");
+  if ("preparation" in r) invalid("preparation: требуется исторический импорт");
+  if (!Array.isArray(r.preparedScripts)) invalid("preparedScripts");
+  for (const receipt of r.preparedScripts) {
+    const p = object(receipt, "preparedScripts");
     if (!["bootstrap", "ts-transform", "quarto-adapter"].some((choice) => choice === p.kind)) {
-      invalid("preparation.kind");
+      invalid("preparedScripts.kind");
     }
-    for (const field of ["path", "sourceHash", "preparedHash"]) {
-      string(p[field], `preparation.${field}`);
+    if (Object.keys(p).some((key) => !["kind", "path", "sourceMapPath"].includes(key))) {
+      invalid("preparedScripts.fields");
     }
-    if ("sourceMapPath" in p) string(p.sourceMapPath, "preparation.sourceMapPath");
+    string(p.path, "preparedScripts.path");
+    if ("sourceMapPath" in p) string(p.sourceMapPath, "preparedScripts.sourceMapPath");
   }
   const versions = object(r.versions, "versions");
   for (const field of ["tool", "quarto"]) string(versions[field], `versions.${field}`);

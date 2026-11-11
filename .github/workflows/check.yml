@@ -58,6 +58,8 @@ jobs:
           bash tools/setup-lua-ci.sh "$RUNNER_TEMP/performance-luals"
           echo "$RUNNER_TEMP/performance-luals/bin" >> "$GITHUB_PATH"
           deno run --no-config --no-lock -A tools/check-lua.ts --server "$RUNNER_TEMP/performance-luals/bin/lua-language-server" --probe
+      - name: Проверить фактическую GNU mv no-replace capability
+        run: bash tools/setup-mv-ci.sh "$RUNNER_TEMP/course-gnu-mv" >> "$GITHUB_PATH"
       - name: Фактические версии toolchain
         run: |
           quarto --version
@@ -67,6 +69,8 @@ jobs:
           pyright --version
           shellcheck --version
       - run: deno task check
+      - name: Отрицательные контроли каждого quality rule
+        run: npm run check-quality:controls
       - name: Native fixtures выбранных инструментов
         run: deno task test
       - name: Загрузка закреплённого Perfetto v58.2

@@ -1,6 +1,15 @@
 import { number, object, oneOf, string } from "../json.ts";
 import type { Event } from "./types.ts";
 
+function validateAttributes(e: Record<string, unknown>): void {
+  if ("attributes" in e) {
+    for (const value of Object.values(object(e.attributes, "attributes"))) {
+      if (value !== null && typeof value !== "string" && typeof value !== "boolean") {
+        number(value, "attributes");
+      }
+    }
+  }
+}
 function assertEvent(value: unknown): asserts value is Event {
   const e = object(value, "Event");
   if (e.schema_version !== 1 || !Number.isInteger(e.sequence) || number(e.sequence) < 1) {
@@ -19,13 +28,7 @@ function assertEvent(value: unknown): asserts value is Event {
   if ("document_id" in e && (typeof e.document_id !== "string" || !e.document_id)) {
     throw new Error("Некорректный document_id");
   }
-  if ("attributes" in e) {
-    for (const value of Object.values(object(e.attributes, "attributes"))) {
-      if (value !== null && typeof value !== "string" && typeof value !== "boolean") {
-        number(value, "attributes");
-      }
-    }
-  }
+  validateAttributes(e);
   if ("timestamp_us" in e) number(e.timestamp_us, "timestamp_us");
   if ("status" in e) oneOf(e.status, ["ok", "error", "aborted"], "status");
   if (e.event === "begin" || e.event === "end") {
