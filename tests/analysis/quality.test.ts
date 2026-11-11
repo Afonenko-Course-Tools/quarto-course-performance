@@ -1,7 +1,7 @@
-import { array, object, parseObject, string } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 import { normalizeRun } from "../../src/analysis/normalize.ts";
+import { array, object, parseObject, string } from "../../src/json.ts";
 import { traces } from "../../src/report/perfetto.ts";
 function span(event: string, sequence: number, id = "s", clock = "monotonic_process", run = "r") {
   return {

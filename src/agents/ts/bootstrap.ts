@@ -1,5 +1,5 @@
-import { installTsAgent } from "./agent.ts";
 import { oneOf } from "../../json.ts";
+import { installTsAgent } from "./agent.ts";
 const requested = Deno.env.get("COURSE_PERF_MODE");
 const mode = requested
   ? oneOf(requested, ["off", "summary", "cpu", "trace"], "COURSE_PERF_MODE")

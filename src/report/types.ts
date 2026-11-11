@@ -1,6 +1,6 @@
-import { oneOf, strings as stringValues } from "../json.ts";
-import type { Mode, PreparationReceipt } from "../config/types.ts";
 import type { QualitySummary } from "../analysis/normalize.ts";
+import type { Mode, PreparedScript } from "../config/types.ts";
+import { isObject, oneOf, strings as stringValues } from "../json.ts";
 
 export type SimpleMode = "off" | "summary" | "cpu";
 export interface NativeRenderRequest {
@@ -31,9 +31,9 @@ export interface ImportProvenance {
   schema_version: 1;
   adapterVersion: string;
   sourceDirectory: string;
-  manifest: { path: string; sha256: string; schemaVersion: number | null };
-  run: { path: string; sha256: string; schemaVersion: number | null };
-  runManifest?: { path: string; sha256: string; schemaVersion: number | null };
+  manifest: { path: string; schemaVersion: number | null };
+  run: { path: string; schemaVersion: number | null };
+  runManifest?: { path: string; schemaVersion: number | null };
   sourceStatus: { buildExitCode: number; dataValid: boolean | null; signalAvailability: string };
 }
 export interface RunRecord {
@@ -42,7 +42,7 @@ export interface RunRecord {
   runId: string;
   request: RunRequest;
   outcome: BuildOutcome;
-  preparation: PreparationReceipt[];
+  preparedScripts: PreparedScript[];
   dataValid: boolean;
   quality: QualitySummary;
   versions: { tool: string; quarto: string; deno: string | null; pandoc: string | null };
@@ -119,8 +119,8 @@ function invalid(field: string): never {
   throw new Error(`Некорректное поле metadata: ${field}`);
 }
 function object(value: unknown, field: string): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) invalid(field);
-  return value as Record<string, unknown>;
+  if (!isObject(value)) invalid(field);
+  return value;
 }
 function string(value: unknown, field: string): void {
   if (typeof value !== "string" || !value) invalid(field);
@@ -160,7 +160,6 @@ function provenance(value: unknown): void {
   for (const name of ["manifest", "run", ...("runManifest" in p ? ["runManifest"] : [])]) {
     const receipt = object(p[name], `importProvenance.${name}`);
     string(receipt.path, "receipt.path");
-    string(receipt.sha256, "receipt.sha256");
     number(receipt.schemaVersion, "receipt.schemaVersion", true, true);
   }
   const status = object(p.sourceStatus, "importProvenance.sourceStatus");
@@ -216,30 +215,34 @@ function assertRunRecord(value: unknown): asserts value is RunRecord {
   string(request.cwd, "request.cwd");
   string(request.quarto, "request.quarto");
   strings(request.nativeArgv, "request.nativeArgv");
-  if (!["off", "summary", "cpu", "trace"].includes(request.mode as string)) invalid("request.mode");
+  if (!["off", "summary", "cpu", "trace"].some((choice) => choice === request.mode)) {
+    invalid("request.mode");
+  }
   if ("outputParent" in request) string(request.outputParent, "request.outputParent");
   const outcome = object(r.outcome, "outcome");
   number(outcome.code, "outcome.code", false, true);
   if ("escalated" in outcome) boolean(outcome.escalated, "outcome.escalated");
   if (
     "stdioMode" in outcome &&
-    !["separate", "pty-combined"].includes(outcome.stdioMode as string)
+    !["separate", "pty-combined"].some((choice) => choice === outcome.stdioMode)
   ) invalid("outcome.stdioMode");
   validateSignal(outcome.signal);
   number(outcome.wallSeconds, "outcome.wallSeconds");
   number(outcome.cpuUserSeconds, "outcome.cpuUserSeconds", true);
   number(outcome.cpuSystemSeconds, "outcome.cpuSystemSeconds", true);
   number(outcome.peakRssKiB, "outcome.peakRssKiB", true);
-  if (!Array.isArray(r.preparation)) invalid("preparation");
-  for (const receipt of r.preparation) {
-    const p = object(receipt, "preparation");
-    if (!["bootstrap", "ts-transform", "quarto-adapter"].includes(p.kind as string)) {
-      invalid("preparation.kind");
+  if ("preparation" in r) invalid("preparation: требуется исторический импорт");
+  if (!Array.isArray(r.preparedScripts)) invalid("preparedScripts");
+  for (const receipt of r.preparedScripts) {
+    const p = object(receipt, "preparedScripts");
+    if (!["bootstrap", "ts-transform", "quarto-adapter"].some((choice) => choice === p.kind)) {
+      invalid("preparedScripts.kind");
     }
-    for (const field of ["path", "sourceHash", "preparedHash"]) {
-      string(p[field], `preparation.${field}`);
+    if (Object.keys(p).some((key) => !["kind", "path", "sourceMapPath"].includes(key))) {
+      invalid("preparedScripts.fields");
     }
-    if ("sourceMapPath" in p) string(p.sourceMapPath, "preparation.sourceMapPath");
+    string(p.path, "preparedScripts.path");
+    if ("sourceMapPath" in p) string(p.sourceMapPath, "preparedScripts.sourceMapPath");
   }
   const versions = object(r.versions, "versions");
   for (const field of ["tool", "quarto"]) string(versions[field], `versions.${field}`);
@@ -271,9 +274,13 @@ function assertRunSummary(value: unknown): asserts value is RunSummary {
     const c = object(counter, "counters");
     for (const field of ["processId", "executorId", "name"]) string(c[field], `counters.${field}`);
     number(c.value, "counters.value");
-    if (!["event", "executor-summary"].includes(c.source as string)) invalid("counters.source");
-    if (!["delta", "total"].includes(c.semantics as string)) invalid("counters.semantics");
-    if (!["observed-exact", "partial"].includes(c.quality as string)) invalid("counters.quality");
+    if (!["event", "executor-summary"].some((choice) => choice === c.source)) {
+      invalid("counters.source");
+    }
+    if (!["delta", "total"].some((choice) => choice === c.semantics)) invalid("counters.semantics");
+    if (!["observed-exact", "partial"].some((choice) => choice === c.quality)) {
+      invalid("counters.quality");
+    }
   }
   if (!Array.isArray(s.operations)) invalid("operations");
   for (const operation of s.operations) {
@@ -283,14 +290,16 @@ function assertRunSummary(value: unknown): asserts value is RunSummary {
     if ("extensionAttribution" in o) {
       oneOf(o.extensionAttribution, ["recorded", "derived", "unavailable"], "extensionAttribution");
     }
-    if (!["monotonic_process", "process_cpu"].includes(o.clockDomain as string)) {
+    if (!["monotonic_process", "process_cpu"].some((choice) => choice === o.clockDomain)) {
       invalid("operations.clockDomain");
     }
     number(o.completed, "operations.completed", false, true);
     number(o.errors, "operations.errors", false, true);
     number(o.inclusiveMicroseconds, "operations.inclusiveMicroseconds");
     number(o.selfMicroseconds, "operations.selfMicroseconds", true);
-    if (!["observed-exact", "partial"].includes(o.quality as string)) invalid("operations.quality");
+    if (!["observed-exact", "partial"].some((choice) => choice === o.quality)) {
+      invalid("operations.quality");
+    }
   }
 }
 export function validateRunSummary(value: unknown): RunSummary {
@@ -307,7 +316,7 @@ function assertDiagnosticExpectations(value: unknown): asserts value is Diagnost
   for (const item of e.processes) {
     const p = object(item, "expectations.processes");
     string(p.process_id, "process_id");
-    if (!["ts", "lua"].includes(p.agent as string)) invalid("agent");
+    if (!["ts", "lua"].some((choice) => choice === p.agent)) invalid("agent");
     const key = `${p.process_id}/${p.agent}`;
     if (seen.has(key)) invalid("duplicate process expectation");
     seen.add(key);

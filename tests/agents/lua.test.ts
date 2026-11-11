@@ -1,10 +1,11 @@
-import { validateEvent } from "../../src/protocol/validate.ts";
-import type { Event } from "../../src/protocol/types.ts";
-import { number, object, parseJson } from "../../src/json.ts";
-import { dataDir, pandoc } from "../runtime.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
-const project = new URL("../../", import.meta.url).pathname;
+import { fileURLToPath } from "node:url";
+import { number, object, parseJson } from "../../src/json.ts";
+import type { Event } from "../../src/protocol/types.ts";
+import { validateEvent } from "../../src/protocol/validate.ts";
+import { pandoc } from "../runtime.ts";
+const project = fileURLToPath(new URL("../../", import.meta.url));
 
 Deno.test("Pandoc picoseconds are converted to microseconds before arithmetic", async () => {
   const { events, stdout } = await fixture(

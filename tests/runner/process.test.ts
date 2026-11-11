@@ -1,6 +1,7 @@
-import { array, number, object, parseJson, parseObject, string } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { array, number, object, parseJson, parseObject, string } from "../../src/json.ts";
 import { runOwnedProcess } from "../../src/runner/process.ts";
 
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -952,7 +953,7 @@ Deno.test("a stale proc directory snapshot cannot hide a new live member of the 
     const quote = (s: string) => "'" + s.replaceAll("'", "'\\''") + "'";
     let outer: Deno.ChildProcess | undefined;
     try {
-      const fixture = new URL("./fixtures/orphan-stale-scan.ts", import.meta.url).pathname;
+      const fixture = fileURLToPath(new URL("./fixtures/orphan-stale-scan.ts", import.meta.url));
       outer = new Deno.Command("script", {
         args: [
           "-qefc",
@@ -1005,7 +1006,7 @@ Deno.test("zombie-only group returns while a real live member beside a zombie st
       running = runOwnedProcess({
         executable: "python3",
         args: [
-          new URL("./fixtures/zombie-group.py", import.meta.url).pathname,
+          fileURLToPath(new URL("./fixtures/zombie-group.py", import.meta.url)),
           root,
           withLive ? "live" : "zombie",
         ],
@@ -1082,7 +1083,7 @@ Deno.test("known registered group survives a stale error-path proc snapshot unti
   const quote = (s: string) => "'" + s.replaceAll("'", "'\\''") + "'";
   let outer: Deno.ChildProcess | undefined;
   try {
-    const fixture = new URL("./fixtures/orphan-stale-scan.ts", import.meta.url).pathname;
+    const fixture = fileURLToPath(new URL("./fixtures/orphan-stale-scan.ts", import.meta.url));
     outer = new Deno.Command("script", {
       args: [
         "-qefc",

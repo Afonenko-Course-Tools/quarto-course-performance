@@ -1,15 +1,16 @@
-import { array, parseJson, parseObject } from "../src/json.ts";
-import { quarto as nativeQuarto } from "./runtime.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
-import { prepareRunStorage } from "../src/runner/storage.ts";
-import { executeScenario } from "../src/runner/execute.ts";
+import { fileURLToPath } from "node:url";
+import { normalizeRun, validatedIntervals } from "../src/analysis/normalize.ts";
 import { writeExperimentReport } from "../src/analysis/report.ts";
+import type { PreparedVariant, Scenario } from "../src/config/types.ts";
+import { array, parseJson, parseObject } from "../src/json.ts";
 import { traces } from "../src/report/perfetto.ts";
 import { operationTotals } from "../src/report/run.ts";
-import { normalizeRun, validatedIntervals } from "../src/analysis/normalize.ts";
 import { validateRunRecord, validateRunSummary } from "../src/report/types.ts";
-import type { PreparedVariant, Scenario } from "../src/config/types.ts";
+import { executeScenario } from "../src/runner/execute.ts";
+import { prepareRunStorage } from "../src/runner/storage.ts";
+import { quarto as nativeQuarto } from "./runtime.ts";
 const manifest = {
   schema_version: 2 as const,
   projectSource: "org/Fixture",
@@ -49,7 +50,7 @@ exit \${FIX_EXIT:-0}
           args: [
             "run",
             "-A",
-            new URL("../src/cli.ts", import.meta.url).pathname,
+            fileURLToPath(new URL("../src/cli.ts", import.meta.url)),
             "render",
             "--perf-mode",
             mode,
@@ -67,7 +68,7 @@ exit \${FIX_EXIT:-0}
         args: [
           "run",
           "-A",
-          new URL("../src/cli.ts", import.meta.url).pathname,
+          fileURLToPath(new URL("../src/cli.ts", import.meta.url)),
           "render",
           "--perf-mode",
           mode,
@@ -189,7 +190,7 @@ Deno.test("W-F4 new off experiment runs immediately write v2 records summaries r
         args: [
           "run",
           "-A",
-          new URL("../src/cli.ts", import.meta.url).pathname,
+          fileURLToPath(new URL("../src/cli.ts", import.meta.url)),
           "experiment",
           command,
           "--workspace",
@@ -286,7 +287,7 @@ Deno.test("W-F3 CLI report and verify refuse historical workspaces without chang
         args: [
           "run",
           "-A",
-          new URL("../src/cli.ts", import.meta.url).pathname,
+          fileURLToPath(new URL("../src/cli.ts", import.meta.url)),
           "experiment",
           command,
           "--workspace",

@@ -1,37 +1,35 @@
-import { type ExperimentRunRecord, validateSignal } from "../report/types.ts";
-import { array, number, object, parseObject } from "../json.ts";
-import { appDenoArgs, assetPath } from "../assets.ts";
+import { toolVersion } from "../assets.ts";
 import { join, relative, resolve } from "node:path";
+import type { NormalizedRun } from "../analysis/normalize.ts";
 import type {
   Mode,
-  PreparationReceipt,
+  PreparedScript,
   PreparedVariant,
   RunResult,
   Scenario,
 } from "../config/types.ts";
-import { contained } from "../sources/snapshot.ts";
 import { writeRunArtifacts } from "../report/run.ts";
-import type { NormalizedRun } from "../analysis/normalize.ts";
+import { type ExperimentRunRecord } from "../report/types.ts";
+import { contained } from "../sources/files.ts";
 import { cleanEnvironment } from "./environment.ts";
+import { measureScenario } from "./execute-measurement.ts";
 export { cleanEnvironment } from "./environment.ts";
 export interface ExecuteOptions {
   outputRoot?: string;
+  abortSignal?: AbortSignal;
   env?: Record<string, string>;
-  preparation?: PreparationReceipt[];
+  preparedScripts?: PreparedScript[];
   diagnosticEnv?: Record<string, string>;
   cleanPaths?: string[];
   coverage?: { complete: boolean };
   useHyperfine?: boolean;
   runtimeRegistry?: string;
 }
-export async function executeScenario(
+async function cleanScenarioOutputs(
+  root: string,
   scenario: Scenario,
-  prepared: PreparedVariant,
-  mode: Mode,
-  options: ExecuteOptions = {},
-): Promise<RunResult> {
-  const root = await Deno.realPath(prepared.root), cwd = resolve(root, scenario.cwd);
-  await contained(root, cwd);
+  options: ExecuteOptions,
+): Promise<void> {
   if (scenario.cachePolicy === "clean-output") {
     for (const path of options.cleanPaths ?? []) {
       const target = resolve(root, path), rel = relative(root, target);
@@ -46,6 +44,16 @@ export async function executeScenario(
       }
     }
   }
+}
+export async function executeScenario(
+  scenario: Scenario,
+  prepared: PreparedVariant,
+  mode: Mode,
+  options: ExecuteOptions = {},
+): Promise<RunResult> {
+  const root = await Deno.realPath(prepared.root), cwd = resolve(root, scenario.cwd);
+  await contained(root, cwd);
+  await cleanScenarioOutputs(root, scenario, options);
   const runId = crypto.randomUUID(),
     outputDirectory = join(options.outputRoot ?? "evidence/runs", runId);
   await Deno.mkdir(outputDirectory, { recursive: true });
@@ -86,117 +94,22 @@ export async function executeScenario(
       COURSE_PERF_OUTPUT_DIR: resolve(outputDirectory),
     });
   }
-  const resourcesPath = join(outputDirectory, "resources.txt");
-  const statusPath = join(outputDirectory, "tool-status.json");
-  let useTime = false;
-  try {
-    useTime = (await Deno.stat("/usr/bin/time")).isFile &&
-      (scenario.resources.cpu || scenario.resources.peakRss);
-  } catch { /* Недоступные ресурсы остаются null. */ }
-  const quote = (arg: string) => "'" + arg.replaceAll("'", "'\\''") + "'";
-  const executable = options.useHyperfine
-    ? "hyperfine"
-    : useTime
-    ? "/usr/bin/time"
-    : scenario.executable;
-  const args = options.useHyperfine
-    ? [
-      "--runs",
-      "1",
-      "--warmup",
-      "0",
-      "--shell",
-      "none",
-      "--ignore-failure",
-      "--show-output",
-      "--metrics",
-      "time_wall_clock,time_cpu,time_user,time_system,memory_peak_resident",
-      "--export-json",
-      resolve(join(outputDirectory, "hyperfine.json")),
-      [scenario.executable, ...argv].map(quote).join(" "),
-    ]
-    : useTime
-    ? [
-      "-f",
-      "%U %S %M",
-      "-o",
-      resolve(resourcesPath),
-      "--",
-      Deno.execPath(),
-      ...appDenoArgs(),
-      assetPath("src/runner/resource-child.ts"),
-      resolve(statusPath),
-      scenario.executable,
-      ...argv,
-    ]
-    : argv;
-  const start = performance.now();
-  const out = await new Deno.Command(executable, {
-    args,
+  const measurement = await measureScenario({
+    executable: scenario.executable,
+    argv,
     cwd,
     env,
-    clearEnv: true,
-    stdin: "inherit",
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
-  let wallSeconds = (performance.now() - start) / 1000,
-    buildExitCode = out.code,
-    signal = out.signal;
-  await Deno.writeFile(join(outputDirectory, "stdout.log"), out.stdout);
-  await Deno.writeFile(join(outputDirectory, "stderr.log"), out.stderr);
-  let resources: {
-    cpu_user_seconds: number | null;
-    cpu_system_seconds: number | null;
-    peak_rss_kib: number | null;
-  } = { cpu_user_seconds: null, cpu_system_seconds: null, peak_rss_kib: null };
-  if (options.useHyperfine) {
-    const raw = parseObject(await Deno.readTextFile(join(outputDirectory, "hyperfine.json")));
-    if (
-      raw.schema_version !== 2 || array(raw.results).length !== 1 ||
-      array(object(array(raw.results)[0]).measurements).length !== 1
-    ) throw new Error("Неподдержанный формат Hyperfine");
-    const measurement = object(array(object(array(raw.results)[0]).measurements)[0]);
-    const wall = object(measurement.time_wall_clock);
-    if (
-      wall.unit !== "second" ||
-      !Number.isFinite(wall.value) ||
-      !Number.isInteger(measurement.exit_code)
-    ) throw new Error("Невалидное измерение Hyperfine");
-    wallSeconds = number(wall.value);
-    buildExitCode = number(measurement.exit_code);
-    resources = {
-      cpu_user_seconds: measurement.time_user === undefined
-        ? null
-        : number(object(measurement.time_user).value),
-      cpu_system_seconds: measurement.time_system === undefined
-        ? null
-        : number(object(measurement.time_system).value),
-      peak_rss_kib: measurement.memory_peak_resident !== undefined &&
-          object(measurement.memory_peak_resident).unit === "byte"
-        ? number(object(measurement.memory_peak_resident).value) / 1024
-        : null,
-    };
-  } else if (useTime) {
-    const status = parseObject(await Deno.readTextFile(statusPath));
-    if (
-      !Number.isInteger(status.code) || !Number.isFinite(status.toolWallSeconds) ||
-      (status.signal !== null && typeof status.signal !== "string")
-    ) {
-      throw new Error("Невалидный native child status");
-    }
-    buildExitCode = number(status.code);
-    signal = validateSignal(status.signal);
-    wallSeconds = number(status.toolWallSeconds);
-    const line = (await Deno.readTextFile(resourcesPath)).trim().split("\n").at(-1)!;
-    const [user, system, rss] = line.split(" ").map(Number);
-    if (
-      user !== undefined && system !== undefined && rss !== undefined &&
-      [user, system, rss].every(Number.isFinite)
-    ) {
-      resources = { cpu_user_seconds: user, cpu_system_seconds: system, peak_rss_kib: rss };
-    }
-  }
+    outputDirectory,
+    useHyperfine: options.useHyperfine ?? false,
+    resources: scenario.resources.cpu || scenario.resources.peakRss,
+    ...(options.abortSignal ? { abortSignal: options.abortSignal } : {}),
+  });
+  const { code: buildExitCode, wallSeconds, signal } = measurement.outcome;
+  const resources = {
+    cpu_user_seconds: measurement.outcome.cpuUserSeconds,
+    cpu_system_seconds: measurement.outcome.cpuSystemSeconds,
+    peak_rss_kib: measurement.outcome.peakRssKiB,
+  };
   let dataValid = mode === "off";
   let normalized: NormalizedRun | undefined;
   if (mode !== "off") {
@@ -204,12 +117,25 @@ export async function executeScenario(
     normalized = await normalizeRun(outputDirectory);
     dataValid = normalized.dataValid;
   }
+  if (measurement.error) {
+    dataValid = false;
+    normalized ??= {
+      runId,
+      events: [],
+      executors: {},
+      dataValid: false,
+      quality: { droppedEvents: 0, incompleteSpans: 0, coverageComplete: false, errors: [] },
+    };
+    normalized.dataValid = false;
+    normalized.quality.coverageComplete = false;
+    normalized.quality.errors.push(String(measurement.error));
+  }
   const result: RunResult = {
     runId,
     buildExitCode,
     dataValid,
     outputDirectory,
-    preparation: mode === "off" ? [] : options.preparation ?? [],
+    preparedScripts: mode === "off" ? [] : options.preparedScripts ?? [],
     wallSeconds,
     signal,
   };
@@ -233,7 +159,7 @@ export async function executeScenario(
     quality: normalized?.quality ??
       { droppedEvents: 0, incompleteSpans: 0, coverageComplete: false, errors: [] },
     versions: {
-      tool: "2.0.0",
+      tool: await toolVersion(),
       quarto: prepared.manifest.runtime.quarto?.version ?? "неизвестно",
       deno: prepared.manifest.runtime.deno?.version ?? null,
       pandoc: prepared.manifest.runtime.pandoc?.version ?? null,
@@ -252,13 +178,34 @@ export async function executeScenario(
       experimentId: prepared.manifest.experimentId,
       resources,
       signalAvailability: options.useHyperfine ? "unavailable" : "observed",
-      resourceScope: options.useHyperfine
-        ? "native-hyperfine-command"
-        : useTime
-        ? "tool-and-resource-supervisor"
-        : "unavailable",
+      resourceScope: measurement.resourceScope,
     },
   };
   await writeRunArtifacts(outputDirectory, record, normalized);
   return result;
+}
+
+/** CLI владеет внешним сигналом до сохранения отчёта и завершения своего native дерева. */
+export async function withScenarioSignals<T>(
+  action: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
+  const controller = new AbortController();
+  let requested: Deno.Signal | null = null;
+  const remember = (signal: Deno.Signal) => {
+    requested ??= signal;
+    controller.abort(requested);
+  };
+  const interrupt = () => remember("SIGINT"), terminate = () => remember("SIGTERM");
+  Deno.addSignalListener("SIGINT", interrupt);
+  Deno.addSignalListener("SIGTERM", terminate);
+  try {
+    return await action(controller.signal);
+  } finally {
+    Deno.removeSignalListener("SIGINT", interrupt);
+    Deno.removeSignalListener("SIGTERM", terminate);
+    if (requested) {
+      Deno.kill(Deno.pid, requested);
+      await new Promise(() => {});
+    }
+  }
 }

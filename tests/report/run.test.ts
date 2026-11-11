@@ -1,13 +1,17 @@
-import { array, object, parseJson, parseObject, string } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join, resolve } from "node:path";
-import { writeRunArtifacts } from "../../src/report/run.ts";
-import { type RunRecord, validateRunRecord, validateRunSummary } from "../../src/report/types.ts";
+import { array, object, parseJson, parseObject, string } from "../../src/json.ts";
+import { summarizeRunRecord, writeRunArtifacts } from "../../src/report/run.ts";
+import {
+  validateDiagnosticExpectations,
+  validateRunRecord,
+  validateRunSummary,
+} from "../../src/report/types.ts";
 
-import { regressionRuns } from "./fixtures/perfetto/regressions.ts";
-import { pair, run } from "./fixtures/perfetto/control.ts";
 import { traces } from "../../src/report/perfetto.ts";
 import { record } from "./fixture.ts";
+import { pair, run } from "./fixtures/perfetto/control.ts";
+import { regressionRuns } from "./fixtures/perfetto/regressions.ts";
 
 Deno.test("single off report is versioned, portable and does not invent diagnostic observations", async () => {
   const root = await Deno.makeTempDir();
@@ -20,11 +24,9 @@ Deno.test("single off report is versioned, portable and does not invent diagnost
     const raw = '{"raw":"/original/collection"}\n';
     await Deno.writeTextFile(join(dir, "events/raw.jsonl"), raw);
     const r = record(dir);
-    r.preparation = [{
+    r.preparedScripts = [{
       kind: "bootstrap",
       path: "/original/bootstrap",
-      sourceHash: "s",
-      preparedHash: "p",
     }];
     await writeRunArtifacts(dir, r);
     const moved = join(root, "moved");
@@ -34,8 +36,8 @@ Deno.test("single off report is versioned, portable and does not invent diagnost
     );
     assert.equal(metadata.collectionDirectory, dir);
     assert.equal(metadata.outputDirectory, "/final/test");
-    assert(metadata.preparation[0]);
-    assert.equal(metadata.preparation[0].path, "/original/bootstrap");
+    assert(metadata.preparedScripts[0]);
+    assert.equal(metadata.preparedScripts[0].path, "/original/bootstrap");
     const summary = validateRunSummary(
       parseJson(await Deno.readTextFile(join(moved, "summary.json"))),
     );
@@ -235,5 +237,61 @@ Deno.test("RunRecord отвергает explicit undefined у optional outputPar
       ...input,
       request: { ...input.request, outputParent: undefined },
     })
+  );
+});
+
+Deno.test("metadata enum boundaries retain field errors and preserve historical extra fields", () => {
+  const input = { ...record("/historical"), previousAdapter: { receipt: "retain" } };
+  assert.equal(validateRunRecord(input), input);
+  for (
+    const [value, field] of [
+      [{ ...input, request: { ...input.request, mode: 1 } }, "request.mode"],
+      [{ ...input, outcome: { ...input.outcome, stdioMode: {} } }, "outcome.stdioMode"],
+      [{ ...input, preparedScripts: [{ kind: null }] }, "preparedScripts.kind"],
+      [{ ...input, request: [] }, "request"],
+    ] as const
+  ) {
+    assert.throws(() => validateRunRecord(value), {
+      message: `Некорректное поле metadata: ${field}`,
+    });
+  }
+  const summary = summarizeRunRecord(input);
+  const counter = {
+    processId: "p",
+    executorId: "ts",
+    name: "calls",
+    value: 1,
+    source: "event",
+    semantics: "delta",
+    quality: "observed-exact",
+  };
+  for (const field of ["source", "semantics", "quality"]) {
+    assert.throws(
+      () => validateRunSummary({ ...summary, counters: [{ ...counter, [field]: [] }] }),
+      { message: `Некорректное поле metadata: counters.${field}` },
+    );
+  }
+  const operation = {
+    operationId: "f",
+    clockDomain: "monotonic_process",
+    completed: 1,
+    errors: 0,
+    inclusiveMicroseconds: 1,
+    selfMicroseconds: null,
+    quality: "observed-exact",
+  };
+  for (const field of ["clockDomain", "quality"]) {
+    assert.throws(
+      () => validateRunSummary({ ...summary, operations: [{ ...operation, [field]: {} }] }),
+      { message: `Некорректное поле metadata: operations.${field}` },
+    );
+  }
+  assert.throws(
+    () =>
+      validateDiagnosticExpectations({
+        schema_version: 2,
+        processes: [{ process_id: "p", agent: 1 }],
+      }),
+    { message: "Некорректное поле metadata: agent" },
   );
 });

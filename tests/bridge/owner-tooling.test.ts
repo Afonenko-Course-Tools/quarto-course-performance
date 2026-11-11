@@ -1,7 +1,8 @@
-import { array, object, parseJson, string } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
-import { syncBridge } from "../../tools/sync-bridge.ts";
+import { fileURLToPath } from "node:url";
+import { array, object, parseJson, string } from "../../src/json.ts";
+import { bridgeLanguages, syncBridge } from "../../tools/sync-bridge.ts";
 
 Deno.test("owner sync uses only installed implementation languages and checks their bytes", async () => {
   const root = await Deno.makeTempDir();
@@ -77,7 +78,7 @@ Deno.test("owner check permits functional clocks and rejects legacy protocol, in
         args: [
           "run",
           "-A",
-          new URL("../../tools/check-owners.ts", import.meta.url).pathname,
+          fileURLToPath(new URL("../../tools/check-owners.ts", import.meta.url)),
           ...paths,
         ],
         stdout: "piped",
@@ -116,5 +117,34 @@ if (path) await Deno.writeTextFile(path, JSON.stringify({kind: "render", elapsed
     assert.match(unexpected.text, /лишние observability/);
   } finally {
     await Deno.remove(temporary, { recursive: true });
+  }
+});
+
+Deno.test("owner sync/check leaves a CSS-only course-theme source unchanged", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const theme = join(root, "_extensions", "course-theme");
+    await Deno.mkdir(theme, { recursive: true });
+    const sources = {
+      "_extension.yml":
+        "title: Общая тема курса\ncontributes:\n  formats:\n    html:\n      theme:\n        - cosmo\n        - theme.scss\n",
+      "theme.scss": "/*-- scss:defaults --*/\n$body-bg: #fff;\n",
+    };
+    for (const [name, source] of Object.entries(sources)) {
+      await Deno.writeTextFile(join(theme, name), source);
+    }
+    assert.deepEqual(bridgeLanguages("course-theme"), []);
+    for (const checkOnly of [false, true]) {
+      await syncBridge([root], checkOnly);
+      const names = [];
+      for await (const entry of Deno.readDir(theme)) names.push(entry.name);
+      assert.deepEqual(names.sort(), Object.keys(sources).sort());
+      for (const [name, source] of Object.entries(sources)) {
+        assert.equal(await Deno.readTextFile(join(theme, name)), source);
+      }
+      await assert.rejects(() => Deno.stat(join(theme, "observability")), Deno.errors.NotFound);
+    }
+  } finally {
+    await Deno.remove(root, { recursive: true });
   }
 });

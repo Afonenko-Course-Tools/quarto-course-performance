@@ -1,7 +1,6 @@
-import { parseObject, string } from "../src/json.ts";
 import { isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { hashFile } from "../src/sources/snapshot.ts";
+import { parseObject, string } from "../src/json.ts";
 
 /** Точный Git-архив и самостоятельный рецепт с вычисленной контрольной суммой. */
 export async function prepareArchSource(commit: string, output: string) {
@@ -25,7 +24,16 @@ export async function prepareArchSource(commit: string, output: string) {
     `--output=${archive}`,
     commit,
   ]);
-  const sha256 = await hashFile(archive);
+  // Штатная контрольная сумма source архива для поля PKGBUILD sha256sums.
+  const sha256 = Array.from(
+    new Uint8Array(
+      await crypto.subtle.digest(
+        "SHA-256",
+        await Deno.readFile(archive),
+      ),
+    ),
+    (byte) => byte.toString(16).padStart(2, "0"),
+  ).join("");
   const recipe = new TextDecoder().decode(await git(["show", `${commit}:packaging/arch/PKGBUILD`]))
     .replaceAll("@SOURCE_COMMIT@", commit).replaceAll("@SOURCE_SHA256@", sha256);
   await Deno.writeTextFile(join(output, "PKGBUILD"), recipe);

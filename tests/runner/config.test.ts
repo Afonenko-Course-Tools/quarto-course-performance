@@ -1,7 +1,8 @@
+import { strict as assert } from "node:assert";
+import { fileURLToPath } from "node:url";
+import { validateConfig } from "../../src/config/validate.ts";
 import { object, parseObject } from "../../src/json.ts";
 import { quarto as nativeQuarto } from "../runtime.ts";
-import { strict as assert } from "node:assert";
-import { validateConfig } from "../../src/config/validate.ts";
 Deno.test("config rejects unknown modes, escaped cwd, duplicate scenarios and missing explicit ref", () => {
   const s = {
     id: "one",
@@ -85,7 +86,7 @@ Deno.test("experiment capabilities works outside a project without config, Git, 
       args: [
         "run",
         "-A",
-        new URL("../../src/cli.ts", import.meta.url).pathname,
+        fileURLToPath(new URL("../../src/cli.ts", import.meta.url)),
         "experiment",
         "capabilities",
         "--quarto",

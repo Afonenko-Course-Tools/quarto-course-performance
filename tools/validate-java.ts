@@ -1,13 +1,13 @@
-import { type ExperimentRunRecord, validateExperimentRunRecord } from "../src/report/types.ts";
 import type { ReportSourceManifest } from "../src/config/types.ts";
 import { parseObject, string } from "../src/json.ts";
+import { type ExperimentRunRecord, validateExperimentRunRecord } from "../src/report/types.ts";
 // Строгое сравнение сохранившихся outputs; запускать после завершения benchmark/diagnostics.
 import { dirname, join, resolve } from "node:path";
-import { loadOwnerNormalizer } from "./owner-normalizer.ts";
-import { validateConfig } from "../src/config/validate.ts";
 import { compareOutputs } from "../src/analysis/outputs.ts";
 import { importSourceManifest } from "../src/config/types.ts";
-import { files } from "../src/sources/snapshot.ts";
+import { validateConfig } from "../src/config/validate.ts";
+import { files } from "../src/sources/files.ts";
+import { loadOwnerNormalizer } from "./owner-normalizer.ts";
 const workspace = resolve(string(Deno.args[0])), upstreamWorkspace = resolve(string(Deno.args[1]));
 const config = validateConfig(
   parseObject(await Deno.readTextFile(new URL("../scenarios/java.json", import.meta.url))),

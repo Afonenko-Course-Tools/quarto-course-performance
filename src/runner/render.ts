@@ -1,19 +1,20 @@
-import { parseObject } from "../json.ts";
+import { toolVersion } from "../assets.ts";
 import { join, relative, resolve } from "node:path";
+import { resolveRenderProject } from "../adapters/quarto/inspect.ts";
+import { type NormalizedRun, normalizeRun } from "../analysis/normalize.ts";
+import { validatePreparedScript } from "../config/types.ts";
+import { isObject, parseJson } from "../json.ts";
+import { jsonFiles } from "../report/run.ts";
 import type {
   BuildOutcome,
   GitProvenance,
   NativeRenderRequest,
   RunRecord,
 } from "../report/types.ts";
-import { OwnedProcessError, runOwnedProcess } from "./process.ts";
-import { resolveRenderProject } from "../adapters/quarto/inspect.ts";
-import { finalizeRun, prepareRunStorage } from "./storage.ts";
 import { prepareRenderDiagnostic } from "./diagnostic.ts";
-import { type NormalizedRun, normalizeRun } from "../analysis/normalize.ts";
-import { jsonFiles } from "../report/run.ts";
-import { validatePreparationReceipt } from "../config/types.ts";
 import { validateTelemetryEnvironment } from "./environment.ts";
+import { OwnedProcessError, runOwnedProcess } from "./process.ts";
+import { finalizeRun, prepareRunStorage } from "./storage.ts";
 
 export async function runNativeRender(
   request: NativeRenderRequest,
@@ -30,6 +31,40 @@ export async function runNativeRender(
   });
 }
 
+async function excludeSavedRuns(
+  outputParent: string | undefined,
+  cwd: string,
+  gitRoot: string,
+  exclusions: string[],
+): Promise<void> {
+  async function excludeRun(entry: Deno.DirEntry, parent: string): Promise<void> {
+    const directory = join(parent, entry.name), rel = relative(gitRoot, directory);
+    if (rel === ".." || rel.startsWith("../")) return;
+    try {
+      const previous = parseJson(await Deno.readTextFile(join(directory, "run.json")));
+      if (
+        isObject(previous) && previous.schema_version === 2 &&
+        previous.runId === entry.name &&
+        previous.outputDirectory === directory
+      ) exclusions.push(`:(exclude,top,literal)${rel}`);
+    } catch (e) {
+      if (!(e instanceof Deno.errors.NotFound) && !(e instanceof SyntaxError)) throw e;
+    }
+  }
+  if (outputParent !== undefined) {
+    const parent = resolve(cwd, outputParent);
+    try {
+      for await (const entry of Deno.readDir(parent)) {
+        if (!entry.isDirectory || !/^[a-f0-9-]{36}$/.test(entry.name)) continue;
+        await excludeRun(entry, parent);
+      }
+    } catch (e) {
+      if (!(e instanceof Deno.errors.NotFound) && !(e instanceof Deno.errors.NotADirectory)) {
+        throw e;
+      }
+    }
+  }
+}
 async function gitProvenance(cwd: string, outputParent?: string): Promise<GitProvenance | null> {
   const run = async (args: string[]) =>
     await new Deno.Command("git", { args, cwd, stdout: "piped", stderr: "piped" }).output();
@@ -38,29 +73,7 @@ async function gitProvenance(cwd: string, outputParent?: string): Promise<GitPro
     if (!root.success) return null;
     const gitRoot = new TextDecoder().decode(root.stdout).trim();
     const exclusions = [":(exclude,glob)**/.quarto/**"];
-    if (outputParent !== undefined) {
-      const parent = resolve(cwd, outputParent);
-      try {
-        for await (const entry of Deno.readDir(parent)) {
-          if (!entry.isDirectory || !/^[a-f0-9-]{36}$/.test(entry.name)) continue;
-          const directory = join(parent, entry.name), rel = relative(gitRoot, directory);
-          if (rel === ".." || rel.startsWith("../")) continue;
-          try {
-            const previous = parseObject(await Deno.readTextFile(join(directory, "run.json")));
-            if (
-              previous.schema_version === 2 && previous.runId === entry.name &&
-              previous.outputDirectory === directory
-            ) exclusions.push(`:(exclude,top,literal)${rel}`);
-          } catch (e) {
-            if (!(e instanceof Deno.errors.NotFound) && !(e instanceof SyntaxError)) throw e;
-          }
-        }
-      } catch (e) {
-        if (!(e instanceof Deno.errors.NotFound) && !(e instanceof Deno.errors.NotADirectory)) {
-          throw e;
-        }
-      }
-    }
+    await excludeSavedRuns(outputParent, cwd, gitRoot, exclusions);
     const [head, status] = await Promise.all([
       run(["rev-parse", "HEAD"]),
       run(["status", "--porcelain", "--untracked-files=normal", "--", ".", ...exclusions]),
@@ -84,6 +97,34 @@ function diagnostic(message: string): unknown | undefined {
     return error;
   }
   return undefined;
+}
+async function preserveFailure(directoryPath: string, failure: unknown): Promise<void> {
+  try {
+    const directory = await Deno.lstat(directoryPath);
+    if (!directory.isDirectory || directory.isSymlink) {
+      throw new Error("Недопустимый каталог диагностики");
+    }
+    const receipt = await Deno.open(join(directoryPath, "performance-error.json"), {
+      write: true,
+      createNew: true,
+    });
+    try {
+      const data = new TextEncoder().encode(
+        JSON.stringify(
+          {
+            schema_version: 2,
+            error: failure instanceof Error ? failure.message : String(failure),
+          },
+          null,
+          2,
+        ) + "\n",
+      );
+      let offset = 0;
+      while (offset < data.length) offset += await receipt.write(data.subarray(offset));
+    } finally {
+      receipt.close();
+    }
+  } catch { /* Доступные raw/report уже сохранены; исходный результат приоритетен. */ }
 }
 export async function renderCommand(request: NativeRenderRequest): Promise<number> {
   const conflicts = validateTelemetryEnvironment(Deno.env.toObject());
@@ -141,6 +182,73 @@ export async function renderCommand(request: NativeRenderRequest): Promise<numbe
   let outcome: BuildOutcome | undefined, failure: unknown;
   let diagnosticValid = true;
   let savedDirectory = paths.stagingDirectory;
+  async function saveOutcome(outcome: BuildOutcome): Promise<void> {
+    const errors = failure ? [failure instanceof Error ? failure.message : String(failure)] : [];
+    let normalized: NormalizedRun | undefined;
+    const preparedScripts = [...prepared?.preparedScripts ?? []];
+    if (prepared) {
+      try {
+        normalized = await normalizeRun(paths.stagingDirectory);
+        preparedScripts.push(
+          ...(await jsonFiles(
+            join(paths.stagingDirectory, "preparedScripts"),
+            ".json",
+          )).map(validatePreparedScript),
+        );
+      } catch (error) {
+        failure ??= error;
+        errors.push(error instanceof Error ? error.message : String(error));
+      }
+    }
+    diagnosticValid = !failure && (normalized?.dataValid ?? !prepared);
+    const record: RunRecord = {
+      schema_version: 2,
+      runId: paths.runId,
+      request,
+      outcome,
+      preparedScripts,
+      dataValid: diagnosticValid,
+      quality: normalized
+        ? {
+          ...normalized.quality,
+          coverageComplete: false,
+          errors: [...normalized.quality.errors, ...errors],
+        }
+        : { droppedEvents: 0, incompleteSpans: 0, coverageComplete: false, errors },
+      versions: {
+        tool: await toolVersion(),
+        quarto: new TextDecoder().decode(version.stdout).trim(),
+        deno: prepared?.coverage.runtime.runtime.deno?.version ?? null,
+        pandoc: prepared?.coverage.runtime.runtime.pandoc?.version ?? null,
+      },
+      git,
+      collectionDirectory: paths.stagingDirectory,
+      outputDirectory: paths.finalDirectory,
+      artifacts: {},
+    };
+    try {
+      savedDirectory = await finalizeRun(paths, record, normalized);
+      const unavailable = (value: number | null) => value === null ? "недоступно" : String(value);
+      const printError = diagnostic(
+        `Performance: wall=${outcome.wallSeconds.toFixed(3)}s; CPU user=${
+          unavailable(outcome.cpuUserSeconds)
+        }; CPU system=${unavailable(outcome.cpuSystemSeconds)}; peak RSS=${
+          unavailable(outcome.peakRssKiB)
+        } KiB; status=${outcome.signal ?? outcome.code}; data=${
+          diagnosticValid ? "VALID" : "INVALID"
+        }\nОтчёт Performance: ${savedDirectory}`,
+      );
+      failure ??= printError;
+    } catch (error) {
+      failure ??= error;
+      diagnostic(error instanceof Error ? error.message : String(error));
+    }
+    if (failure) {
+      diagnostic(failure instanceof Error ? failure.message : String(failure));
+      // Даже отказ stderr не должен заменить известный child exit/signal.
+      await preserveFailure(savedDirectory, failure);
+    }
+  }
   try {
     try {
       outcome = await runNativeRender(request, paths.stagingDirectory, diagnosticEnv);
@@ -148,98 +256,8 @@ export async function renderCommand(request: NativeRenderRequest): Promise<numbe
       failure = error;
       if (error instanceof OwnedProcessError) outcome = error.outcome;
     }
-    if (outcome) {
-      const errors = failure ? [failure instanceof Error ? failure.message : String(failure)] : [];
-      let normalized: NormalizedRun | undefined;
-      const preparation = [...prepared?.preparation ?? []];
-      if (prepared) {
-        try {
-          normalized = await normalizeRun(paths.stagingDirectory);
-          preparation.push(
-            ...(await jsonFiles(
-              join(paths.stagingDirectory, "preparation"),
-              ".json",
-            )).map(validatePreparationReceipt),
-          );
-        } catch (error) {
-          failure ??= error;
-          errors.push(error instanceof Error ? error.message : String(error));
-        }
-      }
-      diagnosticValid = !failure && (normalized?.dataValid ?? !prepared);
-      const record: RunRecord = {
-        schema_version: 2,
-        runId: paths.runId,
-        request,
-        outcome,
-        preparation,
-        dataValid: diagnosticValid,
-        quality: normalized
-          ? {
-            ...normalized.quality,
-            coverageComplete: false,
-            errors: [...normalized.quality.errors, ...errors],
-          }
-          : { droppedEvents: 0, incompleteSpans: 0, coverageComplete: false, errors },
-        versions: {
-          tool: "2.0.0",
-          quarto: new TextDecoder().decode(version.stdout).trim(),
-          deno: prepared?.coverage.runtime.runtime.deno?.version ?? null,
-          pandoc: prepared?.coverage.runtime.runtime.pandoc?.version ?? null,
-        },
-        git,
-        collectionDirectory: paths.stagingDirectory,
-        outputDirectory: paths.finalDirectory,
-        artifacts: {},
-      };
-      try {
-        savedDirectory = await finalizeRun(paths, record, normalized);
-        const unavailable = (value: number | null) => value === null ? "недоступно" : String(value);
-        const printError = diagnostic(
-          `Performance: wall=${outcome.wallSeconds.toFixed(3)}s; CPU user=${
-            unavailable(outcome.cpuUserSeconds)
-          }; CPU system=${unavailable(outcome.cpuSystemSeconds)}; peak RSS=${
-            unavailable(outcome.peakRssKiB)
-          } KiB; status=${outcome.signal ?? outcome.code}; data=${
-            diagnosticValid ? "VALID" : "INVALID"
-          }\nОтчёт Performance: ${savedDirectory}`,
-        );
-        failure ??= printError;
-      } catch (error) {
-        failure ??= error;
-        diagnostic(error instanceof Error ? error.message : String(error));
-      }
-      if (failure) {
-        diagnostic(failure instanceof Error ? failure.message : String(failure));
-        // Даже отказ stderr не должен заменить известный child exit/signal.
-        try {
-          const directory = await Deno.lstat(savedDirectory);
-          if (!directory.isDirectory || directory.isSymlink) {
-            throw new Error("Недопустимый каталог диагностики");
-          }
-          const receipt = await Deno.open(join(savedDirectory, "performance-error.json"), {
-            write: true,
-            createNew: true,
-          });
-          try {
-            const data = new TextEncoder().encode(
-              JSON.stringify(
-                {
-                  schema_version: 2,
-                  error: failure instanceof Error ? failure.message : String(failure),
-                },
-                null,
-                2,
-              ) + "\n",
-            );
-            let offset = 0;
-            while (offset < data.length) offset += await receipt.write(data.subarray(offset));
-          } finally {
-            receipt.close();
-          }
-        } catch { /* Доступные raw/report уже сохранены; исходный результат приоритетен. */ }
-      }
-    } else {
+    if (outcome) await saveOutcome(outcome);
+    else {
       diagnostic(`Материалы запуска сохранены: ${paths.stagingDirectory}`);
     }
   } finally {

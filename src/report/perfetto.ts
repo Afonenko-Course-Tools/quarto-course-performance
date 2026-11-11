@@ -1,4 +1,3 @@
-import { object } from "../json.ts";
 import {
   type NormalizedRun,
   operationAttribution,
@@ -6,6 +5,7 @@ import {
   type ValidatedInterval,
   validatedIntervals,
 } from "../analysis/normalize.ts";
+import { object } from "../json.ts";
 
 export interface ChromeTraceEvent {
   ph: "M" | "X" | "s" | "f";
@@ -130,13 +130,13 @@ export function traces(
     }
     return false;
   }
-  for (const key of keys) {
+  function placeExecutor(key: string): void {
     const rows = groups.get(key)!.sort((a, b) =>
       a.begin.timestamp_us! - b.begin.timestamp_us! || b.end.timestamp_us! - a.end.timestamp_us! ||
       compare(a.begin.span_id!, b.begin.span_id!)
     );
     const firstRow = rows[0];
-    if (!firstRow) continue;
+    if (!firstRow) return;
     const first = firstRow.begin;
     const calibration = origin(run, firstRow);
     const isWall = first.clock_domain === "monotonic_process";
@@ -246,6 +246,7 @@ export function traces(
       placed.set(begin.span_id!, { trace, event: row });
     }
   }
+  for (const key of keys) placeExecutor(key);
   let flowId = 0;
   for (const id of [...placed.keys()].sort(compare)) {
     const child = placed.get(id)!;

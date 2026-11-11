@@ -61,7 +61,7 @@ Deno.test("owner normalization executes the frozen Git blob and records its prov
     assert.equal(result.normalizeHtml("value"), "frozen:value");
     assert.equal(result.receipt.sha, sha);
     assert.equal(result.receipt.path, modulePath);
-    assert.match(result.receipt.sha256, /^[0-9a-f]{64}$/);
+    assert.equal("sha256" in result.receipt, false);
     await Deno.writeTextFile(
       manifest,
       JSON.stringify({ experimentId: "historical", packages: [], runtime: {}, sources: [] }),

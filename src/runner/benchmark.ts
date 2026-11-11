@@ -1,5 +1,4 @@
-import type { RunResult } from "../config/types.ts";
-import type { PreparedVariant, Scenario } from "../config/types.ts";
+import type { PreparedVariant, RunResult, Scenario } from "../config/types.ts";
 import { type ExecuteOptions, executeScenario } from "./execute.ts";
 export interface BenchmarkProgress {
   pairs: {
@@ -31,7 +30,11 @@ export async function benchmarkPair(
   const warmups: string[] = [];
   for (const prepared of [left, right]) {
     const warm = await executeScenario(scenario, prepared, "off", options.executeOptions);
-    if (warm.buildExitCode) throw new Error(`Прогрев завершился с кодом ${warm.buildExitCode}`);
+    if (warm.buildExitCode || !warm.dataValid) {
+      throw new Error(
+        `Прогрев непригоден: native=${warm.buildExitCode}, dataValid=${warm.dataValid}; ${warm.outputDirectory}`,
+      );
+    }
     warmups.push(warm.runId);
   }
   const pairs: BenchmarkProgress["pairs"] = [];
@@ -39,7 +42,7 @@ export async function benchmarkPair(
     const order = i % 2 ? "BA" as const : "AB" as const, results: RunResult[] = [];
     for (const prepared of order === "AB" ? [left, right] : [right, left]) {
       const result = await executeScenario(scenario, prepared, "off", options.executeOptions);
-      if (result.buildExitCode) {
+      if (result.buildExitCode || !result.dataValid) {
         throw new Error(`Benchmark build failed: ${result.outputDirectory}`);
       }
       results.push(result);

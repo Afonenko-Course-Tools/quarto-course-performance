@@ -1,7 +1,7 @@
-import { quarto as nativeQuarto } from "../runtime.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 import type { NativeRenderRequest } from "../../src/report/types.ts";
+import { quarto as nativeQuarto } from "../runtime.ts";
 
 import { resolveRenderProject } from "../../src/adapters/quarto/inspect.ts";
 

@@ -1,10 +1,9 @@
-import { object, parseObject, string } from "../json.ts";
 import { join, resolve } from "node:path";
-import { liveSourceManifest, type SourceManifest, type Variant } from "../config/types.ts";
-import { git } from "./resolve.ts";
-import { verifySources } from "./prepare.ts";
-import { hashFile } from "./snapshot.ts";
 import { probeQuarto } from "../adapters/quarto/capabilities.ts";
+import { liveSourceManifest, type SourceManifest, type Variant } from "../config/types.ts";
+import { object, parseObject, string } from "../json.ts";
+import { verifySources } from "./prepare.ts";
+import { git } from "./resolve.ts";
 
 export interface FreezeInputs {
   baseline: string;
@@ -41,7 +40,7 @@ export async function freezeVariants(inputs: FreezeInputs, workspace: string, qu
   const caps = await probeQuarto(quarto), runtime: SourceManifest["runtime"] = { ...caps.runtime };
   if (inputs.runtimeRegistry) {
     const path = resolve(inputs.runtimeRegistry.path);
-    runtime.runtimeRegistry = { ...inputs.runtimeRegistry, path, hash: await hashFile(path) };
+    runtime.runtimeRegistry = { ...inputs.runtimeRegistry, path };
   }
   const experimentId = crypto.randomUUID(),
     manifests: Partial<Record<Variant, SourceManifest>> = {};

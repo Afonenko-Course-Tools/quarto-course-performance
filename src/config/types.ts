@@ -1,5 +1,5 @@
-import { array, object, oneOf, string, strings } from "../json.ts";
 import { isAbsolute } from "node:path";
+import { array, object, oneOf, string, strings } from "../json.ts";
 import type { SimpleMode } from "../report/types.ts";
 
 export type Mode = SimpleMode | "trace";
@@ -9,7 +9,7 @@ export interface SourceRequest {
   refPolicy: "remote-default-head" | "explicit-remote-ref";
   ref?: string;
 }
-export interface SourceReceipt {
+export interface SourceSelection {
   repository: string;
   sourceKind: "github-baseline" | "local-candidate";
   remoteRef: string;
@@ -18,12 +18,11 @@ export interface SourceReceipt {
   fetchedAt: string;
   checkoutPath: string;
 }
-export interface PackageReceipt {
+export interface InstalledPackage {
   repository: string;
   ownerSha: string;
   extensionId: string;
   sourcePath: string;
-  packageHash: string;
   destinationPaths: string[];
 }
 export interface Replacement {
@@ -70,9 +69,9 @@ export interface SourceManifest {
   projectSource: string;
   replacements: Replacement[];
   experimentId: string;
-  sources: SourceReceipt[];
-  packages: PackageReceipt[];
-  runtime: Record<string, { path: string; version: string; hash: string }>;
+  sources: SourceSelection[];
+  packages: InstalledPackage[];
+  runtime: Record<string, { path: string; version: string }>;
 }
 export interface PreparedVariant {
   variant: Variant;
@@ -89,22 +88,21 @@ export interface Scenario {
   scope: { modules: string[]; extensions: string[]; strict: boolean };
   resources: { wall: boolean; cpu: boolean; peakRss: boolean };
 }
-export interface PreparationReceipt {
+export interface PreparedScript {
   kind: "bootstrap" | "ts-transform" | "quarto-adapter";
   path: string;
-  sourceHash: string;
-  preparedHash: string;
   sourceMapPath?: string;
 }
-export function validatePreparationReceipt(value: unknown): PreparationReceipt {
-  const receipt = object(value, "preparation");
+export function validatePreparedScript(value: unknown): PreparedScript {
+  const receipt = object(value, "preparedScripts");
+  if (Object.keys(receipt).some((key) => !["kind", "path", "sourceMapPath"].includes(key))) {
+    throw new Error("Удалённые proof поля preparedScripts не принимаются");
+  }
   const { sourceMapPath, ...receiptFields } = receipt;
   return {
     ...receiptFields,
     kind: oneOf(receipt.kind, ["bootstrap", "ts-transform", "quarto-adapter"]),
     path: string(receipt.path),
-    sourceHash: string(receipt.sourceHash),
-    preparedHash: string(receipt.preparedHash),
     ...(sourceMapPath === undefined ? {} : { sourceMapPath: string(sourceMapPath) }),
   };
 }
@@ -113,7 +111,7 @@ export interface RunResult {
   buildExitCode: number;
   dataValid: boolean;
   outputDirectory: string;
-  preparation: PreparationReceipt[];
+  preparedScripts: PreparedScript[];
   wallSeconds: number;
   signal: Deno.Signal | null;
 }
@@ -132,7 +130,7 @@ export type ReportSourceManifest = SourceManifest | HistoricalSourceManifest;
 export function importSourceManifest(value: unknown, historical = false): ReportSourceManifest {
   const input = object(value, "source manifest");
   const { schema_version: schemaVersion, ...manifestFields } = input;
-  const sources: SourceReceipt[] = array(input.sources).map((value) => {
+  const sources: SourceSelection[] = array(input.sources).map((value) => {
     const source = object(value, "source receipt");
     const { baseSha, ...sourceFields } = source;
     return {
@@ -146,26 +144,30 @@ export function importSourceManifest(value: unknown, historical = false): Report
       ...(baseSha === undefined ? {} : { baseSha: string(baseSha) }),
     };
   });
-  const packages: PackageReceipt[] = array(input.packages).map((value) => {
+  const packages: InstalledPackage[] = array(input.packages).map((value) => {
     const pkg = object(value, "package receipt");
+    if (!historical && "packageHash" in pkg) {
+      throw new Error("Удалённые digest поля пакета не принимаются");
+    }
     return {
       ...pkg,
       repository: string(pkg.repository),
       ownerSha: string(pkg.ownerSha),
       extensionId: string(pkg.extensionId),
       sourcePath: string(pkg.sourcePath),
-      packageHash: string(pkg.packageHash),
       destinationPaths: strings(pkg.destinationPaths),
     };
   });
   const runtime: SourceManifest["runtime"] = Object.fromEntries(
     Object.entries(object(input.runtime)).map(([name, value]) => {
       const receipt = object(value, "runtime receipt");
+      if (!historical && Object.keys(receipt).some((key) => !["path", "version"].includes(key))) {
+        throw new Error("Удалённые digest поля runtime не принимаются");
+      }
       return [name, {
         ...receipt,
         path: string(receipt.path),
         version: string(receipt.version),
-        hash: string(receipt.hash),
       }];
     }),
   );
@@ -197,7 +199,7 @@ export function importSourceManifest(value: unknown, historical = false): Report
       }
     }
     for (const receipt of Object.values(runtime)) {
-      if (!isAbsolute(receipt.path) || !/^[0-9a-f]{64}$/.test(receipt.hash)) {
+      if (!isAbsolute(receipt.path)) {
         throw new Error("Некорректный runtime receipt");
       }
     }

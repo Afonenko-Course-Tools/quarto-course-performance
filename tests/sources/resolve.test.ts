@@ -1,9 +1,9 @@
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
-import { resolveSources } from "../../src/sources/resolve.ts";
 import { verifySources } from "../../src/sources/prepare.ts";
+import { resolveSources } from "../../src/sources/resolve.ts";
 
-Deno.test("candidate preparation refuses dirty or mismatched frozen checkout", async () => {
+Deno.test("candidate preparedScripts refuses dirty or mismatched frozen checkout", async () => {
   const root = await Deno.makeTempDir();
   const git = async (args: string[]) => {
     const r = await new Deno.Command("git", {
@@ -122,7 +122,7 @@ Deno.test("explicit annotated tag resolves to the peeled commit; unrelated refs 
   );
 });
 
-Deno.test("v2 preparation uses explicit project source and preserves installed third party packages", async () => {
+Deno.test("v2 preparedScripts uses explicit project source and preserves installed third party packages", async () => {
   const { prepareVariant } = await import("../../src/sources/prepare.ts");
   const root = await Deno.makeTempDir();
   try {
@@ -185,7 +185,7 @@ Deno.test("v2 preparation uses explicit project source and preserves installed t
   }
 });
 
-Deno.test("historical source manifest import is read only and never accepted by preparation", async () => {
+Deno.test("historical source manifest import is read only and never accepted by preparedScripts", async () => {
   const { importSourceManifest, liveSourceManifest } = await import("../../src/config/types.ts");
   const { prepareVariant } = await import("../../src/sources/prepare.ts");
   const legacy = { experimentId: "history", sources: [], packages: [], runtime: {} };

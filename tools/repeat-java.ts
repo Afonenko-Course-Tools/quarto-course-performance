@@ -1,12 +1,12 @@
 import { parseObject, string } from "../src/json.ts";
 // Два рендера одной disposable copy без очистки outputs; функциональная проверка повторного запуска.
 import { join, resolve } from "node:path";
+import { compareOutputs } from "../src/analysis/outputs.ts";
 import { liveSourceManifest } from "../src/config/types.ts";
 import { validateConfig } from "../src/config/validate.ts";
-import { prepareVariant } from "../src/sources/prepare.ts";
 import { executeScenario } from "../src/runner/execute.ts";
-import { compareOutputs } from "../src/analysis/outputs.ts";
-import { copyTree } from "../src/sources/snapshot.ts";
+import { copyTree } from "../src/sources/files.ts";
+import { prepareVariant } from "../src/sources/prepare.ts";
 const workspace = resolve(string(Deno.args[0]));
 const config = validateConfig(
   parseObject(await Deno.readTextFile(new URL("../scenarios/java.json", import.meta.url))),

@@ -1,3 +1,4 @@
+import { parseObject, string } from "./json.ts";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -15,8 +16,12 @@ export function appDenoArgs(root = assetPath(".")): string[] {
     "--lock",
     resolve(root, "deno.lock"),
     "--frozen",
-    "--node-modules-dir=manual",
     "--cached-only",
     "-A",
   ];
+}
+
+/** Версия CLI и новых отчётов принадлежит config установленного приложения. */
+export async function toolVersion(): Promise<string> {
+  return string(parseObject(await Deno.readTextFile(assetPath("deno.json"))).version, "version");
 }

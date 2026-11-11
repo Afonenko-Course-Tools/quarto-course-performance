@@ -1,5 +1,5 @@
-import { string } from "../json.ts";
 import { isAbsolute, join, resolve } from "node:path";
+import { string } from "../json.ts";
 import { pandocBuiltinInit, preparePandocData } from "./setup.ts";
 
 /** Выбор только из фактического argv и публичного default выбранного Pandoc. */
@@ -148,17 +148,15 @@ export async function preparePandocArgs(
     }
   }
   let dataDir = env.COURSE_PERF_DATA_DIR;
-  let preparation;
+  let preparedScripts;
   if (source !== env.COURSE_PERF_SOURCE_DATA_DIR) {
     dataDir = join(string(env.COURSE_PERF_OUTPUT_DIR), "pandoc-data", id);
     let copySource = source!;
-    let missingDefault = false;
     try {
       await Deno.lstat(copySource);
     } catch (error) {
       if (!(error instanceof Deno.errors.NotFound) || !defaultSelection) throw error;
       // Native отсутствующий пользовательский каталог не создаётся и не меняется.
-      missingDefault = true;
       copySource = join(string(env.COURSE_PERF_OUTPUT_DIR), "pandoc-empty-default", id);
       await Deno.mkdir(copySource, { recursive: true });
     }
@@ -168,12 +166,7 @@ export async function preparePandocArgs(
       string(env.COURSE_PERF_INIT_LUA),
       await pandocBuiltinInit(binary, env),
     );
-    preparation = {
-      ...receipt,
-      selectedSource: source,
-      selection: defaultSelection ? "native-default" : "explicit",
-      missingDefault,
-    };
+    preparedScripts = receipt;
   }
   // Не превращать аргументы после нативного разделителя в параметры.
   args.splice(
@@ -182,5 +175,5 @@ export async function preparePandocArgs(
     "--data-dir",
     string(dataDir),
   );
-  return { args, preparation };
+  return { args, preparedScripts };
 }

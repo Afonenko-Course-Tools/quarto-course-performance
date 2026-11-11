@@ -1,13 +1,13 @@
-import { numberMap, parseObject } from "../json.ts";
 import { isAbsolute, join } from "node:path";
-import type { CounterAggregate, RunRecord, RunSummary } from "./types.ts";
 import {
   type NormalizedRun,
   operationAttribution,
   validatedEvents,
   validatedIntervals,
 } from "../analysis/normalize.ts";
+import { numberMap, oneOf, parseObject } from "../json.ts";
 import { traces } from "./perfetto.ts";
+import type { CounterAggregate, RunRecord, RunSummary } from "./types.ts";
 export function operationTotals(run: NormalizedRun) {
   const totals = new Map<
     string,
@@ -89,7 +89,7 @@ export function summarizeRunRecord(record: RunRecord, normalized?: NormalizedRun
         operationId: o.operation,
         extensionId: o.extension_id,
         extensionAttribution: o.extension_attribution,
-        clockDomain: o.clock as "monotonic_process" | "process_cpu",
+        clockDomain: oneOf(o.clock, ["monotonic_process", "process_cpu"], "clockDomain"),
         completed: o.completed,
         errors: o.errors,
         inclusiveMicroseconds: o.inclusive_us,
@@ -115,18 +115,10 @@ export function summarizeRunRecord(record: RunRecord, normalized?: NormalizedRun
     ],
   };
 }
-export async function writeRunArtifacts(
+async function existingArtifacts(
   directory: string,
   record: RunRecord,
-  normalized?: NormalizedRun,
-): Promise<void> {
-  await Deno.mkdir(directory, { recursive: true });
-  if (normalized?.coverage) {
-    await Deno.writeTextFile(
-      join(directory, "coverage.json"),
-      JSON.stringify(normalized.coverage, null, 2) + "\n",
-    );
-  }
+): Promise<Record<string, string>> {
   const artifacts: Record<string, string> = {
     run: "run.json",
     summary: "summary.json",
@@ -160,6 +152,21 @@ export async function writeRunArtifacts(
       if (!(e instanceof Deno.errors.NotFound)) throw e;
     }
   }
+  return artifacts;
+}
+export async function writeRunArtifacts(
+  directory: string,
+  record: RunRecord,
+  normalized?: NormalizedRun,
+): Promise<void> {
+  await Deno.mkdir(directory, { recursive: true });
+  if (normalized?.coverage) {
+    await Deno.writeTextFile(
+      join(directory, "coverage.json"),
+      JSON.stringify(normalized.coverage, null, 2) + "\n",
+    );
+  }
+  const artifacts = await existingArtifacts(directory, record);
   const views: { path: string; clock: string; process_id?: string; executor_id?: string }[] = [];
   const profiles: { path: string; process_id: string }[] = [];
   if (normalized && record.request.mode !== "off") {

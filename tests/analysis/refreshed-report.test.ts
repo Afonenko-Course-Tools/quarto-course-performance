@@ -1,8 +1,8 @@
-import { array, object, parseJson, parseObject } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
-import { writeExperimentReport } from "../../src/analysis/report.ts";
 import { normalizeRun } from "../../src/analysis/normalize.ts";
+import { writeExperimentReport } from "../../src/analysis/report.ts";
+import { array, object, parseJson, parseObject } from "../../src/json.ts";
 import { record } from "../report/fixture.ts";
 
 Deno.test("lazy re-normalization refreshes builds, coverage, summary and both report tables", async () => {
@@ -65,7 +65,7 @@ Deno.test("lazy re-normalization refreshes builds, coverage, summary and both re
   }
 });
 
-Deno.test("completed experiment keeps normalized coverage instead of the preparation snapshot", async () => {
+Deno.test("completed experiment keeps normalized coverage instead of the preparedScripts snapshot", async () => {
   const { experimentCommand } = await import("../../src/cli/experiment.ts");
   const root = await Deno.makeTempDir();
   try {

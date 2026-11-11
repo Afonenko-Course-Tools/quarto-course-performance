@@ -1,14 +1,14 @@
 import { numberMap } from "../src/json.ts";
 // Native synthetic workload владельца Core; длительности не используются как off acceptance.
 import { join, resolve } from "node:path";
-import { copyTree, hashFile } from "../src/sources/snapshot.ts";
-import { git } from "../src/sources/resolve.ts";
-import { verifySources } from "../src/sources/prepare.ts";
-import { prepareDiagnostic } from "../src/runner/diagnostic.ts";
-import { executeScenario } from "../src/runner/execute.ts";
 import { normalizeRun } from "../src/analysis/normalize.ts";
 import { compareOutputs } from "../src/analysis/outputs.ts";
 import type { PreparedVariant, Scenario, SourceManifest } from "../src/config/types.ts";
+import { prepareDiagnostic } from "../src/runner/diagnostic.ts";
+import { executeScenario } from "../src/runner/execute.ts";
+import { copyTree } from "../src/sources/files.ts";
+import { verifySources } from "../src/sources/prepare.ts";
+import { git } from "../src/sources/resolve.ts";
 const [ownerArg, outputArg] = Deno.args;
 if (!ownerArg || !outputArg) throw new Error("Использование: scaling.ts CORE_CHECKOUT OUTPUT");
 const owner = await Deno.realPath(ownerArg), output = resolve(outputArg);
@@ -85,7 +85,7 @@ for (const factor of [1, 2, 4]) {
   const summary = await executeScenario(scenario, prepared, "summary", {
     ...options,
     diagnosticEnv: diagnostic.env,
-    preparation: diagnostic.preparation,
+    preparedScripts: diagnostic.preparedScripts,
     coverage: diagnostic.coverage,
   });
   if (summary.buildExitCode || !summary.dataValid) {
@@ -101,7 +101,6 @@ for (const factor of [1, 2, 4]) {
   const equivalence = await compareOutputs(ordinary, join(root, "_book"));
   rows.push({
     factor,
-    inputHash: await hashFile(join(root, "index.qmd")),
     offRunId: off.runId,
     summaryRunId: summary.runId,
     counters,

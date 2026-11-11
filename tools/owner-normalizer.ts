@@ -3,7 +3,6 @@ import { object, parseObject, string } from "../src/json.ts";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { importSourceManifest } from "../src/config/types.ts";
-import { hashFile } from "../src/sources/snapshot.ts";
 export async function loadOwnerNormalizer(manifestPath: string) {
   const manifest = importSourceManifest(parseObject(await Deno.readTextFile(manifestPath)), true);
   const source = manifest.sources.find((s) => s.repository.endsWith("/quarto-reference-catalog"));
@@ -36,7 +35,6 @@ export async function loadOwnerNormalizer(manifestPath: string) {
         repository: source.repository,
         sha: source.sha,
         path,
-        sha256: await hashFile(file),
       },
     };
   } finally {

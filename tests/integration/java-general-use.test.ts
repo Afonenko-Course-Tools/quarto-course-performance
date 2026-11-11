@@ -16,10 +16,6 @@ Deno.test("Java output gate rejects changed HTML, ZIP and unexpected dynamic pat
       module.compareStrictTrees(join(root, "a"), join(root, "b"), ["sitemap.xml"]);
     const initial = await compare();
     assert.equal(initial.equivalent, true);
-    assert(initial.leftFiles && initial.rightFiles, "Successful output hashes must be retained");
-    assert.equal(initial.leftFiles["index.html"], initial.rightFiles["index.html"]);
-    assert(initial.leftFiles["starter.zip"]);
-    assert.match(initial.leftFiles["starter.zip"], /^[0-9a-f]{64}$/);
     await Deno.writeTextFile(join(root, "b/index.html"), "<p>different content</p>");
     assert.deepEqual((await compare()).differences.map((d) => d.path), [
       "index.html",

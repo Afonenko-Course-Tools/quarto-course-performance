@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { copyTree } from "../../src/sources/snapshot.ts";
+import { copyTree } from "../../src/sources/files.ts";
 
 Deno.test("installed tree: spaces, foreign config, empty cache, offline render and TS trace", async () => {
   const temporary = await Deno.makeTempDir({ prefix: "perf installed " });
@@ -19,25 +19,6 @@ Deno.test("installed tree: spaces, foreign config, empty cache, offline render a
     for (const name of ["deno.json", "deno.lock"]) {
       await Deno.copyFile(join(source, name), join(root, name));
     }
-    const archives = Deno.env.get("PERF_NPM_ARCHIVES");
-    if (archives) {
-      for (const [name, version] of [["typescript", "5.9.3"]] as const) {
-        const target = join(root, "node_modules", name);
-        await Deno.mkdir(target, { recursive: true });
-        const extracted = await new Deno.Command("tar", {
-          args: [
-            "-xzf",
-            join(archives, `${name}-${version}.tgz`),
-            "--strip-components=1",
-            "-C",
-            target,
-          ],
-        }).output();
-        assert(extracted.success, new TextDecoder().decode(extracted.stderr));
-      }
-    } else {await copyTree(join(source, "node_modules"), join(root, "node_modules"), {
-        materializeFileLinks: true,
-      });}
     const output = await new Deno.Command(Deno.execPath(), {
       args: ["run", "-A", "tools/check-installed.ts", "--root", root],
       cwd: source,

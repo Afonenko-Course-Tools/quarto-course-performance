@@ -1,8 +1,8 @@
-import { array, object } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
-import { regressionRuns } from "./fixtures/perfetto/regressions.ts";
+import { array, object } from "../../src/json.ts";
 import { traces } from "../../src/report/perfetto.ts";
 import { pair, run } from "./fixtures/perfetto/control.ts";
+import { regressionRuns } from "./fixtures/perfetto/regressions.ts";
 
 Deno.test("UUID mapping is numeric stable and preserves original context", () => {
   const a = pair("a", 0, 10, {

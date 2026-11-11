@@ -1,5 +1,5 @@
-import { parseCommand } from "../../src/cli/arguments.ts";
 import { strict as assert } from "node:assert";
+import { parseCommand } from "../../src/cli/arguments.ts";
 
 async function parse(argv: readonly string[]) {
   return parseCommand(argv);

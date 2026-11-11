@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
-import type { Event } from "../../../../src/protocol/types.ts";
 import type { NormalizedRun } from "../../../../src/analysis/normalize.ts";
+import type { Event } from "../../../../src/protocol/types.ts";
 
 // Контрольные данные экспортёра, не измерение курса.
 export function pair(

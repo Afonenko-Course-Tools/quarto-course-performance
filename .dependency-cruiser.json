@@ -1,0 +1,47 @@
+{
+  "forbidden": [
+    {
+      "name": "no-production-cycles",
+      "severity": "error",
+      "from": {
+        "path": "^(?:src|bridge)/",
+        "pathNot": "(^|/)(node_modules|vendor|generated|_generated)(/|$)"
+      },
+      "to": {
+        "circular": true,
+        "viaOnly": {
+          "dependencyTypesNot": [
+            "type-only"
+          ]
+        }
+      }
+    },
+    {
+      "name": "protocol-is-a-leaf",
+      "severity": "error",
+      "from": {
+        "path": "^src/protocol/"
+      },
+      "to": {
+        "path": "^src/(?:analysis|report|runner|cli|launchers|instrumentation|adapters)/"
+      }
+    },
+    {
+      "name": "bridge-is-self-contained",
+      "severity": "error",
+      "from": {
+        "path": "^bridge/"
+      },
+      "to": {
+        "path": "^src/"
+      }
+    }
+  ],
+  "options": {
+    "doNotFollow": {
+      "path": "(^|/)(node_modules|vendor|generated|_generated)(/|$)"
+    },
+    "exclude": "(^|/)(node_modules|vendor|generated|_generated)(/|$)",
+    "tsPreCompilationDeps": true
+  }
+}

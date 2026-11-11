@@ -1,7 +1,7 @@
-import { parseObject, string } from "../json.ts";
-import type { PerformanceConfig } from "../config/validate.ts";
 import { join } from "node:path";
 import { liveSourceManifest, type SourceManifest, type SourceRequest } from "../config/types.ts";
+import type { PerformanceConfig } from "../config/validate.ts";
+import { parseObject, string } from "../json.ts";
 export async function git(args: string[]): Promise<string> {
   const out = await new Deno.Command("git", { args, stdout: "piped", stderr: "piped" }).output();
   if (!out.success) throw new Error(new TextDecoder().decode(out.stderr));

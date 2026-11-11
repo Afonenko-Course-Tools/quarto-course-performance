@@ -1,6 +1,6 @@
-import { array, object, parseJson, string } from "../src/json.ts";
 import { join, relative } from "node:path";
-import { files } from "../src/sources/snapshot.ts";
+import { array, object, parseJson, string } from "../src/json.ts";
+import { files } from "../src/sources/files.ts";
 import { bridgeLanguages, syncBridge } from "./sync-bridge.ts";
 const roots = Deno.args;
 if (roots.length !== 8) throw new Error("Укажите все 8 checkouts владельцев");

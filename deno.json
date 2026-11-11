@@ -1,15 +1,17 @@
 {
-  "version": "2.0.0",
+  "version": "2.1.0",
+  "unstable": ["detect-cjs"],
   "tasks": {
-    "perf": "deno run --config deno.json --lock deno.lock --frozen --node-modules-dir=manual --cached-only -A src/cli.ts",
+    "perf": "deno run --config deno.json --lock deno.lock --frozen --cached-only -A src/cli.ts",
     "test": "deno test -A tests",
-    "check": "deno task check:types && deno lint --rules-tags= --rules-include=no-explicit-any,ban-ts-comment src bridge tools tests && deno fmt --check src bridge tools tests && deno task check:lua && deno task check:python && deno task check:shell",
+    "check": "deno task check-quality && deno task check:types && deno lint --rules-tags= --rules-include=no-explicit-any,ban-ts-comment src bridge tools tests && deno fmt --check src bridge tools tests && deno task check:lua && deno task check:python && deno task check:shell",
     "check:perfetto": "deno run -A tools/check-perfetto.ts",
     "check:java": "deno run -A tools/check-java-general-use.ts",
     "check:types": "deno check src/ bridge/ tools/ tests/",
     "check:lua": "deno run --no-config --no-lock -A tools/check-lua.ts --library \"$PWD/typecheck\"",
     "check:python": "pyright --project pyrightconfig.json",
-    "check:shell": "shellcheck packaging/arch/quarto-course-perf tools/setup-lua-ci.sh && shellcheck --external-sources --source-path=SCRIPTDIR/.. tools/check-packaging.sh && bash tools/check-packaging.sh && bash -n tools/check-packaging.sh && bash -n tools/setup-lua-ci.sh && bash -n packaging/arch/PKGBUILD && sh -n packaging/arch/quarto-course-perf"
+    "check:shell": "shellcheck packaging/arch/quarto-course-perf tools/setup-lua-ci.sh tools/check-mv-capability.sh tools/setup-mv-ci.sh && shellcheck --external-sources --source-path=SCRIPTDIR/.. tools/check-packaging.sh && bash tools/check-packaging.sh && bash -n tools/check-packaging.sh && bash -n tools/setup-lua-ci.sh && bash -n tools/check-mv-capability.sh && bash -n tools/setup-mv-ci.sh && bash -n packaging/arch/PKGBUILD && sh -n packaging/arch/quarto-course-perf",
+    "check-quality": "npm run check-quality"
   },
   "compilerOptions": {
     "strict": true,
@@ -22,5 +24,8 @@
   },
   "fmt": {
     "lineWidth": 100
+  },
+  "imports": {
+    "typescript": "file:///usr/lib/node_modules/typescript/lib/typescript.d.ts"
   }
 }

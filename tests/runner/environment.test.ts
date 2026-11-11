@@ -1,8 +1,8 @@
-import { object, parseJson } from "../../src/json.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
-import { validateTelemetryEnvironment } from "../../src/runner/environment.ts";
 import { probeQuarto } from "../../src/adapters/quarto/capabilities.ts";
+import { object, parseJson } from "../../src/json.ts";
+import { validateTelemetryEnvironment } from "../../src/runner/environment.ts";
 
 Deno.test("telemetry conflicts are separate from functional overrides and never mutate environment", () => {
   const validate = validateTelemetryEnvironment;
@@ -111,7 +111,7 @@ Deno.test("system Quarto probe observes bundled runtime capabilities", async () 
   assert.equal(caps.denoCpu, true);
   assert.equal(caps.luaHook, true);
   assert(caps.runtime.deno);
-  assert(caps.runtime.deno.hash);
+  assert(caps.runtime.deno.path);
 });
 
 Deno.test("probe resolves bare Deno and Pandoc overrides through effective PATH for runtime receipts", async () => {
@@ -151,7 +151,6 @@ Deno.test("probe resolves bare Deno and Pandoc overrides through effective PATH 
         assert(caps.runtime[key]);
         assert(bundled.runtime[key]);
         assert.equal(caps.runtime[key].path, expected);
-        assert.equal(caps.runtime[key].hash, bundled.runtime[key].hash);
         assert.equal(caps.runtime[key].version, bundled.runtime[key].version);
       }
       assert.equal(JSON.stringify(env), before);

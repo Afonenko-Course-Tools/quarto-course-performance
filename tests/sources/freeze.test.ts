@@ -1,8 +1,8 @@
-import { quarto as nativeQuarto } from "../runtime.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
 import { freezeVariants } from "../../src/sources/freeze.ts";
 import { git } from "../../src/sources/resolve.ts";
+import { quarto as nativeQuarto } from "../runtime.ts";
 
 Deno.test("freeze pins generic trusted local candidates without Hyperfine and preserves previous manifests", async () => {
   const root = await Deno.makeTempDir();

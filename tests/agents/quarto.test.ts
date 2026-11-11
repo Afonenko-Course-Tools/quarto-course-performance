@@ -1,12 +1,12 @@
-import type { Event } from "../../src/protocol/types.ts";
-import { validateEvent } from "../../src/protocol/validate.ts";
-import { validateRunSummary } from "../../src/report/types.ts";
-import { validateRunRecord } from "../../src/report/types.ts";
-import { array, number, object, parseJson, parseObject, string } from "../../src/json.ts";
-import { dataDir, pandoc, quarto as nativeQuarto } from "../runtime.ts";
 import { strict as assert } from "node:assert";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { prepareFilterAdapter } from "../../src/adapters/quarto/filter-trace.ts";
+import { array, number, object, parseJson, parseObject, string } from "../../src/json.ts";
+import type { Event } from "../../src/protocol/types.ts";
+import { validateEvent } from "../../src/protocol/validate.ts";
+import { validateRunRecord, validateRunSummary } from "../../src/report/types.ts";
+import { pandoc, quarto as nativeQuarto } from "../runtime.ts";
 Deno.test("filter adapter excludes skipped nil/empty filters and does not pretend each run is a walk", async () => {
   const root = await Deno.makeTempDir(), source = join(root, "source"), copy = join(root, "copy");
   try {
@@ -16,9 +16,9 @@ Deno.test("filter adapter excludes skipped nil/empty filters and does not preten
       "function run_emulated_filter(doc, filter, traverser) return doc end\n_quarto={}\n_quarto.ast = {}\n",
     );
     const receipt = await prepareFilterAdapter(source, copy);
-    assert.notEqual(receipt.sourceHash, receipt.preparedHash);
+
     const script = join(root, "test.lua"),
-      agent = new URL("../../src/agents/lua/agent.lua", import.meta.url).pathname;
+      agent = fileURLToPath(new URL("../../src/agents/lua/agent.lua", import.meta.url));
     await Deno.writeTextFile(
       script,
       `local a=dofile(${
@@ -48,7 +48,7 @@ Deno.test("simple summary works without private Quarto filter adapter and cpu wr
   const { renderCommand } = await import("../../src/runner/render.ts");
   const root = await Deno.makeTempDir();
   try {
-    const bridge = new URL("../../bridge/bridge.lua", import.meta.url).pathname;
+    const bridge = fileURLToPath(new URL("../../bridge/bridge.lua", import.meta.url));
     await Deno.writeTextFile(
       join(root, "doc.qmd"),
       "---\nformat: gfm\nfilters: [owner.lua]\n---\n\nNative preserved paragraph.\n",
@@ -100,8 +100,8 @@ Deno.test("simple summary works without private Quarto filter adapter and cpu wr
           parseObject(await Deno.readTextFile(join(output, "run.json"))),
         );
         assert.deepEqual(run.request.nativeArgv, ["doc.qmd", ...form]);
-        assert(run.preparation.length > 0);
-        assert(!run.preparation.some((r: { kind: string }) => r.kind === "quarto-adapter"));
+        assert(run.preparedScripts.length > 0);
+        assert(!run.preparedScripts.some((r: { kind: string }) => r.kind === "quarto-adapter"));
         await assert.rejects(
           () => Deno.stat(join(output, "diagnostic/share/filters/main.lua")),
           Deno.errors.NotFound,
@@ -148,7 +148,7 @@ Deno.test("simple summary works without private Quarto filter adapter and cpu wr
   }
 });
 
-Deno.test("public render preparation preserves selected binaries share and functional options", async () => {
+Deno.test("public render preparedScripts preserves selected binaries share and functional options", async () => {
   const { prepareRenderDiagnostic } = await import("../../src/runner/diagnostic.ts");
   const root = await Deno.makeTempDir();
   const keys = [
@@ -204,7 +204,7 @@ Deno.test("public render preparation preserves selected binaries share and funct
       "CUSTOM_INIT=true\n",
     );
     const filter = join(root, "observed.lua");
-    const bridge = new URL("../../bridge/bridge.lua", import.meta.url).pathname;
+    const bridge = fileURLToPath(new URL("../../bridge/bridge.lua", import.meta.url));
     await Deno.writeTextFile(
       filter,
       `assert(CUSTOM_INIT);local m=dofile(${

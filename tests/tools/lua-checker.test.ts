@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
+import { fileURLToPath } from "node:url";
 
-const checker = new URL("../../tools/check-lua.ts", import.meta.url).pathname;
+const checker = fileURLToPath(new URL("../../tools/check-lua.ts", import.meta.url));
 async function invoke(args: string[]) {
   const result = await new Deno.Command(Deno.execPath(), {
     args: ["run", "--no-config", "--no-lock", "-A", checker, ...args],
@@ -32,7 +33,7 @@ Deno.test("Lua checker canary видит own Lua и исключает vendor и
 
 Deno.test("Lua bootstrap отклоняет относительный и существующий target до сети", async () => {
   const root = await Deno.makeTempDir();
-  const bootstrap = new URL("../../tools/setup-lua-ci.sh", import.meta.url).pathname;
+  const bootstrap = fileURLToPath(new URL("../../tools/setup-lua-ci.sh", import.meta.url));
   try {
     const fake = root + "/bin";
     await Deno.mkdir(fake);
