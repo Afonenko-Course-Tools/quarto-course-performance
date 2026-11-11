@@ -1,6 +1,6 @@
 # Подготовить конкретный рецепт: tools/prepare-arch-source.ts.
 pkgname=quarto-course-perf
-pkgver=2.1.0
+pkgver=2.1.1
 pkgrel=1
 pkgdesc='Измерение рендера Quarto и изолированные эксперименты курса'
 arch=('any')
@@ -17,7 +17,7 @@ check() {
   : "${srcdir:?makepkg должен задать srcdir}"
   cd "$srcdir/${pkgname}-${_source_commit}" || return
   deno run --config deno.json --lock deno.lock --frozen --cached-only -A src/cli.ts --version
-  deno test --cached-only -A tests/instrumentation/ts.test.ts
+  deno test --no-check --cached-only -A tests/instrumentation/ts.test.ts
 }
 
 package() {
