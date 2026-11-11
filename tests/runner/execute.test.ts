@@ -64,7 +64,10 @@ Deno.test("runner keeps argv, cwd, outputs and build exit code and off creates n
     );
     assert(result.wallSeconds > 0);
     const metadata = parseObject(await Deno.readTextFile(join(result.outputDirectory, "run.json")));
-    assert.equal(object(metadata.versions).tool, "2.1.0");
+    const config = parseObject(
+      await Deno.readTextFile(new URL("../../deno.json", import.meta.url)),
+    );
+    assert.equal(object(metadata.versions).tool, config.version);
     await assert.rejects(
       () => Deno.stat(join(result.outputDirectory, "events")),
       Deno.errors.NotFound,

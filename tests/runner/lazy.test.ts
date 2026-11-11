@@ -39,7 +39,12 @@ Deno.test("help and version need no Quarto, project, config, network or npm cach
   for (const args of [[], ["--help"], ["help"], ["--version"]]) {
     await isolated(args, async (root, out) => {
       assert(out.success, decode(out.stderr));
-      assert.match(decode(out.stdout), args[0] === "--version" ? /2\.1\.0/ : /quarto-course-perf/);
+      if (args[0] === "--version") {
+        const config = parseObject(
+          await Deno.readTextFile(new URL("../../deno.json", import.meta.url)),
+        );
+        assert.equal(decode(out.stdout).trim(), config.version);
+      } else assert.match(decode(out.stdout), /quarto-course-perf/);
       assert.equal(decode(out.stderr), "");
       assert.deepEqual(await Array.fromAsync(Deno.readDir(root)), []);
     }, { PATH: "/nonexistent", QUARTO: "/nonexistent/quarto" });
