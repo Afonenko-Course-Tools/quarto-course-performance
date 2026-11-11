@@ -13,6 +13,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+      - name: Настроить HTTPS зеркало Ubuntu
+        run: |
+          test -f /etc/apt/apt-mirrors.txt
+          test ! -L /etc/apt/apt-mirrors.txt
+          grep -Rq 'mirror+file:/etc/apt/apt-mirrors.txt' /etc/apt/sources.list.d
+          printf '%s\n' 'https://mirrors.edge.kernel.org/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt
       - uses: quarto-dev/quarto-actions/setup@8a96df13519ee81fd526f2dfca5962811136661b
         with:
           version: 1.11.6
