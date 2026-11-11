@@ -12,6 +12,15 @@ Runtime использует системный TypeScript Compiler API. На Ar
 [README](../README.md#системный-typescript-в-рабочей-копии). Проверка AST и запуск
 установленного приложения выполняются отдельно от `tsc --version`.
 
+Собственный `deno.json` включает публичную feature `detect-cjs`: системный Ubuntu `node-typescript`
+5.2.2 поставляет legacy CommonJS без `package.json.type`, и Deno 2.7.14 без этого режима возвращает
+пустой namespace даже через `createRequire`. Режим
+[документирован Deno](https://docs.deno.com/runtime/reference/cli/unstable_flags/#--unstable-detect-cjs)
+и присутствует в `deno run --help=unstable`; он наследуется установленным CLI и копией runtime через
+их собственный абсолютный config. Реальные AST-проверки подтверждены на файлах официального
+Ubuntu-пакета и Deno 2.7.14. Подмена Compiler API, точная версия системного компилятора и
+дополнительный module loader не нужны.
+
 Для typed ESLint и dependency checks установите зависимости разработки обычным
 `npm ci`. Они не включаются в runtime-пакет. Системная версия Compiler API не
 закрепляется точной npm-версией. Для offline-проверок заранее подготовьте

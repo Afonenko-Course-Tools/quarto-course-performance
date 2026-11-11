@@ -1,5 +1,6 @@
 {
   "version": "2.1.0",
+  "unstable": ["detect-cjs"],
   "tasks": {
     "perf": "deno run --config deno.json --lock deno.lock --frozen --cached-only -A src/cli.ts",
     "test": "deno test -A tests",
