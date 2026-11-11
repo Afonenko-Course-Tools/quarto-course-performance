@@ -1,10 +1,8 @@
-import { join, relative } from "node:path";
+import { join } from "node:path";
 import { array, object, parseJson, string } from "../src/json.ts";
 import { files } from "../src/sources/files.ts";
-import { bridgeLanguages, syncBridge } from "./sync-bridge.ts";
 const roots = Deno.args;
 if (roots.length !== 8) throw new Error("Укажите все 8 checkouts владельцев");
-await syncBridge(roots, true);
 const extensions = new Map<string, string>();
 for (const root of roots) {
   for await (const ext of Deno.readDir(join(root, "_extensions"))) {
@@ -12,15 +10,6 @@ for (const root of roots) {
       const path = join(root, "_extensions", ext.name);
       if (extensions.has(ext.name)) throw new Error("Повтор owner extension");
       extensions.set(ext.name, path);
-      const observation = await files(join(path, "observability"));
-      if (
-        observation.length !== bridgeLanguages(ext.name).length ||
-        observation.some((p) =>
-          !bridgeLanguages(ext.name).map((language) => "bridge." + language).includes(
-            relative(join(path, "observability"), p),
-          )
-        )
-      ) throw new Error("Пакет содержит лишние observability зависимости");
       for (const file of await files(path)) {
         if (
           (file.endsWith(".ts") || file.endsWith(".lua")) && !file.includes("/vendor/") &&
@@ -71,5 +60,5 @@ for (const entry of registry) {
   }
 }
 console.log(
-  `PASS ABI 1, self-contained observability, отсутствие COURSE_BUILD_TRACE и ${registry.length} зарегистрированных операций в ${extensions.size} пакетах`,
+  `PASS отсутствие COURSE_BUILD_TRACE и ${registry.length} зарегистрированных операций в ${extensions.size} пакетах`,
 );

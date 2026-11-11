@@ -63,9 +63,9 @@ quarto-course-perf render --perf-mode summary index.qmd
 | `time`       | GNU time для CPU-времени и пиковой памяти                  |
 | `util-linux` | `setsid` для собственной группы процессов                  |
 
-Дополнительно доступны `hyperfine` для сравнительных измерений, `git` для источников эксперимента и
-`unzip` для соответствующих входных архивов. Версии программ, использованные при проверке, не
-становятся точными ограничениями рецепта.
+Дополнительно доступны `hyperfine` для сравнительных измерений, `git` для чтения локальных checkout
+эксперимента и `unzip` для соответствующих входных архивов. Версии программ, использованные при
+проверке, не становятся точными ограничениями рецепта.
 
 `/usr/bin/quarto-course-perf` запускает исходники из `/usr/lib/quarto-course-perf/`: `src/`,
 `bridge/`, `deno.json`, `deno.lock` и `docs/operation-registry.json`. На Arch системный Compiler API
@@ -116,28 +116,25 @@ Hosted-проверка
 отсутствующая лицензия остаётся вопросом правообладателя, а нулевой код `namcap` не означает
 отсутствия замечаний.
 
-## Подготовка точного исходного архива
+## Подготовка рецепта 2.2.0
 
-Для сопровождающего исходников `packaging/arch/PKGBUILD` остаётся шаблоном. Из подготовленного Git
-checkout выбранного выпуска:
+Начиная с 2.2.0 используется стандартный GitHub tag archive:
+`${url}/archive/refs/tags/v${pkgver}.tar.gz`. Отдельного генератора архива и source receipt нет.
+После публикации тега перенесите [шаблон](../packaging/arch/PKGBUILD) в репозиторий упаковки,
+заполните обычное поле `sha256sums` и создайте `.SRCINFO` штатными командами:
 
 ```sh
-PERF_SOURCE_ROOT="$PWD"
-PERF_COMMIT=$(git rev-parse --verify 'HEAD^{commit}')
-PERF_BUILD_ROOT=$(mktemp -d)
-deno run --config "$PERF_SOURCE_ROOT/deno.json" \
-  --lock "$PERF_SOURCE_ROOT/deno.lock" --frozen --cached-only -A \
-  "$PERF_SOURCE_ROOT/tools/prepare-arch-source.ts" \
-  --commit "$PERF_COMMIT" --output "$PERF_BUILD_ROOT/source"
+updpkgsums
+makepkg --printsrcinfo > .SRCINFO
+makepkg --verifysource
+makepkg
 ```
 
-Генератор создаёт Git-архив, конкретный `PKGBUILD` и `source-receipt.json` с версией, commit и
-SHA-256. В репозиторий упаковки переносится проверенный опубликованный рецепт; `.SRCINFO` создаётся
-штатным `makepkg --printsrcinfo`. Полный цикл приёмки `bash ci/check-arch.sh /absolute/new/evidence`
-и правила выпуска находятся в
-[README упаковки](https://github.com/Afonenko-Course-Tools/quarto-course-perf-arch#проверка-и-сопровождение).
-Подготовка зависимостей разработки описана в
-[development.md](development.md#подготовка-зависимостей).
+Шаблон в исходном теге оставляет сумму пустой: сумма архива не может входить в тот же архив. Готовый
+рецепт обязан содержать фактическую SHA-256. Стандартный архив распаковывается в
+`quarto-course-performance-${pkgver}`; `makepkg` устанавливает только runtime-дерево, без
+зависимостей разработки. Обычные npm и Deno lockfiles сохраняются как стандартные lockfiles. Старые
+выпуски и их специальные архивы не изменяются.
 
 <a id="проверка-актуальной-реализации-24-октября-2026-года"></a>
 

@@ -8,7 +8,7 @@ import { prepareDiagnostic } from "../src/runner/diagnostic.ts";
 import { executeScenario } from "../src/runner/execute.ts";
 import { copyTree } from "../src/sources/files.ts";
 import { verifySources } from "../src/sources/prepare.ts";
-import { git } from "../src/sources/resolve.ts";
+import { git } from "../src/sources/git.ts";
 const [ownerArg, outputArg] = Deno.args;
 if (!ownerArg || !outputArg) throw new Error("Использование: scaling.ts CORE_CHECKOUT OUTPUT");
 const owner = await Deno.realPath(ownerArg), output = resolve(outputArg);
@@ -16,7 +16,6 @@ await Deno.mkdir(output, { recursive: true });
 const manifest: SourceManifest = {
   schema_version: 2,
   projectSource: "Afonenko-Course-Tools/quarto-course",
-  replacements: [],
   experimentId: crypto.randomUUID(),
   packages: [],
   runtime: {},

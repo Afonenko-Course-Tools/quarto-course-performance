@@ -1,30 +1,36 @@
 import { join, resolve } from "node:path";
 import { probeQuarto } from "../adapters/quarto/capabilities.ts";
-import { liveSourceManifest, type SourceManifest, type Variant } from "../config/types.ts";
-import { object, parseObject, string } from "../json.ts";
+import { type SourceManifest, validateSourceSelection, type Variant } from "../config/types.ts";
+import { object, string } from "../json.ts";
 import { verifySources } from "./prepare.ts";
-import { git } from "./resolve.ts";
+import { git } from "./git.ts";
 
 export interface FreezeInputs {
-  baseline: string;
-  variants: Record<Variant, Record<string, string>>;
+  projectSource: string;
+  variants: Record<Variant, string>;
   runtimeRegistry?: { path: string; version: string };
 }
 export function validateFreezeInputs(value: unknown): FreezeInputs {
   const input = object(value, "freeze inputs");
+  if (
+    Object.keys(input).some((key) =>
+      !["projectSource", "variants", "runtimeRegistry"].includes(key)
+    )
+  ) {
+    throw new Error("Неизвестное поле freeze inputs; baseline и source lock удалены");
+  }
   const variants = object(input.variants, "variants");
-  const mapping = (key: Variant): Record<string, string> =>
-    Object.fromEntries(
-      Object.entries(object(variants[key], key)).map((
-        [repository, path],
-      ) => [repository, string(path)]),
-    );
+  if (
+    Object.keys(variants).some((key) => !["upstream", "clean-control", "candidate"].includes(key))
+  ) {
+    throw new Error("Неизвестный variant");
+  }
   return {
-    baseline: string(input.baseline, "baseline"),
+    projectSource: string(input.projectSource, "projectSource"),
     variants: {
-      upstream: mapping("upstream"),
-      "clean-control": mapping("clean-control"),
-      candidate: mapping("candidate"),
+      upstream: string(variants.upstream, "upstream"),
+      "clean-control": string(variants["clean-control"], "clean-control"),
+      candidate: string(variants.candidate, "candidate"),
     },
     ...(input.runtimeRegistry === undefined ? {} : {
       runtimeRegistry: {
@@ -36,7 +42,10 @@ export function validateFreezeInputs(value: unknown): FreezeInputs {
 }
 /** Не перезаписывает ранее закреплённый эксперимент. Пути — доверенные локальные checkouts. */
 export async function freezeVariants(inputs: FreezeInputs, workspace: string, quarto = "quarto") {
-  const baseline = liveSourceManifest(parseObject(await Deno.readTextFile(inputs.baseline)));
+  validateSourceSelection({
+    projectSource: inputs.projectSource,
+    sources: [{ repository: inputs.projectSource }],
+  });
   const caps = await probeQuarto(quarto), runtime: SourceManifest["runtime"] = { ...caps.runtime };
   if (inputs.runtimeRegistry) {
     const path = resolve(inputs.runtimeRegistry.path);
@@ -45,33 +54,20 @@ export async function freezeVariants(inputs: FreezeInputs, workspace: string, qu
   const experimentId = crypto.randomUUID(),
     manifests: Partial<Record<Variant, SourceManifest>> = {};
   for (const variant of ["upstream", "clean-control", "candidate"] as const) {
-    const mapping = inputs.variants[variant];
-    if (!mapping || Object.keys(mapping).length !== baseline.sources.length) {
-      throw new Error("Неполный набор sources");
-    }
-    const sources = [];
-    for (const source of baseline.sources) {
-      if (!mapping[source.repository]) throw new Error(`Отсутствует ${source.repository}`);
-      const checkoutPath = await Deno.realPath(string(mapping[source.repository]));
-      const sha = await git(["-C", checkoutPath, "rev-parse", "HEAD"]);
-      if (variant === "upstream" && sha !== source.sha) {
-        throw new Error("Upstream SHA расходится с baseline");
-      }
-      sources.push({
-        ...source,
-        checkoutPath,
-        sha,
-        ...(variant === "upstream" || sha === source.sha ? {} : {
-          sourceKind: "local-candidate" as const,
-          baseSha: source.sha,
-          remoteRef: await git(["-C", checkoutPath, "rev-parse", "--abbrev-ref", "HEAD"]),
-        }),
-      });
-    }
+    const checkoutPath = await Deno.realPath(inputs.variants[variant]);
+    const repository = inputs.projectSource;
+    const sha = await git(["-C", checkoutPath, "rev-parse", "HEAD"]);
+    const sources = [{
+      repository,
+      checkoutPath,
+      sha,
+      sourceKind: "local-candidate" as const,
+      remoteRef: await git(["-C", checkoutPath, "rev-parse", "--abbrev-ref", "HEAD"]),
+      fetchedAt: new Date().toISOString(),
+    }];
     const manifest: SourceManifest = {
       schema_version: 2,
-      projectSource: baseline.projectSource,
-      replacements: baseline.replacements,
+      projectSource: inputs.projectSource,
       experimentId,
       sources,
       packages: [],

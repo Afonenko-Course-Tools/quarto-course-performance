@@ -8,7 +8,6 @@ import { validateRunRecord } from "../src/report/types.ts";
 import { prepareDiagnostic } from "../src/runner/diagnostic.ts";
 import { executeScenario } from "../src/runner/execute.ts";
 import { copyTree, files } from "../src/sources/files.ts";
-import { installPackages } from "../src/sources/packages.ts";
 
 const app = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const decode = (bytes: Uint8Array) => new TextDecoder().decode(bytes);
@@ -50,9 +49,9 @@ export async function compareStrictTrees(left: string, right: string, exceptions
   };
 }
 
-type JavaInputs = { project: string; output: string; replacementOwner: string };
+type JavaInputs = { project: string; output: string };
 const usage =
-  "check-java-general-use.ts --project /absolute/checkout --output /absolute/new-evidence --replacement-owner /absolute/owner-checkout";
+  "check-java-general-use.ts --project /absolute/checkout --output /absolute/new-evidence";
 
 function requireAbsolute(value: unknown, flag: string): asserts value is string {
   assert(typeof value === "string" && isAbsolute(value), `${flag} требует абсолютный путь`);
@@ -63,20 +62,19 @@ export function parseJavaArgs(args: string[]): JavaInputs {
   for (let i = 0; i < args.length; i += 2) {
     const key = args[i], value = args[i + 1];
     if (
-      !key || !["--project", "--output", "--replacement-owner"].includes(key) || !value ||
+      !key || !["--project", "--output"].includes(key) || !value ||
       flags[key]
     ) {
       throw new Error(usage);
     }
     flags[key] = value;
   }
-  for (const key of ["--project", "--output", "--replacement-owner"]) {
+  for (const key of ["--project", "--output"]) {
     requireAbsolute(flags[key], key);
   }
   return {
     project: string(flags["--project"]),
     output: string(flags["--output"]),
-    replacementOwner: string(flags["--replacement-owner"]),
   };
 }
 
@@ -94,11 +92,9 @@ const git = async (path: string, args: string[]) => {
 export async function preflightJava(
   project: string,
   output: string,
-  replacementOwner: string | undefined,
 ): Promise<JavaInputs> {
   requireAbsolute(project, "--project");
   requireAbsolute(output, "--output");
-  requireAbsolute(replacementOwner, "--replacement-owner");
   project = await Deno.realPath(project);
   assert((await Deno.stat(project)).isDirectory, "--project должен быть каталогом");
   // Для нового output mkdir требует существующий parent. realPath учитывает
@@ -114,41 +110,16 @@ export async function preflightJava(
     within && (within === ".." || within.startsWith("../") || isAbsolute(within)),
     "Evidence должен находиться вне source",
   );
-  try {
-    replacementOwner = await Deno.realPath(replacementOwner);
-    assert((await Deno.stat(replacementOwner)).isDirectory);
-    assert((await Deno.lstat(join(replacementOwner, "_extensions"))).isDirectory);
-    assert((await Deno.lstat(join(replacementOwner, "_extensions/reference-catalog"))).isDirectory);
-    assert(
-      (await Deno.stat(join(replacementOwner, "_extensions/reference-catalog/_extension.yml")))
-        .isFile,
-    );
-    await files(join(replacementOwner, "_extensions/reference-catalog"));
-    const ownerRoot = await git(replacementOwner, ["rev-parse", "--show-toplevel"]);
-    assert.equal(await Deno.realPath(ownerRoot), replacementOwner, "Нужен корень owner checkout");
-    await git(replacementOwner, ["rev-parse", "--verify", "HEAD"]);
-    assert.equal(
-      await git(replacementOwner, ["status", "--porcelain"]),
-      "",
-      "Owner должен быть clean",
-    );
-  } catch (error) {
-    throw new Error(
-      `--replacement-owner: нужен чистый owner checkout с пакетом reference-catalog: ${error}`,
-    );
-  }
-  return { project, output, replacementOwner };
+  return { project, output };
 }
 
 export async function checkJava(
   projectArg: string,
   outputArg: string,
-  replacementOwnerArg: string | undefined,
 ) {
-  const { project, output, replacementOwner } = await preflightJava(
+  const { project, output } = await preflightJava(
     projectArg,
     outputArg,
-    replacementOwnerArg,
   );
   await Deno.mkdir(output, { recursive: false });
   const commands: unknown[] = [], gates: unknown[] = [];
@@ -456,36 +427,16 @@ export async function checkJava(
       fetchedAt: new Date().toISOString(),
       checkoutPath: project,
     };
-    for (const replacement of [false, true]) {
-      const label = replacement ? "explicit-replacement" : "isolated-trace";
+    for (const label of ["isolated-trace"]) {
       const root = await makeCopy(label);
       const manifest: SourceManifest = {
         schema_version: 2,
         projectSource: sourceSelection.repository,
-        replacements: [],
         experimentId: crypto.randomUUID(),
         sources: [sourceSelection],
         packages: [],
         runtime: {},
       };
-      if (replacement) {
-        assert.equal(await git(replacementOwner, ["status", "--porcelain"]), "");
-        const ownerSHA = await git(replacementOwner, ["rev-parse", "HEAD"]);
-        const owner: SourceSelection = {
-          ...sourceSelection,
-          repository: "Afonenko-Course-Tools/quarto-reference-catalog",
-          sha: ownerSHA,
-          checkoutPath: replacementOwner,
-        };
-        manifest.sources.push(owner);
-        manifest.replacements = [{
-          repository: owner.repository,
-          extensionId: "reference-catalog",
-          destinations: ["tasks/_extensions/Afonenko-Course-Tools/reference-catalog"],
-        }];
-        manifest.packages = await installPackages(root, manifest.sources, manifest.replacements);
-        assert.equal(manifest.packages.length, 1);
-      }
       const scenario = {
         id: label,
         cwd: ".",
@@ -565,7 +516,6 @@ export async function checkJava(
         executors: Object.keys(normalized.executors).length,
         recorded,
         executedSymbols,
-        replacements: manifest.replacements,
         packages: manifest.packages,
       });
       await compare(label + "-outputs", studentNative, await saveOutputs(label), roots);
@@ -625,6 +575,6 @@ export async function checkJava(
 }
 
 if (import.meta.main) {
-  const { project, output, replacementOwner } = parseJavaArgs(Deno.args);
-  await checkJava(project, output, replacementOwner);
+  const { project, output } = parseJavaArgs(Deno.args);
+  await checkJava(project, output);
 }

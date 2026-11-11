@@ -21,7 +21,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
         JSON.stringify(entry)
       }],cachePolicy:'repeat-render',mode:'off',scope:{modules:[],extensions:[],strict:true},resources:{wall:true,cpu:true,peakRss:true}},{root:${
         JSON.stringify(root)
-      },variant:'candidate',manifest:{schema_version:2,projectSource:'org/Fixture',replacements:[],experimentId:'e',sources:[],packages:[],runtime:{}}},'off',{abortSignal,outputRoot:${
+      },variant:'candidate',manifest:{schema_version:2,projectSource:'org/Fixture',experimentId:'e',sources:[],packages:[],runtime:{}}},'off',{abortSignal,outputRoot:${
         JSON.stringify(join(root, "runs"))
       }})});`;
       child = new Deno.Command(Deno.execPath(), {

@@ -40,7 +40,6 @@ Deno.test("runner keeps argv, cwd, outputs and build exit code and off creates n
       manifest: {
         schema_version: 2 as const,
         projectSource: "org/Fixture",
-        replacements: [],
         experimentId: "e",
         sources: [],
         packages: [],
@@ -102,7 +101,6 @@ Deno.test("Hyperfine 2 records raw resource metrics and literal argv without exe
         manifest: {
           schema_version: 2 as const,
           projectSource: "org/Fixture",
-          replacements: [],
           experimentId: "e",
           sources: [],
           packages: [],
@@ -157,7 +155,6 @@ Deno.test("resource measurement retains the tool signal separately from a numeri
       manifest: {
         schema_version: 2 as const,
         projectSource: "org/Fixture",
-        replacements: [],
         experimentId: "e",
         sources: [],
         packages: [],
@@ -207,7 +204,6 @@ Deno.test("scenario cancellation uses the accepted owned process and retains nat
       manifest: {
         schema_version: 2,
         projectSource: "org/Fixture",
-        replacements: [],
         experimentId: "e",
         sources: [],
         packages: [],
@@ -260,7 +256,6 @@ Deno.test("scenario bootstrap failure never publishes a fabricated native outcom
       manifest: {
         schema_version: 2,
         projectSource: "org/Fixture",
-        replacements: [],
         experimentId: "e",
         sources: [],
         packages: [],
@@ -313,7 +308,6 @@ sys.exit(7)
       manifest: {
         schema_version: 2,
         projectSource: "org/Fixture",
-        replacements: [],
         experimentId: "e",
         sources: [],
         packages: [],

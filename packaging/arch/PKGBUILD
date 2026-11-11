@@ -1,6 +1,6 @@
-# Подготовить конкретный рецепт: tools/prepare-arch-source.ts.
+# Шаблон: после публикации тега заполнить sha256sums штатным updpkgsums.
 pkgname=quarto-course-perf
-pkgver=2.1.1
+pkgver=2.2.0
 pkgrel=1
 pkgdesc='Измерение рендера Quarto и изолированные эксперименты курса'
 arch=('any')
@@ -8,21 +8,20 @@ url='https://github.com/Afonenko-Course-Tools/quarto-course-performance'
 # В исходниках нет лицензии; решение правообладателя ещё требуется.
 license=()
 depends=('deno' 'quarto' 'time' 'util-linux' 'typescript')
-optdepends=('hyperfine: сравнительные измерения' 'git: получение исходников эксперимента' 'unzip: распаковка расширенных входных данных')
-_source_commit='@SOURCE_COMMIT@'
-source=("${pkgname}-${pkgver}.tar.gz::${url}/releases/download/v${pkgver}/${pkgname}-${pkgver}.tar.gz")
-sha256sums=('@SOURCE_SHA256@')
+optdepends=('hyperfine: сравнительные измерения' 'git: экспорт локальных checkout эксперимента' 'tar: распаковка входов эксперимента' 'unzip: распаковка расширенных входных данных')
+source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz")
+sha256sums=('')
 
 check() {
   : "${srcdir:?makepkg должен задать srcdir}"
-  cd "$srcdir/${pkgname}-${_source_commit}" || return
+  cd "$srcdir/quarto-course-performance-${pkgver}" || return
   deno run --config deno.json --lock deno.lock --frozen --cached-only -A src/cli.ts --version
   deno test --no-check --cached-only -A tests/instrumentation/ts.test.ts
 }
 
 package() {
   : "${srcdir:?makepkg должен задать srcdir}"
-  cd "$srcdir/${pkgname}-${_source_commit}" || return
+  cd "$srcdir/quarto-course-performance-${pkgver}" || return
   : "${pkgdir:?makepkg должен задать pkgdir}"
   local app="$pkgdir/usr/lib/$pkgname"
   install -dm755 "$app/docs" "$pkgdir/usr/share/doc/$pkgname"

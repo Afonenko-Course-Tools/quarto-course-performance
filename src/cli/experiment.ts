@@ -21,7 +21,6 @@ import { executeScenario, withScenarioSignals } from "../runner/execute.ts";
 import { validatePackageCoverage } from "../runner/package-coverage.ts";
 import { freezeVariants, validateFreezeInputs } from "../sources/freeze.ts";
 import { prepareVariant } from "../sources/prepare.ts";
-import { resolveSources } from "../sources/resolve.ts";
 function parseFlags(args: readonly string[]): Record<string, string> {
   const flags: Record<string, string> = {};
   for (let n = 0; n < args.length; n++) {
@@ -65,8 +64,8 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
   const flags = parseFlags(args);
   if (
     !command ||
-    !["sources", "freeze", "run", "benchmark", "report", "verify", "capabilities"].includes(command)
-  ) throw new Error("Команды: sources, freeze, run, benchmark, report, verify, capabilities");
+    !["freeze", "run", "benchmark", "report", "verify", "capabilities"].includes(command)
+  ) throw new Error("Команды: freeze, run, benchmark, report, verify, capabilities");
   if (
     (flags["--import-historical"] || flags["--output"]) && !["report", "verify"].includes(command)
   ) {
@@ -93,41 +92,21 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
     ? undefined
     : validateConfig(parseObject(await Deno.readTextFile(configPath)));
   const quarto = flags["--quarto"] ?? config?.runtime?.quarto ?? "quarto";
-  function assertSelection(
-    manifest: { projectSource: string; replacements: unknown; sources: { repository: string }[] },
-  ) {
-    if (
-      !config || manifest.projectSource !== config.projectSource ||
-      JSON.stringify(manifest.replacements) !== JSON.stringify(config.replacements) ||
-      JSON.stringify(manifest.sources.map((s) => s.repository).sort()) !==
-        JSON.stringify(config.sources.map((s) => s.repository).sort())
-    ) throw new Error("Config расходится с закреплённым source manifest");
+  function assertSelection(manifest: { projectSource: string }) {
+    if (!config || manifest.projectSource !== config.projectSource) {
+      throw new Error("Config расходится с projectSource эксперимента");
+    }
   }
   if (command === "freeze") {
     if (!flags["--inputs"]) throw new Error("Необходим --inputs");
     const inputs = validateFreezeInputs(parseObject(await Deno.readTextFile(flags["--inputs"])));
-    assertSelection(liveSourceManifest(parseObject(await Deno.readTextFile(inputs.baseline))));
+    assertSelection(inputs);
     const manifests = await freezeVariants(
       inputs,
       workspace,
       quarto,
     );
     console.log(JSON.stringify(manifests));
-    return 0;
-  }
-  if (command === "sources") {
-    const manifest = await resolveSources(config!, workspace);
-    const caps = await probeQuarto(quarto);
-    manifest.runtime = caps.runtime;
-    await Deno.writeTextFile(
-      join(workspace, "upstream.manifest.json"),
-      JSON.stringify(manifest, null, 2) + "\n",
-    );
-    await Deno.writeTextFile(
-      join(workspace, "capabilities.json"),
-      JSON.stringify(caps, null, 2) + "\n",
-    );
-    console.log(JSON.stringify(manifest));
     return 0;
   }
   const manifestFor = async (variant: Variant) => {
@@ -341,5 +320,5 @@ export async function experimentCommand(argv: readonly string[]): Promise<number
     return report.dataValid ? 0 : 4;
   }
   if (command === "report" || command === "verify") return await reportOrVerify();
-  throw new Error("Команды: sources, freeze, run, benchmark, report, verify, capabilities");
+  throw new Error("Команды: freeze, run, benchmark, report, verify, capabilities");
 }

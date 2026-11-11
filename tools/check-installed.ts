@@ -15,7 +15,7 @@ import {parseJson,array,object,string} from ${module("src/json.ts")};
 import type {PreparedVariant,Scenario} from ${module("src/config/types.ts")};
 const root = ${JSON.stringify(course)};
 await Deno.writeTextFile(root+'/entry.ts', 'export function installedTrace(value: number) { return value + 1; }\\nconsole.log(installedTrace(41));');
-const prepared:PreparedVariant={variant:'candidate',root,manifest:{schema_version:2,experimentId:'installed',projectSource:'fixture/course',replacements:[],sources:[],packages:[],runtime:{}}};
+const prepared:PreparedVariant={variant:'candidate',root,manifest:{schema_version:2,experimentId:'installed',projectSource:'fixture/course',sources:[],packages:[],runtime:{}}};
 const scenario:Scenario={id:'installed-trace',cwd:'.',executable:Deno.execPath(),args:['run','--no-config','--no-lock','--cached-only','-A',root+'/entry.ts'],cachePolicy:'repeat-render',mode:'trace',scope:{modules:['entry.ts'],extensions:[],strict:true},resources:{wall:true,cpu:true,peakRss:true}};
 const diagnostic=await prepareDiagnostic(scenario,prepared,root+'/diagnostic',Deno.env.get('QUARTO')??'quarto');
 scenario.executable=string(diagnostic.env.QUARTO_DENO);

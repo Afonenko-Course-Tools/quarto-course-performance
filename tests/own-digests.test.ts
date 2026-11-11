@@ -3,10 +3,9 @@ import { join } from "node:path";
 import { compareOutputs } from "../src/analysis/outputs.ts";
 import { preparePandocData } from "../src/launchers/setup.ts";
 import { prepareRenderDiagnostic } from "../src/runner/diagnostic.ts";
-import { installPackages } from "../src/sources/packages.ts";
 
 // Запрет digest отличает функциональные операции от повторного доказательства bytes.
-Deno.test("подготовка init, установка выбранных файлов и сравнение результата обходятся без digest", async () => {
+Deno.test("подготовка init, копирование runtime и сравнение результата обходятся без digest", async () => {
   const root = await Deno.makeTempDir();
   const digest = crypto.subtle.digest;
   let calls = 0;
@@ -21,34 +20,13 @@ Deno.test("подготовка init, установка выбранных фа
     const init = await Deno.readTextFile(join(root, "prepared/init.lua"));
     assert(init.includes("/agent/init.lua"));
     assert.equal(await Deno.readTextFile(join(root, "data/init.lua")), "return 'исходный init'\n");
-    await Deno.mkdir(join(root, "owner/_extensions/core"), { recursive: true });
-    await Deno.writeTextFile(join(root, "owner/_extensions/core/_extension.yml"), "version: 2\n");
-    await Deno.mkdir(join(root, "course/_extensions/core"), { recursive: true });
-    await Deno.writeTextFile(join(root, "course/_extensions/core/_extension.yml"), "version: 1\n");
-    await installPackages(join(root, "course"), [{
-      repository: "org/core",
-      sha: "a".repeat(40),
-      checkoutPath: join(root, "owner"),
-    }], [{ repository: "org/core", extensionId: "core", destinations: ["_extensions/core"] }]);
-    assert.equal(
-      await Deno.readTextFile(join(root, "course/_extensions/core/_extension.yml")),
-      "version: 2\n",
-    );
-    assert.equal(
-      (await compareOutputs(
-        join(root, "owner/_extensions/core"),
-        join(root, "course/_extensions/core"),
-      )).equivalent,
-      true,
-    );
-    await Deno.writeTextFile(join(root, "course/_extensions/core/_extension.yml"), "version: 3\n");
-    assert.equal(
-      (await compareOutputs(
-        join(root, "owner/_extensions/core"),
-        join(root, "course/_extensions/core"),
-      )).equivalent,
-      false,
-    );
+    for (const side of ["a", "b"]) {
+      await Deno.mkdir(join(root, side));
+      await Deno.writeTextFile(join(root, side, "index.html"), "same");
+    }
+    assert.equal((await compareOutputs(join(root, "a"), join(root, "b"))).equivalent, true);
+    await Deno.writeTextFile(join(root, "b/index.html"), "different");
+    assert.equal((await compareOutputs(join(root, "a"), join(root, "b"))).equivalent, false);
     assert.equal(calls, 0);
   } finally {
     crypto.subtle.digest = digest;

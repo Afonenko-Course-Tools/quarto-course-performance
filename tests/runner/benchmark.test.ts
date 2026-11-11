@@ -8,7 +8,6 @@ Deno.test("benchmark excludes warmups, alternates AB/BA and creates independent 
     const manifest = {
       schema_version: 2 as const,
       projectSource: "org/Fixture",
-      replacements: [],
       experimentId: "e",
       sources: [],
       packages: [],
@@ -60,7 +59,6 @@ Deno.test("benchmark uses ten pairs by default for any scenario name", async () 
       manifest: {
         schema_version: 2 as const,
         projectSource: "org/Course",
-        replacements: [],
         experimentId: "e",
         sources: [],
         packages: [],
@@ -123,7 +121,6 @@ Deno.test("benchmark rejects a known native zero when supervisor observation is 
       manifest: {
         schema_version: 2,
         projectSource: "org/Fixture",
-        replacements: [],
         experimentId: "e",
         sources: [],
         packages: [],
