@@ -14,7 +14,6 @@ import { quarto as nativeQuarto } from "./runtime.ts";
 const manifest = {
   schema_version: 2 as const,
   projectSource: "org/Fixture",
-  replacements: [],
   experimentId: "e",
   sources: [],
   packages: [],

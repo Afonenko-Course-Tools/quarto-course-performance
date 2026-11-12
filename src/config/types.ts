@@ -4,11 +4,7 @@ import type { SimpleMode } from "../report/types.ts";
 
 export type Mode = SimpleMode | "trace";
 export type Variant = "upstream" | "clean-control" | "candidate";
-export interface SourceRequest {
-  repository: string;
-  refPolicy: "remote-default-head" | "explicit-remote-ref";
-  ref?: string;
-}
+
 export interface SourceSelection {
   repository: string;
   sourceKind: "github-baseline" | "local-candidate";
@@ -25,49 +21,22 @@ export interface InstalledPackage {
   sourcePath: string;
   destinationPaths: string[];
 }
-export interface Replacement {
-  repository: string;
-  extensionId: string;
-  destinations: string[];
-}
+
 export type OutputPolicy = "strict" | "java-pilot-core-qrc-v1";
-export function validateSourceSelection(
-  selection: {
-    sources: { repository: string }[];
-    projectSource: string;
-    replacements: Replacement[];
-  },
-) {
+export function validateSourceSelection(selection: {
+  sources: { repository: string }[];
+  projectSource: string;
+}) {
   const repositories = selection.sources.map((s) => s.repository);
   if (
     repositories.some((r) => !/^[\w.-]+\/[\w.-]+$/.test(r)) ||
     new Set(repositories).size !== repositories.length ||
-    !repositories.includes(selection.projectSource) || !Array.isArray(selection.replacements)
-  ) throw new Error("Недопустимые projectSource/replacements");
-  const destinations: string[] = [];
-  for (const r of selection.replacements) {
-    if (
-      !r || !repositories.includes(r.repository) || !/^[\w.-]+$/.test(r.extensionId) ||
-      [".", ".."].includes(r.extensionId) || !Array.isArray(r.destinations) ||
-      !r.destinations.length
-    ) throw new Error("Недопустимая замена пакета");
-    for (const path of r.destinations) {
-      if (
-        typeof path !== "string" || !path || isAbsolute(path) || path.includes("\\") ||
-        path.split("/").some((p) => !p || p === "." || p === "..") ||
-        !path.split("/").includes("_extensions")
-      ) throw new Error("Недопустимый destination пакета");
-      if (
-        destinations.some((p) => p === path || p.startsWith(path + "/") || path.startsWith(p + "/"))
-      ) throw new Error("Неоднозначные destinations");
-      destinations.push(path);
-    }
-  }
+    !repositories.includes(selection.projectSource)
+  ) throw new Error("Недопустимый projectSource/sources");
 }
 export interface SourceManifest {
   schema_version: 2;
   projectSource: string;
-  replacements: Replacement[];
   experimentId: string;
   sources: SourceSelection[];
   packages: InstalledPackage[];
@@ -124,11 +93,14 @@ export interface RunPaths {
 
 /** Только для чтения исторических отчётов; не вход prepare/freeze/run. */
 export type HistoricalSourceManifest =
-  & Omit<SourceManifest, "schema_version" | "projectSource" | "replacements">
+  & Omit<SourceManifest, "schema_version" | "projectSource">
   & { schema_version?: 1 };
 export type ReportSourceManifest = SourceManifest | HistoricalSourceManifest;
 export function importSourceManifest(value: unknown, historical = false): ReportSourceManifest {
   const input = object(value, "source manifest");
+  if (!historical && "replacements" in input) {
+    throw new Error("replacements удалены: заново выполните freeze готовых course checkout");
+  }
   const { schema_version: schemaVersion, ...manifestFields } = input;
   const sources: SourceSelection[] = array(input.sources).map((value) => {
     const source = object(value, "source receipt");
@@ -173,21 +145,11 @@ export function importSourceManifest(value: unknown, historical = false): Report
   );
   const common = { sources, packages, runtime, experimentId: string(input.experimentId) };
   if (input.schema_version === 2) {
-    const replacements: Replacement[] = array(input.replacements).map((value) => {
-      const replacement = object(value, "replacement");
-      return {
-        ...replacement,
-        repository: string(replacement.repository),
-        extensionId: string(replacement.extensionId),
-        destinations: strings(replacement.destinations),
-      };
-    });
     const manifest: SourceManifest = {
       ...manifestFields,
       ...common,
       schema_version: 2,
       projectSource: string(input.projectSource),
-      replacements,
     };
     validateSourceSelection(manifest);
     for (const source of sources) {

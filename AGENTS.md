@@ -59,3 +59,10 @@ public/full, полномочий, capability/token/currentness/expiry и физ
 Новые README, документацию и описания PR пишите по-русски по
 [общему языковому правилу](https://github.com/Afonenko-Course-Tools/quarto-course/blob/main/docs/russian-language-policy.md).
 Команды, идентификаторы API, пути, имена пакетов и URL сохраняйте буквально.
+
+## Зависимости и эксперименты
+
+Исходники выбирайте стандартным Git checkout/worktree/submodules, пакеты устанавливайте через
+`quarto add`. Не добавляйте собственные resolver, installer, матрицы SHA или byte-equality gates.
+Experiment receipts автоматически сохраняют фактическое состояние готовых course checkout; обычный
+render не требует этих receipts. Bridge vendor явно и проверяйте через поведение ABI.

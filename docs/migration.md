@@ -1,3 +1,14 @@
+# Переход на Performance 2.2.0
+
+В 2.2.0 удалены `experiment sources`, `sources`/`replacements` из конфигурации и
+`--replacement-owner` из Java checker. Подготовьте checkout/worktree/submodules обычным Git,
+установите bundles через `quarto add`, затем передайте три готовых course checkout в
+`inputs.variants` как абсолютные пути. `inputs.projectSource` совпадает с конфигурацией. `freeze`
+автоматически создаёт receipts фактических HEAD; прежний `baseline` manifest не нужен. См.
+[полный пример](experiments.md). Обычный `render` не требует freeze.
+
+Старые результаты остаются историческими данными; они не задают версии текущих зависимостей.
+
 # Переход с Performance 1.0.0 на 2.0.0
 
 Версия 2.0.0 добавляет установленную команду `quarto-course-perf render` и однократно переводит
@@ -7,21 +18,21 @@
 
 ## Текущие команды
 
-| Задача                                                     | Интерфейс 2.0.0                                                          |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Измерить обычную сборку из каталога курса                  | `quarto-course-perf render [аргументы Quarto]`                           |
-| Получить источники, закрепить варианты, выполнить сценарий | `quarto-course-perf experiment sources`, `freeze`, `run` с `--config` v2 |
-| Сравнить варианты                                          | `quarto-course-perf experiment benchmark` с явной benchmark policy       |
-| Построить или проверить отчёт живого эксперимента v2       | `quarto-course-perf experiment report` / `verify`                        |
-| Прочитать исторический эксперимент без изменения источника | `experiment report` / `verify` с `--import-historical --output PATH`     |
+| Задача                                                     | Интерфейс 2.0.0                                                      |
+| ---------------------------------------------------------- | -------------------------------------------------------------------- |
+| Измерить обычную сборку из каталога курса                  | `quarto-course-perf render [аргументы Quarto]`                       |
+| Получить источники, закрепить варианты, выполнить сценарий | `quarto-course-perf experiment freeze`, `run` с `--config` v2        |
+| Сравнить варианты                                          | `quarto-course-perf experiment benchmark` с явной benchmark policy   |
+| Построить или проверить отчёт живого эксперимента v2       | `quarto-course-perf experiment report` / `verify`                    |
+| Прочитать исторический эксперимент без изменения источника | `experiment report` / `verify` с `--import-historical --output PATH` |
 
 При работе из checkout префикс установленной команды заменяется на `deno task perf` после
 [подготовки зависимостей](development.md). Например, прежнее `deno task perf run ...` заменяется на
 `deno task perf experiment run --config /absolute/perf.json ...`.
 
-В конфигурации v2 явно задаются `projectSource`, `sources` и `replacements`. Сценарий задаёт
-нативные `cwd` и `args`; прежние `project` и `courseProfile` не принимаются. Поле `outputPolicy` по
-умолчанию равно `strict`, а сравнительное измерение требует явного `maxSlowdownRatio`.
+В конфигурации v2 явно задаются `projectSource` и сценарии. Сценарий задаёт нативные `cwd` и `args`;
+прежние `project` и `courseProfile` не принимаются. Поле `outputPolicy` по умолчанию равно `strict`,
+а сравнительное измерение требует явного `maxSlowdownRatio`.
 [Новый пример эксперимента](experiments.md) показывает всю структуру. Не меняйте один номер версии в
 старом JSON: заполните сведения из фактических источников и создайте новый workspace.
 
@@ -32,8 +43,8 @@
 
 ## Чтение сохранённого эксперимента
 
-Обычные `sources`/`freeze`/`run` не принимают старую схему. Для исторического чтения явно задайте
-исходный каталог и новый каталог результата:
+Обычные `freeze`/`run` не принимают старую схему. Для исторического чтения явно задайте исходный
+каталог и новый каталог результата:
 
 ```sh
 quarto-course-perf experiment report --workspace /absolute/history-v1 --import-historical --output /absolute/history-v1-view

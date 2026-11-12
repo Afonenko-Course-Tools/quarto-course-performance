@@ -60,7 +60,6 @@ Deno.test("report separates clock totals, does not claim self time, and retains 
     await writeExperimentReport({
       schema_version: 2 as const,
       projectSource: "org/Fixture",
-      replacements: [],
       experimentId: "e",
       sources: [],
       packages: [],
@@ -131,7 +130,6 @@ Deno.test("report processes an async run stream before requesting the next raw j
       {
         schema_version: 2 as const,
         projectSource: "org/Fixture",
-        replacements: [],
         experimentId: "e",
         sources: [],
         packages: [],
@@ -171,7 +169,6 @@ Deno.test("legacy arbitrary commands are not silently relabeled as native Quarto
           writeExperimentReport({
             schema_version: 2 as const,
             projectSource: "org/Fixture",
-            replacements: [],
             experimentId: "e",
             sources: [],
             packages: [],
@@ -213,7 +210,6 @@ Deno.test("experiment report displays each saved benchmark threshold without a g
       {
         schema_version: 2 as const,
         projectSource: "org/Fixture",
-        replacements: [],
         experimentId: "e",
         sources: [],
         packages: [],
@@ -255,7 +251,6 @@ Deno.test("experiment links survive relocation with trace CPU and off adapters",
       {
         schema_version: 2,
         projectSource: "org/Fixture",
-        replacements: [],
         experimentId: "control",
         sources: [],
         packages: [],

@@ -8,7 +8,6 @@ import { record } from "./report/fixture.ts";
 const selection = {
   schema_version: 2,
   projectSource: "org/course",
-  replacements: [],
   experimentId: "e",
   sources: [{
     repository: "org/course",

@@ -311,7 +311,7 @@ Deno.test("historical CLI requires explicit adapter plus output and rejects live
         assert.deepEqual(await inventory(root), before);
       }
     }
-    for (const command of ["sources", "freeze", "run", "benchmark", "capabilities"]) {
+    for (const command of ["freeze", "run", "benchmark", "capabilities"]) {
       const out = await cli(
         root,
         command,

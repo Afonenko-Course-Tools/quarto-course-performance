@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { validateConfig } from "../../src/config/validate.ts";
 import { object, parseObject } from "../../src/json.ts";
 import { quarto as nativeQuarto } from "../runtime.ts";
-Deno.test("config rejects unknown modes, escaped cwd, duplicate scenarios and missing explicit ref", () => {
+Deno.test("config rejects unknown modes, escaped cwd, duplicate scenarios", () => {
   const s = {
     id: "one",
     cwd: ".",
@@ -17,8 +17,6 @@ Deno.test("config rejects unknown modes, escaped cwd, duplicate scenarios and mi
   const cfg = {
     schema_version: 2,
     projectSource: "org/Other",
-    replacements: [],
-    sources: [{ repository: "org/Other", refPolicy: "remote-default-head" }],
     scenarios: [s],
   };
   const scenario = validateConfig(cfg).scenarios[0];
@@ -47,9 +45,7 @@ Deno.test("v2 config defaults to strict outputs and ten pairs; explicit benchmar
   };
   const config = {
     schema_version: 2,
-    sources: [{ repository: "org/Other", refPolicy: "remote-default-head" }],
     projectSource: "org/Other",
-    replacements: [],
     scenarios: [scenario],
   };
   assert.equal(validateConfig(config).outputPolicy, "strict");
@@ -60,7 +56,7 @@ Deno.test("v2 config defaults to strict outputs and ten pairs; explicit benchmar
   for (
     const change of [
       { schema_version: 1 },
-      { projectSource: "org/Missing" },
+      { projectSource: "invalid" },
       { benchmark: {} },
       { benchmark: { maxSlowdownRatio: 0 } },
       { benchmark: { maxSlowdownRatio: 1.1, pairs: 0 } },
@@ -128,8 +124,6 @@ Deno.test("config проверяет элементы scope и cleanPaths до �
   const config = {
     schema_version: 2,
     projectSource: "org/Other",
-    replacements: [],
-    sources: [{ repository: "org/Other", refPolicy: "remote-default-head" }],
     scenarios: [scenario],
   };
   for (
@@ -146,17 +140,6 @@ Deno.test("config сохраняет дополнительные metadata вс�
   const input = {
     schema_version: 2,
     projectSource: "org/Other",
-    sources: [{
-      repository: "org/Other",
-      refPolicy: "remote-default-head",
-      extra: { owner: "source" },
-    }],
-    replacements: [{
-      repository: "org/Other",
-      extensionId: "owner",
-      destinations: ["_extensions/owner"],
-      extra: { owner: "replacement" },
-    }],
     scenarios: [{
       id: "custom",
       cwd: ".",

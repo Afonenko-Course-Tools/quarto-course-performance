@@ -7,7 +7,7 @@
 
 | Область | Что проверено | Доказательства |
 | --- | --- | --- |
-| Источники и установка | Явный согласованный Java PR13; frozen SHA, dirty/head guards, пути runtime и выбранных installed copies без собственных digest; контроль из другого эксперимента принимается только с совпадающими SHA | source fixtures, manifests, `tools/check-owners.ts`, outputs validation |
+| Источники и установка | Явный согласованный Java PR13; frozen SHA, dirty/head guards, пути runtime и выбранных installed copies без собственных digest; контроль из другого эксперимента принимается только с совпадающими SHA | source fixtures, manifests, outputs validation |
 | Обычный режим | Фабрики TS/Lua возвращают исходную функцию; отказ env permission сохраняет off; Compiler API загружается только для selected TS trace; agents/hooks/profiles не распространяются с расширениями | off/native fixtures, ABI audit семи пакетов, owner CI |
 | Семантика | `this`, args, return values, async siblings, original errors, Lua nil/multiple returns, корутины/creator parent, tail calls и native child exit/signal | regression fixtures, owner native/browser suites, Java comparisons |
 | Выходные данные | Учебный текст, ответы, ссылки, значения и ZIP entries остаются значимыми; source-root normalization ограничена явно заданным корнем; duplicate attrs и script/style/comments не переписываются | negative comparator tests, QRC TS/Lua fixtures, 10 сравнений и repeat |

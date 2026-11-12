@@ -39,7 +39,6 @@ Deno.test("owner normalization executes the frozen Git blob and records its prov
       JSON.stringify({
         schema_version: 2,
         projectSource: "Afonenko-Course-Tools/quarto-reference-catalog",
-        replacements: [],
         experimentId: "e",
         packages: [],
         runtime: {},

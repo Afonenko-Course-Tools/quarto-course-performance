@@ -34,7 +34,6 @@ Deno.test("lazy re-normalization refreshes builds, coverage, summary and both re
       {
         schema_version: 2,
         projectSource: "org/Fixture",
-        replacements: [],
         experimentId: "e",
         sources: [],
         packages: [],
@@ -125,7 +124,6 @@ Deno.test("completed experiment keeps normalized coverage instead of the prepare
       JSON.stringify({
         schema_version: 2,
         projectSource: "org/Fixture",
-        replacements: [],
         experimentId: "e",
         packages: [],
         runtime: {},
@@ -145,8 +143,6 @@ Deno.test("completed experiment keeps normalized coverage instead of the prepare
       JSON.stringify({
         schema_version: 2,
         projectSource: "org/Fixture",
-        replacements: [],
-        sources: [{ repository: "org/Fixture", refPolicy: "remote-default-head" }],
         scenarios: [{
           id: "fixture",
           cwd: ".",
