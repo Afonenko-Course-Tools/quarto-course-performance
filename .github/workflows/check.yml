@@ -27,7 +27,7 @@ jobs:
           deno-version: v2.7.14
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
-          node-version: '24'
+          node-version: "24"
           package-manager-cache: false
       - name: Зависимости typed ESLint и module graph
         run: npm ci --ignore-scripts
@@ -58,7 +58,17 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/performance-python-types" --no-save --ignore-scripts pyright@1.1.414
           echo "$RUNNER_TEMP/performance-python-types/node_modules/.bin" >> "$GITHUB_PATH"
           sudo apt-get update
-          sudo apt-get install -y shellcheck
+          sudo apt-get install -y shellcheck shfmt luarocks
+          pipx install ruff==0.17.5
+          pipx install yamllint==1.38.0
+          luarocks install --local luacheck 1.2.0
+          cargo install stylua --version 2.6.0 --locked
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+          npm install --prefix "$RUNNER_TEMP/performance-format" --no-save --ignore-scripts prettier@3.8.1 @taplo/cli@0.7.0
+          {
+            printf '%s\n' "$RUNNER_TEMP/performance-format/node_modules/.bin" "$HOME/.luarocks/bin" "$HOME/.cargo/bin"
+            go env GOPATH | sed 's|$|/bin|'
+          } >> "$GITHUB_PATH"
       - name: Единая подготовка LuaLS и отрицательный контроль
         run: |
           bash tools/setup-lua-ci.sh "$RUNNER_TEMP/performance-luals"
@@ -76,7 +86,9 @@ jobs:
           shellcheck --version
       - run: deno task check
       - name: Отрицательные контроли каждого quality rule
-        run: npm run check-quality:controls
+        run: |
+          npm run check-quality:controls
+          npm run check:owned:controls
       - name: Native fixtures выбранных инструментов
         run: deno task test
       - name: Загрузка закреплённого Perfetto v58.2

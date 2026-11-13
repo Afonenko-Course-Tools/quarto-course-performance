@@ -69,7 +69,8 @@ async function inventory(root: string, scopes: string[], excludes: string[]) {
   const ignored = new Set<string>([".git", "node_modules", ...excludes]);
   const files: string[] = [];
   const seen = new Set<string>();
-  const inside = (path: string, parent: string) => path === parent || path.startsWith(parent + "/");
+  const inside = (path: string, parent: string) =>
+    parent === "" || path === parent || path.startsWith(parent + "/");
   async function walk(directory: string) {
     for await (const entry of Deno.readDir(join(root, directory))) {
       const path = directory ? directory + "/" + entry.name : entry.name;
@@ -96,7 +97,7 @@ async function inventory(root: string, scopes: string[], excludes: string[]) {
   }
   await walk("");
   for (const scope of scopes) {
-    if (!seen.has(scope)) throw new Error(`Не найден собственный --scope: ${scope}`);
+    if (scope && !seen.has(scope)) throw new Error(`Не найден собственный --scope: ${scope}`);
   }
   if (files.length === 0) throw new Error("Собственный состав Lua пуст");
   return { files: files.sort(), ignored: [...ignored].sort() };
@@ -104,8 +105,11 @@ async function inventory(root: string, scopes: string[], excludes: string[]) {
 const temporary = await Deno.makeTempDir({ prefix: "performance-luals-" });
 try {
   let workspace = options.root;
-  let scopes = options.scopes.length ? options.scopes : ["bridge", "src/agents/lua"];
-  let excludes = options.excludes;
+  let scopes = options.scopes.length ? options.scopes : [""];
+  // @meta-декларации передаются как library; это не исполняемый Lua.
+  let excludes = options.root === ownRoot && options.scopes.length === 0
+    ? ["typecheck", ...options.excludes]
+    : options.excludes;
   if (options.probe) {
     workspace = join(temporary, "probe");
     scopes = ["own"];

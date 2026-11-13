@@ -130,7 +130,7 @@ Deno.test("a failed telemetry clock cannot replace sync/async values or original
       bad = agent.metrics.wrapSync({ id: "bad", kind: "phase" }, () => {
         throw error;
       }),
-      asyncFn = agent.metrics.wrapAsync({ id: "async", kind: "phase" }, async () => 7);
+      asyncFn = agent.metrics.wrapAsync({ id: "async", kind: "phase" }, () => Promise.resolve(7));
     Object.defineProperty(performance, "now", {
       configurable: true,
       value: () => {
@@ -160,7 +160,7 @@ Deno.test("bootstrap preserves import.meta.main, shebang, args and relative impo
       path,
       "#!/usr/bin/env deno\nimport {local} from './local.ts';\nif(import.meta.main) console.log(JSON.stringify([local,Deno.args,globalThis.__probe]));\n",
     );
-    const receipt = await prepareTsBootstrap(path, join(root, "bootstrap.ts"));
+    await prepareTsBootstrap(path, join(root, "bootstrap.ts"));
 
     const out = await new Deno.Command(Deno.execPath(), {
       args: ["run", "--no-check", path, "arg with spaces"],
@@ -182,7 +182,7 @@ Deno.test("calibration uncertainty includes a stalled epoch-clock read", async (
   try {
     Date.now = () => {
       const start = performance.now();
-      while (performance.now() - start < 20) {}
+      while (performance.now() - start < 20) { /* Измеряемая CPU-нагрузка. */ }
       return original();
     };
     const a = installTsAgent({

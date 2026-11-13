@@ -7,18 +7,87 @@ import ts from "typescript";
 import tseslint from "typescript-eslint";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { ESLint } from "eslint";
-import { scope } from "../eslint.config.mjs";
+import { scope, structuralScope } from "../eslint.config.mjs";
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 process.chdir(root);
+/** @param {string} bin @param {string[]} args */
 const run = (bin, args) =>
   execFileSync(bin, args, { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+
+/** @typedef {{ specifier?: string }} GraphResolution */
+/** @typedef {{ specifier: string, type?: GraphResolution, code?: GraphResolution }} GraphDependency */
+/** @typedef {{ specifier: string, local?: string, mediaType?: string, error?: unknown, dependencies?: GraphDependency[] }} GraphModule */
+/** @typedef {{ modules: GraphModule[], redirects: Record<string, string> }} DenoGraph */
+
+/** @param {unknown} value @returns {value is Record<string, unknown>} */
+function isRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+/** @param {unknown} value @returns {value is unknown[]} */
+function isArray(value) {
+  return Array.isArray(value);
+}
+/** @param {unknown} value @returns {value is Record<string, string>} */
+function isStringMap(value) {
+  return isRecord(value) && Object.values(value).every((item) => typeof item === "string");
+}
+/** @param {unknown} value @returns {value is GraphResolution} */
+function isResolution(value) {
+  return isRecord(value) && (!("specifier" in value) || typeof value.specifier === "string");
+}
+/** @param {unknown} value @returns {value is GraphDependency} */
+function isDependency(value) {
+  return isRecord(value) && typeof value.specifier === "string" &&
+    (!("type" in value) || isResolution(value.type)) &&
+    (!("code" in value) || isResolution(value.code));
+}
+/** @param {unknown} value @returns {value is GraphModule} */
+function isModule(value) {
+  return isRecord(value) && typeof value.specifier === "string" &&
+    (!("local" in value) || typeof value.local === "string") &&
+    (!("mediaType" in value) || typeof value.mediaType === "string") &&
+    (!("dependencies" in value) ||
+      (isArray(value.dependencies) && value.dependencies.every(isDependency)));
+}
+/** @param {unknown} value @returns {DenoGraph} */
+function parseGraph(value) {
+  if (
+    !isRecord(value) || !isArray(value.modules) || !value.modules.every(isModule) ||
+    !isStringMap(value.redirects)
+  ) {
+    throw Error("Некорректный Deno module graph");
+  }
+  return { modules: value.modules, redirects: value.redirects };
+}
+/** @param {unknown} value @returns {Record<string, unknown>} */
+function requireRecord(value) {
+  if (!isRecord(value)) throw Error("Ожидается JSON object");
+  return value;
+}
+/** @param {unknown} value @returns {Record<string, string>} */
+function importEntries(value) {
+  if (!isStringMap(value)) throw Error("Некорректный imports map");
+  return value;
+}
+/** @param {string} path @returns {unknown} */
+function readJson(path) {
+  return JSON.parse(readFileSync(path, "utf8"));
+}
+/** @param {unknown} value */
+function hasStructuralRules(value) {
+  const config = requireRecord(value);
+  const rules = requireRecord(config.rules);
+  const complexity = rules.complexity;
+  return isArray(complexity) && complexity[0] === 2;
+}
+
 const temporary = mkdtempSync(join(tmpdir(), "course-quality-"));
 try {
   const tracked = run("git", ["ls-files", "--cached", "--others", "--exclude-standard", "-z"])
     .split("\0");
   const sourceFiles = [...new Set(tracked)].filter((file) =>
     scope.some((prefix) => file.startsWith(prefix)) &&
-    /\.(?:ts|js|cjs)$/.test(file) &&
+    /\.(?:ts|js|cjs|mjs)$/.test(file) &&
     !/(^|\/)(vendor|node_modules|generated|_generated)(\/|$)/.test(file) &&
     existsSync(file)
   )
@@ -36,16 +105,23 @@ try {
   if (!files.length) {
     throw Error("Quality scope пуст: проверка без собственного production-кода запрещена");
   }
-  const denoConfig = JSON.parse(
-    readFileSync(scope[0].startsWith("src/") ? "deno.json" : "typecheck/deno.json", "utf8"),
-  );
-  if (denoConfig.compilerOptions?.strict !== true) throw Error("Quality gate требует strict: true");
-  const imports = { ...(denoConfig.imports ?? {}) };
-  if (!scope[0].startsWith("src/")) {
+  const firstScope = scope[0];
+  if (!firstScope) throw Error("Пустой production scope");
+  const denoConfig = requireRecord(readJson(
+    firstScope.startsWith("src/") ? "deno.json" : "typecheck/deno.json",
+  ));
+  const compilerOptions = requireRecord(denoConfig.compilerOptions);
+  if (compilerOptions.strict !== true) throw Error("Quality gate требует strict: true");
+  const imports = { ...importEntries(denoConfig.imports ?? {}) };
+  if (!firstScope.startsWith("src/")) {
     const share = run(process.env.QUARTO ?? "quarto", ["--paths"]).trim().split("\n").at(-1);
-    const quarto = JSON.parse(readFileSync(join(share, "deno_std/run_import_map.json"), "utf8"));
+    if (!share) throw Error("quarto --paths не вернул share");
+    const quarto = requireRecord(readJson(join(share, "deno_std/run_import_map.json")));
+    const quartoImports = importEntries(quarto.imports);
     for (const name of ["stdlib/path", "stdlib/fs"]) {
-      imports[name] = quarto.imports[name].replace("jsr:/", "jsr:");
+      const target = quartoImports[name];
+      if (!target) throw Error("Отсутствует Quarto import: " + name);
+      imports[name] = target.replace("jsr:/", "jsr:");
     }
     const siblings = dirname(root);
     imports["course-performance/"] = pathToFileURL(
@@ -54,18 +130,20 @@ try {
           join(siblings, "quarto-course-performance"),
       ) + "/",
     ).href;
+    /** @type {Map<string, string>} */
     const providers = new Map();
+    /** @type {Set<string>} */
     const namespaces = new Set();
-    for (
-      const [name, variable, repo] of [
-        ["course-core", "CORE", "quarto-course"],
-        ["course-navigation", "CORE", "quarto-course"],
-        ["course-prairielearn", "PL", "quarto-course-prairielearn"],
-        ["reference-catalog", "QRC", "quarto-reference-catalog"],
-        ["project-download", "DOWNLOAD", "quarto-project-download"],
-        ["course-site", "SITE", "quarto-project-publish"],
-      ]
-    ) {
+    /** @type {Array<[string, string, string]>} */
+    const providerEntries = [
+      ["course-core", "CORE", "quarto-course"],
+      ["course-navigation", "CORE", "quarto-course"],
+      ["course-prairielearn", "PL", "quarto-course-prairielearn"],
+      ["reference-catalog", "QRC", "quarto-reference-catalog"],
+      ["project-download", "DOWNLOAD", "quarto-project-download"],
+      ["course-site", "SITE", "quarto-project-publish"],
+    ];
+    for (const [name, variable, repo] of providerEntries) {
       const source = process.env[variable] ?? join(siblings, repo);
       const extension = [
         join(source, "_extensions", name),
@@ -88,9 +166,9 @@ try {
       }
     }
   }
-  let importMap = process.argv[2];
+  const importMap = process.argv[2];
   if (importMap) {
-    Object.assign(imports, JSON.parse(readFileSync(resolve(importMap), "utf8")).imports);
+    Object.assign(imports, importEntries(requireRecord(readJson(resolve(importMap))).imports));
   }
   const configPath = join(temporary, "deno.json");
   writeFileSync(configPath, JSON.stringify({ ...denoConfig, imports }));
@@ -101,9 +179,9 @@ try {
       `import ${JSON.stringify(pathToFileURL(file).href)};`
     ).join("\n"),
   );
-  const graph = JSON.parse(
+  const graph = parseGraph(JSON.parse(
     run("deno", ["info", "--no-lock", "--config", configPath, "--json", entry]),
-  );
+  ));
   const errors = graph.modules.filter((module) => module.error);
   if (errors.length) throw Error(JSON.stringify(errors));
   const byUrl = new Map(graph.modules.map((module) => [module.specifier, module]));
@@ -111,7 +189,7 @@ try {
     graph.modules.filter((module) => module.local).map((module) => [module.local, module]),
   );
   const options = {
-    ...ts.convertCompilerOptionsFromJson(denoConfig.compilerOptions, root).options,
+    ...ts.convertCompilerOptionsFromJson(compilerOptions, root).options,
     noEmit: true,
     allowImportingTsExtensions: true,
     allowJs: true,
@@ -133,8 +211,8 @@ try {
     names.map((name) => {
       const dep = byFile.get(containing)?.dependencies?.find((item) => item.specifier === name);
       let url = dep?.type?.specifier ?? dep?.code?.specifier;
-      while (graph.redirects[url]) url = graph.redirects[url];
-      const module = byUrl.get(url);
+      while (url && graph.redirects[url]) url = graph.redirects[url];
+      const module = url ? byUrl.get(url) : undefined;
       return module?.local
         ? {
           resolvedFileName: module.local,
@@ -161,27 +239,41 @@ try {
     }));
   }
   const eslint = new ESLint({
-    overrideConfig: [{ languageOptions: { parserOptions: { programs } } }],
+    overrideConfig: [{ files: structuralScope, languageOptions: { parserOptions: { programs } } }],
   });
-  const results = await eslint.lintFiles(checkedFiles);
+  // Node helpers имеют собственный TS project; они не попадают в production Deno graph.
+  run(join(root, "node_modules/.bin/tsc"), ["--project", "typecheck/helpers.json"]);
+  const helperFiles = [...new Set(tracked)].filter((file) =>
+    (/^[^/]+\.(?:js|cjs|mjs)$/.test(file) || /^tools\/.*\.(?:js|cjs|mjs)$/.test(file)) &&
+    existsSync(file) &&
+    !/(^|\/)(vendor|node_modules|generated|_generated)(\/|$)/.test(file)
+  ).sort().map((file) => resolve(file));
+  const lintFiles = [...checkedFiles, ...helperFiles];
+  const results = await eslint.lintFiles(lintFiles);
   console.log(await (await eslint.loadFormatter("stylish")).format(results));
-  if (results.length !== checkedFiles.length || results.some((result) => result.warningCount)) {
+  if (results.length !== lintFiles.length || results.some((result) => result.warningCount)) {
     throw Error("Неполный quality scope либо предупреждения линтера");
   }
+  const pluginMetadata = requireRecord(tseslint.plugin.meta);
+  const pluginVersion = pluginMetadata.version;
+  if (typeof pluginVersion !== "string") throw Error("Отсутствует версия typescript-eslint");
   let receipt;
   if (results.some((result) => result.errorCount)) process.exitCode = 1;
   else {
     const configured = await Promise.all(
-      checkedFiles.map((file) => eslint.calculateConfigForFile(file)),
+      checkedFiles.map(async (file) =>
+        hasStructuralRules(await eslint.calculateConfigForFile(file))
+      ),
     );
     receipt = {
       checked: files.length,
+      helpersChecked: helperFiles.length,
       javascriptChecked: javascriptFiles.length,
-      structuralChecked: configured.filter((config) => config.rules.complexity?.[0] === 2).length,
+      structuralChecked: configured.filter(Boolean).length,
       strict: true,
       typescript: ts.version,
       eslint: ESLint.version,
-      typescriptESLint: tseslint.parser.meta.version,
+      typescriptESLint: pluginVersion,
       graphModules: graph.modules.length,
     };
   }
@@ -196,8 +288,10 @@ try {
   );
   if (!process.exitCode) console.log(JSON.stringify(receipt));
 } catch (error) {
-  if (error.stdout) console.error(String(error.stdout));
-  console.error(error.message);
+  if (error instanceof Error && "stdout" in error && error.stdout) {
+    console.error(String(error.stdout));
+  }
+  console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
 } finally {
   rmSync(temporary, { recursive: true, force: true });

@@ -18,11 +18,11 @@ pandoc.system = pandoc.system
 pandoc.json = {}
 ---@type CoursePerfJsonNull
 pandoc.json.null = nil
----@param source string
----@param pandoc_types? boolean
+---@param _source string
+---@param _pandoc_types? boolean
 ---@overload fun(source:string,pandoc_types:false):CoursePerfDecodedJson
 ---@return unknown
-function pandoc.json.decode(source, pandoc_types) end
----@param value unknown
+function pandoc.json.decode(_source, _pandoc_types) end
+---@param _value unknown
 ---@return string
-function pandoc.json.encode(value) end
+function pandoc.json.encode(_value) end

@@ -2,7 +2,9 @@
 # Проверка публичных переменных рецепта без сборки и установки пакета.
 set -eu
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
-source packaging/arch/PKGBUILD
+(($# <= 1))
+# shellcheck source=packaging/arch/PKGBUILD
+source "${1:-packaging/arch/PKGBUILD}"
 [[ $pkgname == quarto-course-perf && $pkgver =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
 [[ $pkgrel =~ ^[0-9]+$ && -n $pkgdesc && $url == https://* ]]
 [[ ${#arch[@]} -gt 0 && ${#depends[@]} -gt 0 ]]
