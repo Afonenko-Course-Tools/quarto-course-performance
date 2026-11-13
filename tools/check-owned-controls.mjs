@@ -1,5 +1,6 @@
 // Проверяем автоматический выбор новых файлов штатной блокирующей командой.
 import { execFileSync } from "node:child_process";
+import process from "node:process";
 import { chmodSync, existsSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";

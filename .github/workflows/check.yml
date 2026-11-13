@@ -62,7 +62,7 @@ jobs:
           pipx install ruff==0.17.5
           pipx install yamllint==1.38.0
           luarocks install --local luacheck 1.2.0
-          cargo install stylua --version 2.6.0 --locked
+          cargo install stylua --version 2.6.0 --locked --features lua54
           go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
           npm install --prefix "$RUNNER_TEMP/performance-format" --no-save --ignore-scripts prettier@3.8.1 @taplo/cli@0.7.0
           {

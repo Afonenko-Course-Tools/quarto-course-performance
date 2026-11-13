@@ -1,5 +1,6 @@
 // Проверяет правила штатной командой на новых production-файлах; исходники всегда удаляются.
 import { execFileSync } from "node:child_process";
+import process from "node:process";
 import { existsSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

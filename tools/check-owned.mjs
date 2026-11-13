@@ -1,5 +1,6 @@
 // Автоматический состав собственных файлов; каждый формат имеет одного владельца.
 import { execFileSync } from "node:child_process";
+import process from "node:process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";

@@ -1,5 +1,6 @@
 // Адаптер фактического Deno graph к стандартному typed ESLint.
 import { execFileSync } from "node:child_process";
+import process from "node:process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
