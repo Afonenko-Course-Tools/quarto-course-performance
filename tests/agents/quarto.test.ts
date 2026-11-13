@@ -15,7 +15,7 @@ Deno.test("filter adapter excludes skipped nil/empty filters and does not preten
       join(source, "filters/main.lua"),
       "function run_emulated_filter(doc, filter, traverser) return doc end\n_quarto={}\n_quarto.ast = {}\n",
     );
-    const receipt = await prepareFilterAdapter(source, copy);
+    await prepareFilterAdapter(source, copy);
 
     const script = join(root, "test.lua"),
       agent = fileURLToPath(new URL("../../src/agents/lua/agent.lua", import.meta.url));

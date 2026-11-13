@@ -27,9 +27,9 @@ Deno.test("lazy re-normalization refreshes builds, coverage, summary and both re
     );
     const original = { ...record(dir, "r"), dataValid: true };
     await Deno.writeTextFile(join(dir, "run.json"), JSON.stringify(original));
-    async function* runs() {
+    const runs = async function* () {
       yield await normalizeRun(dir);
-    }
+    };
     const result = await writeExperimentReport(
       {
         schema_version: 2,

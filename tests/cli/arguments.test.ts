@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import { parseCommand } from "../../src/cli/arguments.ts";
 
 async function parse(argv: readonly string[]) {
+  await Promise.resolve();
   return parseCommand(argv);
 }
 

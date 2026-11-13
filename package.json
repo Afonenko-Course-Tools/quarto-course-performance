@@ -4,14 +4,25 @@
   "type": "module",
   "devDependencies": {
     "@types/node": "^26.6.6",
-    "eslint": "^9.39.1",
-    "typescript-eslint": "^8.72.2",
     "dependency-cruiser": "^18.7.2",
-    "typescript": "^6.0.3"
+    "eslint": "^10.14.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.2"
   },
   "scripts": {
     "check-quality": "node tools/check-quality.mjs",
     "check:dependencies": "depcruise --config .dependency-cruiser.json --output-type err-long src bridge",
-    "check-quality:controls": "node tools/check-quality-controls.mjs"
+    "check-quality:controls": "node tools/check-quality-controls.mjs",
+    "check:owned": "node tools/check-owned.mjs",
+    "format": "node tools/check-owned.mjs --write",
+    "check:owned:controls": "node tools/check-owned-controls.mjs"
+  },
+  "overrides": {
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.8"
+    },
+    "eslint": {
+      "minimatch": "^11.0.8"
+    }
   }
 }

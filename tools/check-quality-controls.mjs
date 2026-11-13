@@ -1,11 +1,15 @@
 // Проверяет правила штатной командой на новых production-файлах; исходники всегда удаляются.
 import { execFileSync } from "node:child_process";
+import process from "node:process";
 import { existsSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { scope } from "../eslint.config.mjs";
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
+/** @type {string[]} */
 const files = [];
+const productionPrefix = scope[0];
+if (!productionPrefix) throw Error("Пустой production scope");
 function run() {
   try {
     return {
@@ -18,11 +22,15 @@ function run() {
     };
   } catch (error) {
     return {
-      status: error.status ?? 1,
-      output: String(error.stdout ?? "") + String(error.stderr ?? ""),
+      status: error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 1,
+      output: String(error instanceof Error && "stdout" in error ? error.stdout : "") +
+        String(error instanceof Error && "stderr" in error ? error.stderr : ""),
     };
   }
 }
+/** @param {string} path @param {string} source */
 function put(path, source) {
   const file = join(root, path);
   if (existsSync(file)) throw Error("Контрольный путь уже занят: " + file);
@@ -32,6 +40,20 @@ function put(path, source) {
 function clean() {
   for (const file of files.splice(0)) unlinkSync(file);
 }
+/** @param {string} output */
+function parseReceipt(output) {
+  /** @type {unknown} */
+  const value = JSON.parse(output.trim().split("\n").at(-1) ?? "");
+  if (
+    !value || typeof value !== "object" ||
+    !("javascriptChecked" in value) || typeof value.javascriptChecked !== "number" ||
+    !("structuralChecked" in value) || typeof value.structuralChecked !== "number"
+  ) {
+    throw Error("Неверный quality receipt");
+  }
+  return { javascriptChecked: value.javascriptChecked, structuralChecked: value.structuralChecked };
+}
+/** @type {Array<[string, string]>} */
 const cases = [
   ["no-explicit-any", "export const explicit: any = 1;"],
   ["ban-ts-comment", "// @ts-ignore\nexport const ignored = 1;"],
@@ -72,31 +94,84 @@ try {
     throw Error("Исходный production gate не проходит:\n" + positive.output);
   }
   console.log(JSON.stringify({ control: "positive", status: "passed" }));
-  put(scope[0] + "__quality_positive.js", "export const currentDirectory = Deno.cwd();");
-  const javascriptPositive = run();
-  clean();
-  if (javascriptPositive.status !== 0) {
-    throw Error("Настоящий Deno JS context не прошёл:\n" + javascriptPositive.output);
+  const baseline = parseReceipt(positive.output);
+  for (
+    const [name, source, expected] of [
+      ["strict-helper-checkJs", '/** @type {number} */ export const typed = "wrong";', "TS2322"],
+      [
+        "typed-helper-no-unsafe-assignment",
+        '/** @type {string} */ export const unsafe = JSON.parse("{}");',
+        "no-unsafe-assignment",
+      ],
+    ]
+  ) {
+    if (!name || !source || !expected) throw Error("Неверный helper control");
+    put("tools/__quality_helper_negative.mjs", source);
+    const result = run();
+    clean();
+    if (result.status === 0 || !result.output.includes(expected)) {
+      throw Error("Helper control не обнаружен: " + name + "\n" + result.output);
+    }
+    console.log(JSON.stringify({ control: name, status: "rejected" }));
   }
-  const jsReceipt = JSON.parse(javascriptPositive.output.trim().split("\n").at(-1));
-  if (jsReceipt.javascriptChecked !== 1 || jsReceipt.structuralChecked !== jsReceipt.checked + 1) {
-    throw Error("Неполный учёт production JS в quality receipt");
+
+  for (
+    const [path, source] of [
+      [
+        "tools/__quality_helper_negative.cjs",
+        '/** @type {number} */ const typed = "wrong"; module.exports = typed;',
+      ],
+      ["__quality_helper_negative.js", '/** @type {number} */ export const typed = "wrong";'],
+    ]
+  ) {
+    if (!path || !source) throw Error("Неверный helper extension control");
+    put(path, source);
+    const result = run();
+    clean();
+    if (result.status === 0 || !result.output.includes("TS2322")) {
+      throw Error("Новый Node helper не проверен: " + path + "\n" + result.output);
+    }
+    console.log(JSON.stringify({ control: path, status: "rejected" }));
   }
-  console.log(
-    JSON.stringify({ control: "real-deno-javascript-context-and-count", status: "passed" }),
-  );
-  put(
-    scope[0] + "__quality_negative.js",
-    "/** @type {string} */ export const unsafeJavaScript = JSON.parse('{}');",
-  );
-  const javascript = run();
-  clean();
-  if (javascript.status === 0 || !javascript.output.includes("no-unsafe-assignment")) {
-    throw Error("Новый production JS не проверен typed gate:\n" + javascript.output);
+  for (const extension of ["js", "cjs", "mjs"]) {
+    put(
+      productionPrefix + "__quality_positive." + extension,
+      extension === "cjs"
+        ? "exports.currentDirectory = Deno.cwd();"
+        : "export const currentDirectory = Deno.cwd();",
+    );
+    const javascriptPositive = run();
+    clean();
+    if (javascriptPositive.status !== 0) {
+      throw Error("Настоящий Deno JS context не прошёл:\n" + javascriptPositive.output);
+    }
+    const receipt = parseReceipt(javascriptPositive.output);
+    if (
+      receipt.javascriptChecked !== baseline.javascriptChecked + 1 ||
+      receipt.structuralChecked !== baseline.structuralChecked + 1
+    ) {
+      throw Error("Неполный typed/structural учёт production " + extension);
+    }
+    console.log(
+      JSON.stringify({ control: "real-deno-context-and-count-" + extension, status: "passed" }),
+    );
+    put(
+      productionPrefix + "__quality_negative." + extension,
+      extension === "cjs"
+        ? "/** @type {string} */ exports.unsafeJavaScript = JSON.parse('{}');"
+        : "/** @type {string} */ export const unsafeJavaScript = JSON.parse('{}');",
+    );
+    const javascript = run();
+    clean();
+    if (javascript.status === 0 || !javascript.output.includes("no-unsafe-assignment")) {
+      throw Error(
+        "Новый production " + extension + " не проверен typed gate:\n" + javascript.output,
+      );
+    }
+    console.log(JSON.stringify({ control: "automatic-scope-" + extension, status: "rejected" }));
   }
-  console.log(JSON.stringify({ control: "automatic-javascript-scope", status: "rejected" }));
   for (const [rule, source] of cases) {
-    put(scope[0] + "__quality_negative.ts", source);
+    put(productionPrefix + "__quality_negative.ts", source);
     const result = run();
     clean();
     const expected = rule === "malformed AST"
@@ -108,11 +183,11 @@ try {
     console.log(JSON.stringify({ control: rule, status: "rejected" }));
   }
   put(
-    scope[0] + "__quality_cycle_a.ts",
+    productionPrefix + "__quality_cycle_a.ts",
     "import { b } from './__quality_cycle_b.ts'; export function a(): number { return b(); }",
   );
   put(
-    scope[0] + "__quality_cycle_b.ts",
+    productionPrefix + "__quality_cycle_b.ts",
     "import { a } from './__quality_cycle_a.ts'; export function b(): number { return a(); }",
   );
   const cycle = run();

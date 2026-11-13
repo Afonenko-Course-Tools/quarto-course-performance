@@ -1,15 +1,32 @@
+# shellcheck shell=bash
 # Шаблон: после публикации тега заполнить sha256sums штатным updpkgsums.
 pkgname=quarto-course-perf
 pkgver=2.2.0
+# makepkg читает pkgrel из окружения рецепта.
+# shellcheck disable=SC2034
 pkgrel=1
+# makepkg читает pkgdesc из окружения рецепта.
+# shellcheck disable=SC2034
 pkgdesc='Измерение рендера Quarto и изолированные эксперименты курса'
+# makepkg читает arch из окружения рецепта.
+# shellcheck disable=SC2034
 arch=('any')
 url='https://github.com/Afonenko-Course-Tools/quarto-course-performance'
 # В исходниках нет лицензии; решение правообладателя ещё требуется.
+# makepkg читает license из окружения рецепта.
+# shellcheck disable=SC2034
 license=()
+# makepkg читает depends из окружения рецепта.
+# shellcheck disable=SC2034
 depends=('deno' 'quarto' 'time' 'util-linux' 'typescript')
+# makepkg читает optdepends из окружения рецепта.
+# shellcheck disable=SC2034
 optdepends=('hyperfine: сравнительные измерения' 'git: экспорт локальных checkout эксперимента' 'tar: распаковка входов эксперимента' 'unzip: распаковка расширенных входных данных')
+# makepkg читает source из окружения рецепта.
+# shellcheck disable=SC2034
 source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz")
+# makepkg читает sha256sums из окружения рецепта.
+# shellcheck disable=SC2034
 sha256sums=('')
 
 check() {

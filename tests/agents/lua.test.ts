@@ -44,7 +44,7 @@ async function fixture(source: string, mode = "summary") {
     try {
       events = (await Deno.readTextFile(join(root, "events/p/lua.jsonl"))).trim().split("\n")
         .filter(Boolean).map((line) => validateEvent(parseJson(line)));
-    } catch {}
+    } catch { /* Режим off не создаёт журнал событий. */ }
     return { result, events, stdout: new TextDecoder().decode(out.stdout) };
   } finally {
     await Deno.remove(root, { recursive: true });

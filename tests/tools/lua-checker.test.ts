@@ -1,4 +1,5 @@
 import { strict as assert } from "node:assert";
+import { basename } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const checker = fileURLToPath(new URL("../../tools/check-lua.ts", import.meta.url));
@@ -197,5 +198,24 @@ assert(first(1)==2 and second(2)==3 and third(3)==4)
     }
   } finally {
     await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("Lua checker default discovers a new owned tools file outside previous runtime directories", async () => {
+  const tools = fileURLToPath(new URL("../../tools/", import.meta.url));
+  const library = fileURLToPath(new URL("../../typecheck/", import.meta.url));
+  const selected = await Deno.makeTempFile({
+    dir: tools,
+    prefix: "__lua_auto_scope_",
+    suffix: ".lua",
+  });
+  try {
+    await Deno.writeTextFile(selected, faultyLua);
+    const result = await invoke(["--library", library]);
+    assert.equal(result.success, false, "Новый собственный Lua helper получил ложный PASS");
+    assert(diagnosticFiles(result.text).some((path) => path.endsWith(basename(selected))));
+    assert.match(result.text, /no-unknown/);
+  } finally {
+    await Deno.remove(selected);
   }
 });
