@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "module": "NodeNext",
+    "target": "ESNext",
+    "types": [
+      "node"
+    ],
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true
+  },
+  "include": [
+    "../tools/**/*.js",
+    "../tools/**/*.cjs",
+    "../tools/**/*.mjs",
+    "../*.js",
+    "../*.cjs",
+    "../*.mjs"
+  ],
+  "exclude": [
+    "../**/node_modules",
+    "../**/vendor",
+    "../**/generated",
+    "../**/_generated"
+  ]
+}

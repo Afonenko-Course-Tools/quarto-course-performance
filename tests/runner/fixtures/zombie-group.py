@@ -1,9 +1,9 @@
 import json
 import os
-from pathlib import Path
 import signal
 import sys
 import time
+from pathlib import Path
 
 root = Path(sys.argv[1])
 with_live = sys.argv[2] == "live"
@@ -42,10 +42,18 @@ for descriptor in (0, 1, 2):
     os.dup2(null, descriptor)
 if null > 2:
     os.close(null)
-(root / "state.json").write_text(json.dumps({
-    "holder": os.getpid(), "zombie": zombie, "live": live,
-    "group": original_group, "holderGroup": os.getpgrp(), "session": os.getsid(0),
-}))
+(root / "state.json").write_text(
+    json.dumps(
+        {
+            "holder": os.getpid(),
+            "zombie": zombie,
+            "live": live,
+            "group": original_group,
+            "holderGroup": os.getpgrp(),
+            "session": os.getsid(0),
+        }
+    )
+)
 os.write(writer, b"r")
 os.close(writer)
 deadline = time.monotonic() + 15

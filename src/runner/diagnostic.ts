@@ -31,7 +31,7 @@ export async function prepareDiagnostic(
   });
   preparedScripts.push(...setup.preparedScripts);
   const cwd = resolve(prepared.root, scenario.cwd);
-  const target = scenario.args[0] === "render"
+  const _target = scenario.args[0] === "render"
     ? await resolveRenderProject({
       cwd,
       quarto,

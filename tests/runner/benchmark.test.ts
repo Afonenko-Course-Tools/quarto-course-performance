@@ -107,8 +107,13 @@ Deno.test("benchmark rejects a known native zero when supervisor observation is 
     if (path === "/proc" && completed()) {
       injected = true;
       return {
-        async *[Symbol.asyncIterator]() {
-          throw new Deno.errors.PermissionDenied("benchmark proc observation unavailable");
+        [Symbol.asyncIterator]() {
+          return {
+            next: () =>
+              Promise.reject(
+                new Deno.errors.PermissionDenied("benchmark proc observation unavailable"),
+              ),
+          };
         },
       };
     }

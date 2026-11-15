@@ -1,6 +1,16 @@
 {
-  "include": ["tests/runner/fixtures/zombie-group.py"],
+  "include": [
+    "."
+  ],
   "typeCheckingMode": "strict",
   "pythonPlatform": "Linux",
-  "pythonVersion": "3.13"
+  "pythonVersion": "3.13",
+  "exclude": [
+    "**/node_modules",
+    "**/vendor",
+    "**/generated",
+    "**/_generated",
+    ".workspace",
+    "evidence"
+  ]
 }

@@ -18,8 +18,11 @@ Deno.readDir = ((path: string | URL) => {
   injected = true;
   if (kind === "enumeration") {
     return {
-      async *[Symbol.asyncIterator]() {
-        throw new Deno.errors.PermissionDenied("persistent proc enumeration");
+      [Symbol.asyncIterator]() {
+        return {
+          next: () =>
+            Promise.reject(new Deno.errors.PermissionDenied("persistent proc enumeration")),
+        };
       },
     };
   }

@@ -6,6 +6,9 @@
 
 ## Системный TypeScript в рабочей копии
 
+Подготовка среды разработки на Arch Linux и установка инструментов описаны в
+[общем руководстве](https://github.com/Afonenko-Course-Tools/quarto-course/blob/main/docs/development-arch.md).
+
 Performance 2.2.0 в этой рабочей копии использует системный Compiler API без закрепления точной
 версии компилятора. На Arch пакет `typescript` предоставляет
 `/usr/lib/node_modules/typescript/lib/typescript.js` и соседний `typescript.d.ts`. Runtime-проверка
